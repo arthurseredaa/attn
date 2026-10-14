@@ -3,8 +3,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { articles } from './db/schema';
+import { PIPELINE_LOCK_KEY, withAdvisoryLock } from './db/lock';
 import { articleHtml } from './extract/fixtures/html';
-import { createFakeLabeler, RateLimitError, type Labeler } from './label';
+import { createFakeLabeler, FatalLabelerError, RateLimitError, type Labeler } from './label';
 import { loadTaxonomy } from './data';
 import type { Taxonomy } from '@attn/shared';
 import type { Db } from './db/client';
@@ -77,6 +78,47 @@ describe('attn collect', () => {
   it.each(['0', 'abc', '3651', '99999999999999999999'])('rejects --backfill-days %s', async (v) => {
     expect(await run(['collect', '--backfill-days', v], env, io, deps)).toBe(1);
     expect(err.join('\n')).toContain('--backfill-days');
+  });
+});
+
+describe('pipeline lock', () => {
+  async function whileLocked(fn: () => Promise<void>) {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let entered!: () => void;
+    const ready = new Promise<void>((resolve) => (entered = resolve));
+    const holder = withAdvisoryLock(TEST_DATABASE_URL, PIPELINE_LOCK_KEY, async () => {
+      entered();
+      await held;
+    });
+    await ready;
+    try {
+      await fn();
+    } finally {
+      release();
+      await holder;
+    }
+  }
+
+  it('collect exits 1 without touching the database while the lock is held', async () => {
+    await whileLocked(async () => {
+      expect(await run(['collect'], env, io, deps)).toBe(1);
+    });
+    expect(err.join('\n')).toContain('another collect/label run is in progress');
+    expect(out).toEqual([]);
+    expect(await db.select().from(articles)).toHaveLength(0);
+    expect(await run(['collect'], env, io, deps)).toBe(0);
+  });
+
+  it('label exits 1 while the lock is held', async () => {
+    fs.copyFileSync(path.resolve(import.meta.dirname, '../../../data/taxonomy.yml'), path.join(tmp, 'taxonomy.yml'));
+    const labelEnv = { ...env, LABEL_MODEL: 'fake-model' };
+    const withFake = { ...deps, sleep: async () => {}, makeLabeler: () => createFakeLabeler() };
+    await whileLocked(async () => {
+      expect(await run(['label'], labelEnv, io, withFake)).toBe(1);
+    });
+    expect(err.join('\n')).toContain('another collect/label run is in progress');
+    expect(await run(['label'], labelEnv, io, withFake)).toBe(0);
   });
 });
 
@@ -186,6 +228,19 @@ describe('attn label', () => {
     expect(text).toContain('rate_limited=yes');
     expect(text).toContain('the remaining articles stay pending for the next run');
     expect(await statuses()).toEqual(['pending']);
+  });
+
+  it('exits 1 on a fatal provider error and leaves the article untouched', async () => {
+    await seed(1);
+    const makeLabeler = () =>
+      createFakeLabeler(() => {
+        throw new FatalLabelerError('provider rejected the request (401)');
+      });
+    expect(await run(['label'], labelEnv, io, { ...labelDeps, makeLabeler })).toBe(1);
+    expect(err.join('\n')).toContain('provider error: provider rejected the request (401)');
+    expect(out.join('\n')).toContain('selected=1 labeled=0 failed=0');
+    const [row] = await db.select().from(articles);
+    expect([row!.labelStatus, row!.labelAttempts]).toEqual(['pending', 0]);
   });
 
   it('shows a failed article with its error', async () => {
@@ -300,6 +355,26 @@ describe('attn eval', () => {
     expect(await run(['eval', '--model', 'm'], evalEnv, io, { ...evalDeps, makeLabeler })).toBe(1);
     expect(out.join('\n')).toContain('model:');
     expect(err.join('\n')).toContain('rate limited by the provider; evaluation is incomplete');
+  });
+
+  it('exits 1 with the partial report on a fatal provider error', async () => {
+    const makeLabeler = () =>
+      createFakeLabeler(() => {
+        throw new FatalLabelerError('provider rejected the request (404)');
+      });
+    expect(await run(['eval', '--model', 'm'], evalEnv, io, { ...evalDeps, makeLabeler })).toBe(1);
+    expect(out.join('\n')).toContain('model:');
+    expect(err.join('\n')).toContain('provider error: provider rejected the request (404)');
+  });
+
+  it('exits 1 when nothing could be scored', async () => {
+    const makeLabeler = () =>
+      createFakeLabeler(() => {
+        throw new Error('boom');
+      });
+    expect(await run(['eval', '--model', 'm'], evalEnv, io, { ...evalDeps, makeLabeler })).toBe(1);
+    expect(out.join('\n')).toContain('evaluated=0 of 4 failed=4');
+    expect(err.join('\n')).toContain('no article could be evaluated');
   });
 
   it('rejects a repeated --model and unknown flags', async () => {

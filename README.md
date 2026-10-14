@@ -74,6 +74,13 @@ It takes pending articles oldest first (at most `label_batch`, or `--limit` if s
 keeps it in memory only; just `word_count` is stored. A page that cannot be fetched or yields fewer than
 `label_min_chars` characters (paywall, JS-only page, PDF) becomes `failed` and is retried on later runs until
 `label_max_attempts`. If the provider answers 429, the run ends and the remaining articles stay `pending`.
+A bad or missing API key (401/403) or an unknown model id (404) is fatal: the run stops at once without
+changing that article's status or attempts, `attn label` prints the provider error and exits 1, and the API job
+logs it at error level. `attn eval` stops the same way and exits 1 with the partial report; it also exits 1 when
+not a single article could be scored.
+
+`attn collect` and `attn label` take the same Postgres advisory lock as the daily job. If another run holds it,
+they print `another collect/label run is in progress` and exit 1.
 
 Output: one line per article, `<outcome>  <url>[  <error>]`, then
 `total: selected=<n> labeled=<n> failed=<n> rate_limited=<yes|no>`.
@@ -84,7 +91,7 @@ type has no place for user data (quiz answers, levels, user ids). This is enforc
 ### Daily job
 
 The API (`pnpm api`) runs collect and then label at `schedule_cron` (UTC, from `data/config.yml`) under a
-Postgres advisory lock, so two instances never run it at once. `SCHEDULE_ENABLED=false` disables it. Without
+Postgres advisory lock, so two instances never run it at once, and neither does a manual `attn collect` / `attn label` alongside it. `SCHEDULE_ENABLED=false` disables it. Without
 `LABEL_MODEL` or the API key the label step is reported as skipped.
 
 ## Evaluation
@@ -134,6 +141,7 @@ disagreements:
     primary_skill: expected=cc-hooks actual=cc-subagents
 failed:
   https://example.com/paywalled  text too short: 120 < 500 chars
+  https://example.com/pdf        HTTP 404
 ```
 
 The numbers are illustrative.

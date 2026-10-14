@@ -33,6 +33,7 @@ export interface EvalReport {
   evaluated: number;
   failures: EvalFailure[];
   rateLimited: boolean;
+  fatal?: string;
   metrics: EvalMetrics | null;
   disagreements: Disagreement[];
 }
@@ -78,6 +79,7 @@ export function buildReport(args: {
   scored: { url: string; expected: GoldenItem; actual: LabelOutput }[];
   failures: EvalFailure[];
   rateLimited: boolean;
+  fatal?: string;
 }): EvalReport {
   const { scored } = args;
   const scores = scored.map((s) => scoreItem(s.expected, s.actual));
@@ -99,6 +101,7 @@ export function buildReport(args: {
     evaluated: scored.length,
     failures: args.failures,
     rateLimited: args.rateLimited,
+    ...(args.fatal !== undefined ? { fatal: args.fatal } : {}),
     metrics,
     disagreements: scored.flatMap((s) => findDisagreements(s.url, s.expected, s.actual)),
   };
@@ -131,5 +134,6 @@ export function formatEvalReport(report: EvalReport): string {
     for (const f of report.failures) lines.push(`  ${f.url}  ${f.error}`);
   }
   if (report.rateLimited) lines.push('rate limited: evaluation stopped early');
+  if (report.fatal) lines.push(`provider error: ${report.fatal}; evaluation stopped early`);
   return lines.join('\n');
 }

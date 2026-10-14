@@ -3,7 +3,7 @@ import { normalizeLabel, type Config } from '@attn/shared';
 import type { FetchFn } from '../collect/http';
 import { articleSkills, articles, type Db } from '../db';
 import { fetchArticleText, limitText } from '../extract';
-import { makePublicArticle, RateLimitError, type Labeler } from '../label';
+import { makePublicArticle, FatalLabelerError, RateLimitError, type Labeler } from '../label';
 
 export interface LabelOptions {
   db: Db;
@@ -29,6 +29,8 @@ export interface LabelReport {
   labeled: number;
   failed: number;
   rateLimited: boolean;
+  /** Set when the provider rejected the credentials or model id; the run stopped without touching that article. */
+  fatal?: string;
   items: LabelItemReport[];
 }
 
@@ -83,6 +85,10 @@ export async function labelPending(opts: LabelOptions): Promise<LabelReport> {
       calledLabeler = true;
       label = normalizeLabel(await labeler.label(makePublicArticle({ title: row.title, url: row.url, text })));
     } catch (e) {
+      if (e instanceof FatalLabelerError) {
+        report.fatal = e.message;
+        break;
+      }
       if (e instanceof RateLimitError) {
         report.rateLimited = true;
         report.items.push({ id: row.id, url: row.url, outcome: 'rate_limited', error: e.message });
@@ -92,27 +98,31 @@ export async function labelPending(opts: LabelOptions): Promise<LabelReport> {
       continue;
     }
 
-    await db.transaction(async (tx) => {
-      await tx
-        .update(articles)
-        .set({
-          labelStatus: 'labeled',
-          difficulty: label.difficulty,
-          type: label.type,
-          quality: label.quality,
-          labelModel: labeler.model,
-          labeledAt: now,
-          taxonomyVersion,
-        })
-        .where(eq(articles.id, row.id));
-      await tx.delete(articleSkills).where(eq(articleSkills.articleId, row.id));
-      await tx.insert(articleSkills).values([
-        { articleId: row.id, skillId: label.primary_skill, isPrimary: true },
-        ...label.secondary_skills.map((skillId) => ({ articleId: row.id, skillId, isPrimary: false })),
-      ]);
-    });
-    report.labeled++;
-    report.items.push({ id: row.id, url: row.url, outcome: 'labeled' });
+    try {
+      await db.transaction(async (tx) => {
+        await tx
+          .update(articles)
+          .set({
+            labelStatus: 'labeled',
+            difficulty: label.difficulty,
+            type: label.type,
+            quality: label.quality,
+            labelModel: labeler.model,
+            labeledAt: now,
+            taxonomyVersion,
+          })
+          .where(eq(articles.id, row.id));
+        await tx.delete(articleSkills).where(eq(articleSkills.articleId, row.id));
+        await tx.insert(articleSkills).values([
+          { articleId: row.id, skillId: label.primary_skill, isPrimary: true },
+          ...label.secondary_skills.map((skillId) => ({ articleId: row.id, skillId, isPrimary: false })),
+        ]);
+      });
+      report.labeled++;
+      report.items.push({ id: row.id, url: row.url, outcome: 'labeled' });
+    } catch (e) {
+      await fail(row, messageOf(e));
+    }
   }
   return report;
 }

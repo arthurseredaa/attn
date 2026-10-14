@@ -1,17 +1,12 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  type OnApplicationBootstrap,
-} from "@nestjs/common";
-import { SchedulerRegistry } from "@nestjs/schedule";
-import type { Config } from "@attn/shared";
-import { CronJob } from "cron";
-import type { Env } from "../config/env";
-import { APP_CONFIG, ENV } from "../tokens";
-import { PipelineJob } from "./pipeline.job";
+import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
+import { SchedulerRegistry } from '@nestjs/schedule';
+import type { Config } from '@attn/shared';
+import { CronJob } from 'cron';
+import type { Env } from '../config/env';
+import { APP_CONFIG, ENV } from '../tokens';
+import { PipelineJob } from './pipeline.job';
 
-export const PIPELINE_CRON_NAME = "pipeline";
+export const PIPELINE_CRON_NAME = 'pipeline';
 
 @Injectable()
 export class PipelineScheduler implements OnApplicationBootstrap {
@@ -26,7 +21,7 @@ export class PipelineScheduler implements OnApplicationBootstrap {
 
   onApplicationBootstrap(): void {
     if (!this.env.scheduleEnabled) {
-      this.logger.log("schedule disabled (SCHEDULE_ENABLED=false)");
+      this.logger.log('schedule disabled (SCHEDULE_ENABLED=false)');
       return;
     }
     const cron = new CronJob(
@@ -36,7 +31,7 @@ export class PipelineScheduler implements OnApplicationBootstrap {
       },
       null,
       false,
-      "UTC",
+      'UTC',
     );
     this.registry.addCronJob(PIPELINE_CRON_NAME, cron);
     cron.start();
@@ -48,9 +43,7 @@ export class PipelineScheduler implements OnApplicationBootstrap {
     try {
       await this.job.run();
     } catch (err) {
-      this.logger.error(
-        `scheduled pipeline run failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      this.logger.error(`scheduled pipeline run failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 }

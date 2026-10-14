@@ -1,4 +1,7 @@
-import postgres from "postgres";
+import postgres from 'postgres';
+
+/** Advisory lock key shared by the daily job and the manual `attn collect` / `attn label` commands. */
+export const PIPELINE_LOCK_KEY = 727001;
 
 export type LockResult<T> = { acquired: false } | { acquired: true; value: T };
 
@@ -8,23 +11,15 @@ export type LockResult<T> = { acquired: false } | { acquired: true; value: T };
  * single-connection client (a session lock must be released on the connection that took it);
  * closing that connection in `finally` also releases the lock if the explicit unlock fails.
  */
-export async function withAdvisoryLock<T>(
-  url: string,
-  key: number,
-  fn: () => Promise<T>,
-): Promise<LockResult<T>> {
+export async function withAdvisoryLock<T>(url: string, key: number, fn: () => Promise<T>): Promise<LockResult<T>> {
   const sql = postgres(url, { max: 1, onnotice: () => {} });
   try {
-    const [row] = await sql<
-      { locked: boolean }[]
-    >`select pg_try_advisory_lock(${key}::bigint) as locked`;
+    const [row] = await sql<{ locked: boolean }[]>`select pg_try_advisory_lock(${key}::bigint) as locked`;
     if (!row?.locked) return { acquired: false };
     try {
       return { acquired: true, value: await fn() };
     } finally {
-      await sql`select pg_advisory_unlock(${key}::bigint)`.catch(
-        () => undefined,
-      );
+      await sql`select pg_advisory_unlock(${key}::bigint)`.catch(() => undefined);
     }
   } finally {
     await sql.end();

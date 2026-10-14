@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { LabelOutput } from '@attn/shared';
 import { articleHtml } from '../extract/fixtures/html';
 import { loadTaxonomy } from '../data';
-import { createFakeLabeler, RateLimitError } from '../label';
+import { createFakeLabeler, FatalLabelerError, RateLimitError } from '../label';
 import { startServer, type TestServer } from '../test/server';
 import { createTextCache } from './cache';
 import { readEvalFixture } from './fixtures/load';
@@ -97,6 +97,19 @@ describe('runEval', () => {
     expect(r.evaluated).toBe(1);
     expect(server.hits('/g3')).toBe(0);
     expect(formatEvalReport(r)).toContain('rate limited');
+  });
+
+  it('stops on a fatal provider error and reports it', async () => {
+    const labeler = createFakeLabeler((_a, i) => {
+      if (i === 1) throw new FatalLabelerError('provider rejected the request (404)');
+      return ANY;
+    });
+    const r = await runEval({ labeler, golden: golden(), cache: cache(), config, sleep });
+    expect(r.fatal).toBe('provider rejected the request (404)');
+    expect(r.evaluated).toBe(1);
+    expect(r.failures).toEqual([]);
+    expect(server.hits('/g3')).toBe(0);
+    expect(formatEvalReport(r)).toContain('provider error: provider rejected the request (404)');
   });
 
   it('records other labeler errors as failures and continues', async () => {

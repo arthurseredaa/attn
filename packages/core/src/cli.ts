@@ -3,7 +3,7 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import type { Taxonomy } from '@attn/shared';
 import { loadConfig, loadSources, loadTaxonomy, dataDir } from './data';
-import { createDb, runMigrations } from './db';
+import { createDb, PIPELINE_LOCK_KEY, runMigrations, withAdvisoryLock } from './db';
 import { collectAll, type SourceReport } from './collect/collect';
 import type { FetchFn } from './collect/http';
 import { createGeminiLabeler, type Labeler } from './label';
@@ -51,6 +51,15 @@ export function resolveLabelerFactory(
   return (model, taxonomy) => createGeminiLabeler({ model, taxonomy, apiKey });
 }
 
+async function withPipelineLock(url: string, io: Io, fn: () => Promise<number>): Promise<number> {
+  const locked = await withAdvisoryLock(url, PIPELINE_LOCK_KEY, fn);
+  if (!locked.acquired) {
+    io.err('another collect/label run is in progress');
+    return 1;
+  }
+  return locked.value;
+}
+
 function formatLabelItem(i: LabelItemReport): string {
   const line = `${i.outcome}  ${i.url}`;
   return i.error ? `${line}  ${i.error}` : line;
@@ -90,27 +99,33 @@ async function labelCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps
   const taxonomy = loadTaxonomy(dir);
   const labeler = factory(model, taxonomy);
 
-  const { db, close } = createDb(url);
-  try {
-    const report = await labelPending({
-      db,
-      labeler,
-      config,
-      taxonomyVersion: taxonomy.version,
-      ...(limit !== undefined ? { limit } : {}),
-      ...(deps.sleep ? { sleep: deps.sleep } : {}),
-      ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
-      ...(deps.now ? { now: deps.now } : {}),
-    });
-    for (const i of report.items) io.out(formatLabelItem(i));
-    io.out(
-      `total: selected=${report.selected} labeled=${report.labeled} failed=${report.failed} rate_limited=${report.rateLimited ? 'yes' : 'no'}`,
-    );
-    if (report.rateLimited) io.out('rate limited by the provider; the remaining articles stay pending for the next run');
-    return 0;
-  } finally {
-    await close();
-  }
+  return withPipelineLock(url, io, async () => {
+    const { db, close } = createDb(url);
+    try {
+      const report = await labelPending({
+        db,
+        labeler,
+        config,
+        taxonomyVersion: taxonomy.version,
+        ...(limit !== undefined ? { limit } : {}),
+        ...(deps.sleep ? { sleep: deps.sleep } : {}),
+        ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
+        ...(deps.now ? { now: deps.now } : {}),
+      });
+      for (const i of report.items) io.out(formatLabelItem(i));
+      io.out(
+        `total: selected=${report.selected} labeled=${report.labeled} failed=${report.failed} rate_limited=${report.rateLimited ? 'yes' : 'no'}`,
+      );
+      if (report.fatal) {
+        io.err(`provider error: ${report.fatal}; the run was stopped and no further articles were touched`);
+        return 1;
+      }
+      if (report.rateLimited) io.out('rate limited by the provider; the remaining articles stay pending for the next run');
+      return 0;
+    } finally {
+      await close();
+    }
+  });
 }
 
 async function evalCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps: Deps): Promise<number> {
@@ -148,8 +163,16 @@ async function evalCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps:
     ...(deps.now ? { now: deps.now } : {}),
   });
   io.out(formatEvalReport(report));
+  if (report.fatal) {
+    io.err(`provider error: ${report.fatal}; evaluation is incomplete`);
+    return 1;
+  }
   if (report.rateLimited) {
     io.err('rate limited by the provider; evaluation is incomplete');
+    return 1;
+  }
+  if (report.total > 0 && report.evaluated === 0) {
+    io.err('no article could be evaluated');
     return 1;
   }
   return 0;
@@ -185,25 +208,27 @@ async function collect(args: string[], env: NodeJS.ProcessEnv, io: Io, deps: Dep
   const sources = loadSources(dir);
   const config = loadConfig(dir);
 
-  const { db, close } = createDb(url);
-  try {
-    const reports = await collectAll({
-      db,
-      sources,
-      config,
-      ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
-      ...(deps.now ? { now: deps.now } : {}),
-      ...(backfillDays !== undefined ? { backfillDays } : {}),
-      ...(values.source ? { onlySourceIds: values.source } : {}),
-    });
-    for (const r of reports) io.out(formatReport(r));
-    const sum = (k: 'inserted' | 'duplicates') => reports.reduce((n, r) => n + r[k], 0);
-    const failed = reports.filter((r) => r.status === 'error').length;
-    io.out(`total: sources=${reports.length} inserted=${sum('inserted')} dup=${sum('duplicates')} errors=${failed}`);
-    return 0;
-  } finally {
-    await close();
-  }
+  return withPipelineLock(url, io, async () => {
+    const { db, close } = createDb(url);
+    try {
+      const reports = await collectAll({
+        db,
+        sources,
+        config,
+        ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
+        ...(deps.now ? { now: deps.now } : {}),
+        ...(backfillDays !== undefined ? { backfillDays } : {}),
+        ...(values.source ? { onlySourceIds: values.source } : {}),
+      });
+      for (const r of reports) io.out(formatReport(r));
+      const sum = (k: 'inserted' | 'duplicates') => reports.reduce((n, r) => n + r[k], 0);
+      const failed = reports.filter((r) => r.status === 'error').length;
+      io.out(`total: sources=${reports.length} inserted=${sum('inserted')} dup=${sum('duplicates')} errors=${failed}`);
+      return 0;
+    } finally {
+      await close();
+    }
+  });
 }
 
 export async function run(argv: string[], env: NodeJS.ProcessEnv, io: Io = defaultIo, deps: Deps = {}): Promise<number> {

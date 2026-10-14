@@ -2,7 +2,7 @@ import { eq, getTableColumns, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { articleSkills, articles, type Db } from '../db';
 import { articleHtml } from '../extract/fixtures/html';
-import { createFakeLabeler, RateLimitError } from '../label';
+import { createFakeLabeler, FatalLabelerError, RateLimitError } from '../label';
 import { resetDb, testDb } from '../test/db';
 import { startServer, type TestServer } from '../test/server';
 import { labelPending, type LabelOptions } from './label-pending';
@@ -210,6 +210,57 @@ describe('labelPending', () => {
     expect(server.hits('/pC')).toBe(0);
     expect(report.rateLimited).toBe(true);
     expect(report.items.find((i) => i.id === b.id)!.outcome).toBe('rate_limited');
+  });
+
+  it('stops the run on a fatal provider error without touching the article', async () => {
+    const day = (d: number) => new Date(`2026-01-0${d}T00:00:00Z`);
+    const a = await insertArticle('A', { publishedAt: day(1) });
+    const b = await insertArticle('B', { publishedAt: day(2) });
+    const c = await insertArticle('C', { publishedAt: day(3) });
+    const labeler = createFakeLabeler((_, i) => {
+      if (i === 1) throw new FatalLabelerError('provider rejected the request (401)');
+      return { primary_skill: 'cc-hooks', secondary_skills: [], difficulty: 1, type: 'news', quality: 1 };
+    });
+    const report = await run(labeler, { config: { ...config, label_batch: 3 } });
+    expect((await getRow(a.id)).labelStatus).toBe('labeled');
+    for (const id of [b.id, c.id]) {
+      const row = await getRow(id);
+      expect([row.labelStatus, row.labelAttempts]).toEqual(['pending', 0]);
+    }
+    expect(server.hits('/pC')).toBe(0);
+    expect(report.fatal).toBe('provider rejected the request (401)');
+    expect(report.rateLimited).toBe(false);
+    expect(report.failed).toBe(0);
+    expect(report.items.map((i) => i.outcome)).toEqual(['labeled']);
+  });
+
+  it('turns a failing success transaction into a per-article failure and continues', async () => {
+    const a = await insertArticle('A', { publishedAt: new Date('2026-01-01T00:00:00Z') });
+    const b = await insertArticle('B', { publishedAt: new Date('2026-01-02T00:00:00Z') });
+    let txCalls = 0;
+    const flaky = Object.create(db) as Db;
+    flaky.transaction = ((...args: Parameters<Db['transaction']>) => {
+      if (txCalls++ === 0) return Promise.reject(new Error('tx boom'));
+      return db.transaction(...args);
+    }) as Db['transaction'];
+    const report = await run(createFakeLabeler(), { db: flaky });
+    const ra = await getRow(a.id);
+    expect([ra.labelStatus, ra.labelAttempts]).toEqual(['failed', 1]);
+    expect(report.items[0]).toMatchObject({ outcome: 'failed', error: 'tx boom' });
+    expect((await getRow(b.id)).labelStatus).toBe('labeled');
+    expect([report.labeled, report.failed]).toEqual([1, 1]);
+  });
+
+  it('propagates an error from fail() itself', async () => {
+    await insertArticle('A');
+    let updates = 0;
+    const broken = Object.create(db) as Db;
+    broken.update = ((...args: Parameters<Db['update']>) => {
+      if (updates++ === 0) return db.update(...args);
+      throw new Error('db down');
+    }) as Db['update'];
+    broken.transaction = (() => Promise.reject(new Error('tx boom'))) as Db['transaction'];
+    await expect(run(createFakeLabeler(), { db: broken })).rejects.toThrow('db down');
   });
 
   it('sleeps only between labeler calls', async () => {

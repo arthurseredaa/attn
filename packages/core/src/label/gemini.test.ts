@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { APICallError, RetryError } from 'ai';
+import { APICallError, LoadAPIKeyError, RetryError } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 import { loadTaxonomy } from '../data';
-import { createGeminiLabeler, isRateLimitError } from './gemini';
+import { createGeminiLabeler, isFatalProviderError, isRateLimitError } from './gemini';
 import { buildSystemPrompt } from './prompt';
-import { RateLimitError } from './errors';
+import { FatalLabelerError, RateLimitError } from './errors';
 import { makePublicArticle } from './types';
 
 const taxonomy = loadTaxonomy();
@@ -83,6 +83,31 @@ describe('createGeminiLabeler', () => {
     expect(err).not.toBeInstanceOf(RateLimitError);
   });
 
+  it.each([401, 403, 404])('maps a %i to FatalLabelerError with the original cause', async (status) => {
+    const e = api(status);
+    const label = createGeminiLabeler({ model: 'm', taxonomy, maxRetries: 0, languageModel: failingModel(e) });
+    const err = await label.label(article).catch((x: unknown) => x);
+    expect(err).toBeInstanceOf(FatalLabelerError);
+    expect(err).not.toBeInstanceOf(RateLimitError);
+    expect((err as FatalLabelerError).message).toContain(String(status));
+    expect((err as FatalLabelerError).cause).toBe(e);
+  });
+
+  it('maps a missing API key to FatalLabelerError', async () => {
+    const e = new LoadAPIKeyError({ message: 'API key is missing' });
+    const label = createGeminiLabeler({ model: 'm', taxonomy, maxRetries: 0, languageModel: failingModel(e) });
+    const err = await label.label(article).catch((x: unknown) => x);
+    expect(err).toBeInstanceOf(FatalLabelerError);
+    expect((err as FatalLabelerError).message).toContain('missing API key');
+  });
+
+  it('maps a fatal error wrapped in a RetryError', async () => {
+    const e = api(401);
+    const wrapped = new RetryError({ message: 'm', reason: 'maxRetriesExceeded', errors: [e] });
+    const label = createGeminiLabeler({ model: 'm', taxonomy, maxRetries: 0, languageModel: failingModel(wrapped) });
+    expect(await label.label(article).catch((x: unknown) => x)).toBeInstanceOf(FatalLabelerError);
+  });
+
   it('exposes the model id', () => {
     expect(createGeminiLabeler({ model: 'gemini-x', taxonomy, languageModel: okModel(valid) }).model).toBe('gemini-x');
   });
@@ -103,5 +128,23 @@ describe('isRateLimitError', () => {
     expect(isRateLimitError(new Error('429'))).toBe(false);
     expect(isRateLimitError(api(500))).toBe(false);
     expect(isRateLimitError(undefined)).toBe(false);
+  });
+});
+
+describe('isFatalProviderError', () => {
+  it('detects 401/403/404, a missing key, and the same inside RetryError', () => {
+    for (const status of [401, 403, 404]) {
+      expect(isFatalProviderError(api(status))).toBe(true);
+      expect(
+        isFatalProviderError(new RetryError({ message: 'm', reason: 'maxRetriesExceeded', errors: [api(status)] })),
+      ).toBe(true);
+    }
+    expect(isFatalProviderError(new LoadAPIKeyError({ message: 'x' }))).toBe(true);
+  });
+  it('rejects other errors', () => {
+    expect(isFatalProviderError(api(429))).toBe(false);
+    expect(isFatalProviderError(api(500))).toBe(false);
+    expect(isFatalProviderError(new Error('401'))).toBe(false);
+    expect(isFatalProviderError(undefined)).toBe(false);
   });
 });

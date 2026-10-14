@@ -1,7 +1,7 @@
 import type { Config, LabelOutput } from '@attn/shared';
 import type { FetchFn } from '../collect/http';
 import { fetchArticleText, limitText } from '../extract';
-import { makePublicArticle, RateLimitError, type Labeler } from '../label';
+import { makePublicArticle, FatalLabelerError, RateLimitError, type Labeler } from '../label';
 import type { TextCache } from './cache';
 import type { GoldenEntry } from './golden';
 import { buildReport, type EvalFailure, type EvalReport } from './score';
@@ -25,6 +25,7 @@ export async function runEval(opts: EvalOptions): Promise<EvalReport> {
   const scored: { url: string; expected: GoldenEntry; actual: LabelOutput }[] = [];
   const failures: EvalFailure[] = [];
   let rateLimited = false;
+  let fatal: string | undefined;
   let labelCalls = 0;
 
   for (const entry of golden) {
@@ -48,6 +49,10 @@ export async function runEval(opts: EvalOptions): Promise<EvalReport> {
       const actual = await labeler.label(makePublicArticle({ title: cached.title, url, text }));
       scored.push({ url, expected: entry, actual });
     } catch (e) {
+      if (e instanceof FatalLabelerError) {
+        fatal = e.message;
+        break;
+      }
       if (e instanceof RateLimitError) {
         rateLimited = true;
         break;
@@ -56,5 +61,5 @@ export async function runEval(opts: EvalOptions): Promise<EvalReport> {
     }
   }
 
-  return buildReport({ model: labeler.model, total: golden.length, scored, failures, rateLimited });
+  return buildReport({ model: labeler.model, total: golden.length, scored, failures, rateLimited, ...(fatal !== undefined ? { fatal } : {}) });
 }
