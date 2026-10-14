@@ -3,10 +3,13 @@ import {
   articleIdParamSchema,
   eventBodySchema,
   eventResponseSchema,
+  excludesFromFeed,
+  feedNextOffset,
   feedPageSchema,
   feedQuerySchema,
   mergeFeedItems,
   type ArticleCard,
+  eventKindSchema,
 } from './index';
 
 const card = (id: number): ArticleCard => ({
@@ -102,5 +105,27 @@ describe('mergeFeedItems', () => {
     expect(r).toEqual({ items: [c1, c2], duplicates: 2 });
     expect(current).toEqual([c1]);
     expect(incoming).toEqual([c2, c2, c1]);
+  });
+});
+
+describe('excludesFromFeed', () => {
+  it('is true only for the kinds the ranker excludes', () => {
+    expect(['read', 'like', 'too_easy', 'too_hard', 'not_interested'].filter((k) => excludesFromFeed(eventKindSchema.parse(k)))).toEqual([
+      'read',
+      'not_interested',
+    ]);
+  });
+});
+
+describe('feedNextOffset', () => {
+  it('is the served count when nothing was excluded', () => {
+    expect(feedNextOffset(20, new Set())).toBe(20);
+  });
+  it('subtracts each excluded card once, whether it is still shown (read) or removed (not_interested)', () => {
+    expect(feedNextOffset(20, new Set([3, 7]))).toBe(18);
+    expect(feedNextOffset(40, new Set([3, 7, 25]))).toBe(37);
+  });
+  it('never goes below zero', () => {
+    expect(feedNextOffset(1, new Set([1, 2]))).toBe(0);
   });
 });

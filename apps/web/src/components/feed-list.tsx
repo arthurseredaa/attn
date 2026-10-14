@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { feedPageSchema, mergeFeedItems, type FeedPage } from '@attn/shared';
+import { feedNextOffset, feedPageSchema, mergeFeedItems, type FeedPage } from '@attn/shared';
 import { BrowserApiError, browserJson } from '@/lib/browser-api';
 import { FeedCard } from '@/components/feed-card';
 
@@ -13,10 +13,11 @@ export function FeedList({ initial }: { initial: FeedPage }) {
   const [error, setError] = useState<string | null>(null);
   // Source of truth between renders, so in-flight fetches and same-tick removals see current state.
   const itemsRef = useRef(initial.items);
-  // Offset = items the server has served minus cards the user removed (a removed card no longer ranks,
-  // so the next unseen item moves up by one). Unlike items.length + duplicates, removing a card that was
-  // also a duplicate cannot leave it too high.
-  const offsetRef = useRef(initial.items.length);
+  // "Load more" offset = cards the server has served minus the distinct cards it now excludes (read or
+  // not_interested sent from this list; see feedNextOffset). A read card stays on screen, collapsed, but no
+  // longer ranks, so the count follows server-side exclusions, not DOM removals.
+  const servedRef = useRef(initial.items.length);
+  const excludedRef = useRef(new Set<number>());
   const loadingRef = useRef(false);
   const cardRefs = useRef(new Map<number, HTMLLIElement>());
   const listRef = useRef<HTMLDivElement>(null);
@@ -39,8 +40,13 @@ export function FeedList({ initial }: { initial: FeedPage }) {
     if (i === -1) return; // idempotent
     focusAfter.current = { next: cur[i + 1]?.id ?? null, prev: cur[i - 1]?.id ?? null };
     itemsRef.current = cur.filter((c) => c.id !== id);
-    offsetRef.current = Math.max(0, offsetRef.current - 1);
     setItems(itemsRef.current);
+  }
+
+  function excluded(id: number, kind: 'read' | 'not_interested') {
+    excludedRef.current.add(id);
+    // a read card collapses in place (FeedCard) and leaves on the next page load; not_interested removes it now
+    if (kind === 'not_interested') remove(id);
   }
 
   async function loadMore() {
@@ -49,10 +55,10 @@ export function FeedList({ initial }: { initial: FeedPage }) {
     setLoading(true);
     setError(null);
     try {
-      const page = await browserJson('GET', `/feed?offset=${offsetRef.current}`, feedPageSchema);
+      const page = await browserJson('GET', `/feed?offset=${feedNextOffset(servedRef.current, excludedRef.current)}`, feedPageSchema);
       // merge into the current items, not the ones captured at click time
       itemsRef.current = mergeFeedItems(itemsRef.current, page.items).items;
-      offsetRef.current += page.items.length;
+      servedRef.current += page.items.length;
       setItems(itemsRef.current);
       setHasMore(page.nextOffset !== null);
     } catch (e) {
@@ -89,7 +95,7 @@ export function FeedList({ initial }: { initial: FeedPage }) {
                 else cardRefs.current.delete(a.id);
               }}
             >
-              <FeedCard article={a} onRemoved={remove} />
+              <FeedCard article={a} onExcluded={excluded} />
             </li>
           ))}
         </ul>
