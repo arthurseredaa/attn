@@ -5,6 +5,7 @@ import { AppConfigModule } from './config/config.module';
 import { DbModule } from './db/db.module';
 import { HealthModule } from './health/health.module';
 import { JobsModule } from './jobs/jobs.module';
+import { MetaModule } from './meta/meta.module';
 
-@Module({ imports: [AppConfigModule, DbModule, HealthModule, JobsModule, AuthModule, ArticlesModule] })
+@Module({ imports: [AppConfigModule, DbModule, HealthModule, JobsModule, AuthModule, ArticlesModule, MetaModule] })
 export class AppModule {}
