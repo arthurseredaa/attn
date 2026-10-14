@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "typecheck": "pnpm -r exec tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "attn": "tsx packages/core/src/cli.ts"
+    "attn": "tsx packages/core/src/cli.ts",
+    "api": "pnpm --filter @attn/api start"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

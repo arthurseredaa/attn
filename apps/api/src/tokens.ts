@@ -1,0 +1,8 @@
+export const ENV = Symbol('ENV');
+export const APP_CONFIG = Symbol('APP_CONFIG');
+export const TAXONOMY = Symbol('TAXONOMY');
+export const SOURCES = Symbol('SOURCES');
+export const DB_HANDLE = Symbol('DB_HANDLE');
+export const DB = Symbol('DB');
+export const LABELER = Symbol('LABELER');
+export const PIPELINE_STEPS = Symbol('PIPELINE_STEPS');
