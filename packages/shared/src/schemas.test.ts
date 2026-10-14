@@ -26,6 +26,7 @@ const config = {
   label_min_chars: 200,
   label_max_attempts: 3,
   label_overload_backoff_ms: [2000, 5000, 10000],
+  jev_secondary_threshold: 0.5,
   schedule_cron: '0 * * * *',
   uncertain_spread: 1.5,
   points_per_level: 5,
@@ -115,6 +116,11 @@ describe('configSchema', () => {
     delete rest.fit_next;
     expect(configSchema.safeParse(rest).success).toBe(false);
   });
+  it('rejects a missing jev_secondary_threshold', () => {
+    const rest: Partial<typeof config> = { ...config };
+    delete rest.jev_secondary_threshold;
+    expect(configSchema.safeParse(rest).success).toBe(false);
+  });
   it('rejects an extra key', () => {
     expect(configSchema.safeParse({ ...config, extra: 1 }).success).toBe(false);
   });
@@ -124,6 +130,8 @@ describe('configSchema', () => {
     expect(configSchema.safeParse({ ...config, page_size: 0 }).success).toBe(false);
     expect(configSchema.safeParse({ ...config, fit_same: 0 }).success).toBe(false);
     expect(configSchema.safeParse({ ...config, fit_stretch: 1.5 }).success).toBe(false);
+    expect(configSchema.safeParse({ ...config, jev_secondary_threshold: 0 }).success).toBe(false);
+    expect(configSchema.safeParse({ ...config, jev_secondary_threshold: 1.1 }).success).toBe(false);
     expect(configSchema.safeParse({ ...config, label_overload_backoff_ms: 2000 }).success).toBe(false);
     expect(configSchema.safeParse({ ...config, label_overload_backoff_ms: [2000, 0] }).success).toBe(false);
     expect(configSchema.safeParse({ ...config, label_overload_backoff_ms: [1.5] }).success).toBe(false);

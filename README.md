@@ -160,6 +160,7 @@ model id prefix:
 | --- | --- | --- |
 | `gemini-*` (e.g. `gemini-3.6-flash`) | Google AI Studio, has a free tier | `GOOGLE_GENERATIVE_AI_API_KEY` |
 | `claude-*` (e.g. `claude-haiku-5-5`) | Anthropic, paid per token, no free tier | `ANTHROPIC_API_KEY` |
+| `typesafe-ai/*` (`typesafe-ai/jev`) | TypeSafe AI decision model via Vercel AI Gateway, paid per input token | `JEV_API_KEY` |
 
 Without the model or its key, or with any other prefix (`unknown LABEL_MODEL provider`), it exits 1 before touching
 anything and names the problem.
@@ -173,6 +174,17 @@ caching, so within the cache lifetime (5 minutes) repeated calls bill it at the 
 Every call, for either provider, caps the output at 1024 tokens (a label is about 100).
 Extended thinking, billed as output tokens, is turned off for Claude (`reasoning: 'none'`; on a model that cannot
 turn it off, such as Opus 5.5, the SDK uses its lowest setting, effort `low`, and prints a warning).
+
+`typesafe-ai/jev` is not a text-generation model but a decision model (32k context, $0.042 per 1M input tokens, no
+output price), called with the AI SDK's `experimental_decide` through the Vercel AI Gateway; set `JEV_API_KEY` to a
+gateway key (`vck_...`, passed explicitly, `AI_GATEWAY_API_KEY` is not needed). One decide call per article answers
+about 36 questions against the same state (title, URL and the article text cut to `label_max_chars`): a choice for
+`primary_skill` over all taxonomy skills, choices for `type`, `difficulty` (0-4) and `quality` (0-4) with the same
+rubrics as the other labelers, and one yes/no question per skill for `secondary_skills`, since decide has no
+multi-select. The secondary skills are those with probability at least `jev_secondary_threshold` (`data/config.yml`,
+default 0.5), highest first, at most 3, never the primary. `experimental_decide` is an experimental API and may change
+between AI SDK releases. A gateway 4xx other than 408 and 429 (a bad key, no credit, a rejected question) is fatal,
+and a 5xx is retried like an overload. Per-article tokens are mostly the skill descriptions plus the article text.
 
 It takes pending articles oldest first (at most `label_batch`, or `--limit` if smaller), one at a time with
 `label_delay_ms` between model calls. For each article it fetches the page, extracts the readable text and
@@ -231,11 +243,13 @@ label quality is measured.
    - Claude: create a key in the Anthropic Console (https://console.anthropic.com) and set `ANTHROPIC_API_KEY`.
      There is no free tier: an eval run is one paid call per golden article, and `label_max_chars` caps the
      article text that makes up most of each call's input.
+   - jev: put a Vercel AI Gateway key in `JEV_API_KEY`; the run is billed per input token through the gateway.
 2. Run (the `--model` prefix picks the provider, as in "Labeling"):
 
 ```sh
 pnpm attn eval --model gemini-3.6-flash
 pnpm attn eval --model claude-haiku-5-5
+pnpm attn eval --model typesafe-ai/jev
 ```
 
 The first run fetches each article once and caches the extracted text in `.cache/text/` (gitignored), so later

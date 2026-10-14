@@ -168,3 +168,7 @@ skills, and ATTN ranks existing articles by their priorities and level.
   as the reference instead of hand-labeling ~50 articles (an earlier section says "the user hand-labels").
   Eval therefore measures agreement with that reference, not with a human judgement; a Claude labeler may score
   higher partly because Claude drafted the reference.
+
+## jev labeler (2026-10-14)
+
+- **`typesafe-ai/jev` is a third labeler, chosen by the `typesafe-ai/` prefix.** It is a decision model on the Vercel AI Gateway (`JEV_API_KEY`, paid per input token), called with the experimental `experimental_decide`: one call per article, choices for primary skill, type, difficulty and quality, and a yes/no question per skill for secondary skills (kept when probability >= `jev_secondary_threshold`, default 0.5, at most 3, never the primary); its gateway 4xx errors (other than 408/429) stop the run, since they would repeat for every article.

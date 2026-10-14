@@ -6,6 +6,7 @@ export interface Env {
   labelModel: string | undefined;
   googleApiKey: string | undefined;
   anthropicApiKey: string | undefined;
+  jevApiKey: string | undefined;
   scheduleEnabled: boolean;
   appUrl: string;
   githubClientId: string | undefined;
@@ -39,6 +40,7 @@ const envSchema = z.object({
   LABEL_MODEL: optionalString,
   GOOGLE_GENERATIVE_AI_API_KEY: optionalString,
   ANTHROPIC_API_KEY: optionalString,
+  JEV_API_KEY: optionalString,
   SCHEDULE_ENABLED: z.preprocess(
     blankToUndefined,
     z
@@ -69,6 +71,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     labelModel: e.LABEL_MODEL,
     googleApiKey: e.GOOGLE_GENERATIVE_AI_API_KEY,
     anthropicApiKey: e.ANTHROPIC_API_KEY,
+    jevApiKey: e.JEV_API_KEY,
     scheduleEnabled: e.SCHEDULE_ENABLED,
     appUrl: e.APP_URL,
     githubClientId: e.GITHUB_CLIENT_ID,

@@ -70,3 +70,28 @@ describe('createLabeler', () => {
     ).toThrow(/ANTHROPIC_API_KEY is not set/);
   });
 });
+
+describe('typesafe-ai/ (jev)', () => {
+  it('is chosen by the typesafe-ai/ prefix and needs JEV_API_KEY', () => {
+    expect(labelProviderFor('typesafe-ai/jev')).toEqual({ provider: 'typesafe', apiKeyVar: 'JEV_API_KEY' });
+    expect(labelerConfigError('typesafe-ai/jev', { JEV_API_KEY: 'vck_k' })).toBeUndefined();
+  });
+
+  it('names JEV_API_KEY when it is missing or empty, even when other keys are set', () => {
+    for (const env of [{}, { JEV_API_KEY: '' }, { ANTHROPIC_API_KEY: 'k', GOOGLE_GENERATIVE_AI_API_KEY: 'k' }]) {
+      const msg = labelerConfigError('typesafe-ai/jev', env);
+      expect(msg).toContain('JEV_API_KEY is not set');
+      expect(msg).not.toContain('ANTHROPIC');
+    }
+    expect(() => createLabeler({ model: 'typesafe-ai/jev', taxonomy, env: {} })).toThrow(FatalLabelerError);
+  });
+
+  it('builds a labeler with its key and no network, and unknown prefixes still fail', () => {
+    expect(
+      createLabeler({ model: 'typesafe-ai/jev', taxonomy, env: { JEV_API_KEY: 'vck_dummy' }, jevSecondaryThreshold: 0.7 })
+        .model,
+    ).toBe('typesafe-ai/jev');
+    expect(() => labelProviderFor('typesafe/jev')).toThrow(/unknown LABEL_MODEL provider/);
+    expect(() => labelProviderFor('other-ai/jev')).toThrow(FatalLabelerError);
+  });
+});

@@ -1,6 +1,8 @@
 // Spec names generateObject; in ai 7 it is deprecated, generateText + Output.object is the same structured-output call.
+import { GatewayError } from '@ai-sdk/gateway';
 import {
   APICallError,
+  Experimental_DecisionUnsupportedQuestionTypeError,
   LoadAPIKeyError,
   NoObjectGeneratedError,
   Output,
@@ -15,8 +17,21 @@ import { FatalLabelerError, OverloadedError, RateLimitError } from './errors';
 import { buildUserPrompt } from './prompt';
 import type { LabelTokenUsage, Labeler, PublicArticle } from './types';
 
+/** The HTTP status and text of a failed provider call, whether the AI SDK raised an APICallError or the gateway a GatewayError. */
+interface HttpFailure {
+  statusCode: number | undefined;
+  message: string;
+  responseBody: string | undefined;
+}
+
+function httpFailure(e: unknown): HttpFailure | undefined {
+  if (APICallError.isInstance(e)) return { statusCode: e.statusCode, message: e.message, responseBody: e.responseBody };
+  if (GatewayError.isInstance(e)) return { statusCode: e.statusCode, message: e.message, responseBody: undefined };
+  return undefined;
+}
+
 function is429(e: unknown): boolean {
-  return APICallError.isInstance(e) && e.statusCode === 429;
+  return httpFailure(e)?.statusCode === 429;
 }
 
 export function isRateLimitError(err: unknown): boolean {
@@ -29,27 +44,40 @@ export const LABEL_MAX_OUTPUT_TOKENS = 1024;
 
 const OVERLOAD_STATUSES = new Set([503, 529]);
 const OVERLOAD_TEXT = /overloaded|high demand/i;
+/** Statuses a gateway raises for a transient upstream failure; the Anthropic and Google paths keep OVERLOAD_STATUSES. */
+const GATEWAY_TRANSIENT_STATUSES = new Set([500, 502, 503, 504, 529]);
 
-function isOverload(e: unknown): boolean {
-  if (!APICallError.isInstance(e) || e.statusCode === 429) return false;
-  if (e.statusCode !== undefined && OVERLOAD_STATUSES.has(e.statusCode)) return true;
-  return OVERLOAD_TEXT.test(e.message);
+/** Per-provider tuning of the error mapping. */
+export interface ErrorMappingOptions {
+  /**
+   * Gateway-style provider: any 4xx except 408 and 429 is fatal (a rejected request or config repeats for every
+   * article, so the run must stop instead of failing each one), and 500/502/504 count as transient like 503/529.
+   */
+  gateway?: boolean;
+}
+
+function isOverload(e: unknown, opts: ErrorMappingOptions): boolean {
+  const f = httpFailure(e);
+  if (!f || f.statusCode === 429) return false;
+  const statuses = opts.gateway ? GATEWAY_TRANSIENT_STATUSES : OVERLOAD_STATUSES;
+  if (f.statusCode !== undefined && statuses.has(f.statusCode)) return true;
+  return OVERLOAD_TEXT.test(f.message);
 }
 
 /** A transient provider overload (503/529 first, the provider's "overloaded"/"high demand" text second), also inside a RetryError. Never a 429. */
-export function isOverloadedError(err: unknown): boolean {
-  if (isOverload(err)) return true;
-  return RetryError.isInstance(err) && isOverload(err.lastError);
+export function isOverloadedError(err: unknown, opts: ErrorMappingOptions = {}): boolean {
+  if (isOverload(err, opts)) return true;
+  return RetryError.isInstance(err) && isOverload(err.lastError, opts);
 }
 
 // 402 is Anthropic's billing_error; Google never sends it.
 const FATAL_STATUSES = new Set([401, 402, 403, 404]);
 
 /** Anthropic's answer when the account has no credit: a 400 `invalid_request_error` saying "credit balance is too low". */
-function isCreditExhausted(e: APICallError): boolean {
-  if (e.statusCode !== 400 || e.responseBody === undefined) return false;
+function isCreditExhausted(f: HttpFailure): boolean {
+  if (f.statusCode !== 400 || f.responseBody === undefined) return false;
   try {
-    const body = JSON.parse(e.responseBody) as { error?: { type?: unknown; message?: unknown } } | null;
+    const body = JSON.parse(f.responseBody) as { error?: { type?: unknown; message?: unknown } } | null;
     return (
       body?.error?.type === 'invalid_request_error' &&
       typeof body.error.message === 'string' &&
@@ -60,22 +88,43 @@ function isCreditExhausted(e: APICallError): boolean {
   }
 }
 
-function fatalReason(e: unknown): string | undefined {
+function fatalReason(e: unknown, opts: ErrorMappingOptions): string | undefined {
   if (LoadAPIKeyError.isInstance(e)) return 'missing API key';
-  if (!APICallError.isInstance(e)) return undefined;
-  if (e.statusCode !== undefined && FATAL_STATUSES.has(e.statusCode)) {
-    return e.statusCode === 402
-      ? 'provider rejected the request (402): billing problem on the provider account'
-      : `provider rejected the request (${e.statusCode}): check the API key and the model id`;
+  if (opts.gateway && Experimental_DecisionUnsupportedQuestionTypeError.isInstance(e)) {
+    return `the decision model does not support a question type this labeler sends: ${e.message}`;
   }
-  if (isCreditExhausted(e)) return 'provider rejected the request (400): credit balance is too low';
+  const f = httpFailure(e);
+  if (!f) return undefined;
+  if (f.statusCode !== undefined && FATAL_STATUSES.has(f.statusCode)) {
+    return f.statusCode === 402
+      ? 'provider rejected the request (402): billing problem on the provider account'
+      : `provider rejected the request (${f.statusCode}): check the API key and the model id`;
+  }
+  if (isCreditExhausted(f)) return 'provider rejected the request (400): credit balance is too low';
+  if (opts.gateway && f.statusCode !== undefined && f.statusCode >= 400 && f.statusCode < 500 && f.statusCode !== 408) {
+    return `provider rejected the request (${f.statusCode}): ${f.message}`;
+  }
   return undefined;
 }
 
 /** True for a bad or missing API key, an unknown model id, a billing error or no credit, also inside a RetryError. */
-export function isFatalProviderError(err: unknown): boolean {
-  if (fatalReason(err) !== undefined) return true;
-  return RetryError.isInstance(err) && fatalReason(err.lastError) !== undefined;
+export function isFatalProviderError(err: unknown, opts: ErrorMappingOptions = {}): boolean {
+  if (fatalReason(err, opts) !== undefined) return true;
+  return RetryError.isInstance(err) && fatalReason(err.lastError, opts) !== undefined;
+}
+
+/**
+ * Maps a provider failure to RateLimitError (429), FatalLabelerError (bad key, unknown model, billing, and for a
+ * gateway any request-level 4xx) or OverloadedError (transient), in that order; anything else is returned as is.
+ */
+export function mapProviderError(e: unknown, opts: ErrorMappingOptions = {}): unknown {
+  if (isRateLimitError(e)) return new RateLimitError('provider rate limit (429)', { cause: e });
+  if (isFatalProviderError(e, opts)) {
+    const inner = RetryError.isInstance(e) ? e.lastError : e;
+    return new FatalLabelerError(fatalReason(inner, opts) ?? 'provider error', { cause: e });
+  }
+  if (isOverloadedError(e, opts)) return new OverloadedError('provider overloaded (503)', { cause: e });
+  return e;
 }
 
 function addUsage(total: LabelTokenUsage, u: LanguageModelUsage): void {
@@ -128,13 +177,7 @@ export function createAiSdkLabeler(opts: AiSdkLabelerOptions): Labeler {
         // attaches its usage to NoObjectGeneratedError. HTTP error responses (APICallError, RetryError) and network
         // failures carry no usage in the AI SDK, so they add nothing here.
         if (NoObjectGeneratedError.isInstance(e) && e.usage) addUsage(usage, e.usage);
-        if (isRateLimitError(e)) throw new RateLimitError('provider rate limit (429)', { cause: e });
-        if (isFatalProviderError(e)) {
-          const inner = RetryError.isInstance(e) ? e.lastError : e;
-          throw new FatalLabelerError(fatalReason(inner) ?? 'provider error', { cause: e });
-        }
-        if (isOverloadedError(e)) throw new OverloadedError('provider overloaded (503)', { cause: e });
-        throw e;
+        throw mapProviderError(e);
       }
     },
   };

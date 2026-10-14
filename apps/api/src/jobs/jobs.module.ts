@@ -13,8 +13,9 @@ import { createPipelineSteps, labelerFromEnv } from './pipeline.steps';
   providers: [
     {
       provide: LABELER,
-      inject: [ENV, TAXONOMY],
-      useFactory: (env: Env, taxonomy: Taxonomy): Labeler | null => labelerFromEnv(env, taxonomy),
+      inject: [ENV, TAXONOMY, APP_CONFIG],
+      useFactory: (env: Env, taxonomy: Taxonomy, config: Config): Labeler | null =>
+        labelerFromEnv(env, taxonomy, config),
     },
     {
       provide: PIPELINE_STEPS,

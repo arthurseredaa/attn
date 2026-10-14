@@ -14,6 +14,9 @@ label_max_attempts: 3
 # pauses in milliseconds, so the list length is the retry count; then that article fails and the run continues.
 # A 429 quota error is not retried: it stops the run.
 label_overload_backoff_ms: [2000, 5000, 10000]
+# Label (typesafe-ai/jev only): a skill becomes a secondary skill when jev's probability that the article substantially
+# covers it is at least this value (0-1]. Up to 3, highest first, never the primary skill.
+jev_secondary_threshold: 0.5
 # Pipeline: cron expression for the daily collect + label job.
 schedule_cron: "0 6 * * *"
 # Quiz: a skill is uncertain when the mean |first-choice level - second-choice level| over its quiz questions is >= this value.

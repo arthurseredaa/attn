@@ -149,6 +149,15 @@ describe('labelerFromEnv', () => {
     );
   });
 
+  it('builds the jev labeler only with JEV_API_KEY', () => {
+    expect(labelerFromEnv({ ...keys, labelModel: 'typesafe-ai/jev', anthropicApiKey: 'k' }, taxonomy)).toBeNull();
+    expect(
+      labelerFromEnv({ ...keys, labelModel: 'typesafe-ai/jev', jevApiKey: 'vck_k' }, taxonomy, {
+        jev_secondary_threshold: 0.6,
+      })?.model,
+    ).toBe('typesafe-ai/jev');
+  });
+
   it('throws at startup on an unknown provider prefix', () => {
     expect(() => labelerFromEnv({ labelModel: 'gpt-5', googleApiKey: 'k', anthropicApiKey: 'k' }, taxonomy)).toThrow(
       /unknown LABEL_MODEL provider/,

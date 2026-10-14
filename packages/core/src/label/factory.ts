@@ -2,10 +2,11 @@ import type { Taxonomy } from '@attn/shared';
 import { createAnthropicLabeler } from './anthropic';
 import { FatalLabelerError } from './errors';
 import { createGeminiLabeler } from './gemini';
+import { createJevLabeler } from './jev';
 import type { Labeler } from './types';
 
-export type LabelProvider = 'anthropic' | 'google';
-export type LabelApiKeyVar = 'ANTHROPIC_API_KEY' | 'GOOGLE_GENERATIVE_AI_API_KEY';
+export type LabelProvider = 'anthropic' | 'google' | 'typesafe';
+export type LabelApiKeyVar = 'ANTHROPIC_API_KEY' | 'GOOGLE_GENERATIVE_AI_API_KEY' | 'JEV_API_KEY';
 
 export interface LabelProviderInfo {
   provider: LabelProvider;
@@ -16,16 +17,17 @@ export interface LabelProviderInfo {
 const PROVIDERS: readonly (LabelProviderInfo & { prefix: string })[] = [
   { prefix: 'claude-', provider: 'anthropic', apiKeyVar: 'ANTHROPIC_API_KEY' },
   { prefix: 'gemini-', provider: 'google', apiKeyVar: 'GOOGLE_GENERATIVE_AI_API_KEY' },
+  { prefix: 'typesafe-ai/', provider: 'typesafe', apiKeyVar: 'JEV_API_KEY' },
 ];
 
 export type LabelerEnv = Readonly<Partial<Record<string, string | undefined>>>;
 
-/** The provider is chosen by the model id prefix: `claude-*` is Anthropic, `gemini-*` is Google. Anything else throws. */
+/** The provider is chosen by the model id prefix: `claude-*` is Anthropic, `gemini-*` is Google, `typesafe-ai/*` is TypeSafe AI via the Vercel AI Gateway. Anything else throws. */
 export function labelProviderFor(model: string): LabelProviderInfo {
   const hit = PROVIDERS.find((p) => model.startsWith(p.prefix));
   if (!hit) {
     throw new FatalLabelerError(
-      `unknown LABEL_MODEL provider for "${model}": use a claude-* (Anthropic) or gemini-* (Google) model id`,
+      `unknown LABEL_MODEL provider for "${model}": use a claude-* (Anthropic), gemini-* (Google) or typesafe-ai/* (TypeSafe AI via Vercel AI Gateway) model id`,
     );
   }
   return { provider: hit.provider, apiKeyVar: hit.apiKeyVar };
@@ -47,6 +49,8 @@ export interface CreateLabelerOptions {
   taxonomy: Taxonomy;
   env: LabelerEnv;
   maxRetries?: number;
+  /** `jev_secondary_threshold` from data/config.yml; used only by the typesafe-ai/* labeler. */
+  jevSecondaryThreshold?: number;
 }
 
 /** Builds the labeler for the provider named by the model prefix, or throws FatalLabelerError on a config error. */
@@ -60,5 +64,10 @@ export function createLabeler(opts: CreateLabelerOptions): Labeler {
     apiKey: opts.env[apiKeyVar],
     ...(opts.maxRetries !== undefined ? { maxRetries: opts.maxRetries } : {}),
   };
-  return provider === 'anthropic' ? createAnthropicLabeler(common) : createGeminiLabeler(common);
+  if (provider === 'anthropic') return createAnthropicLabeler(common);
+  if (provider === 'google') return createGeminiLabeler(common);
+  return createJevLabeler({
+    ...common,
+    ...(opts.jevSecondaryThreshold !== undefined ? { secondaryThreshold: opts.jevSecondaryThreshold } : {}),
+  });
 }

@@ -12,6 +12,7 @@ export const configSchema = z.strictObject({
   label_min_chars: posInt,
   label_max_attempts: posInt,
   label_overload_backoff_ms: z.array(posInt),
+  jev_secondary_threshold: unitInterval,
   schedule_cron: z.string().min(1),
   uncertain_spread: z.number().positive(),
   points_per_level: posInt,

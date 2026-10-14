@@ -37,7 +37,7 @@ export function createPipelineSteps(deps: PipelineStepsDeps): PipelineSteps {
       if (!labeler) {
         return {
           status: 'skipped',
-          reason: 'LABEL_MODEL or its provider key (ANTHROPIC_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY) is not set',
+          reason: 'LABEL_MODEL or its provider key (ANTHROPIC_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY or JEV_API_KEY) is not set',
         };
       }
       return {
@@ -60,11 +60,21 @@ export function createPipelineSteps(deps: PipelineStepsDeps): PipelineSteps {
  * prefix names. An unknown prefix throws FatalLabelerError, so a mistyped LABEL_MODEL stops the API at startup.
  */
 export function labelerFromEnv(
-  env: Pick<Env, 'labelModel' | 'googleApiKey' | 'anthropicApiKey'>,
+  env: Pick<Env, 'labelModel' | 'googleApiKey' | 'anthropicApiKey'> & Partial<Pick<Env, 'jevApiKey'>>,
   taxonomy: Taxonomy,
+  config?: Pick<Config, 'jev_secondary_threshold'>,
 ): Labeler | null {
   if (!env.labelModel) return null;
-  const keys = { ANTHROPIC_API_KEY: env.anthropicApiKey, GOOGLE_GENERATIVE_AI_API_KEY: env.googleApiKey };
+  const keys = {
+    ANTHROPIC_API_KEY: env.anthropicApiKey,
+    GOOGLE_GENERATIVE_AI_API_KEY: env.googleApiKey,
+    JEV_API_KEY: env.jevApiKey,
+  };
   if (!keys[labelProviderFor(env.labelModel).apiKeyVar]) return null;
-  return createLabeler({ model: env.labelModel, taxonomy, env: keys });
+  return createLabeler({
+    model: env.labelModel,
+    taxonomy,
+    env: keys,
+    ...(config ? { jevSecondaryThreshold: config.jev_secondary_threshold } : {}),
+  });
 }

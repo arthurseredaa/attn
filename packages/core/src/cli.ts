@@ -28,8 +28,8 @@ const USAGE = `usage: attn <migrate | collect | label | eval | seed-demo>
 commands:
   migrate                                              apply database migrations
   collect [--source <id>]... [--backfill-days <n>]    collect new articles from sources
-  label [--limit <n>]                                  label pending articles with LABEL_MODEL (claude-* or gemini-*)
-  eval --model <id>                                    measure a model (claude-* or gemini-*) against data/golden/*.yml
+  label [--limit <n>]                                  label pending articles with LABEL_MODEL (claude-*, gemini-* or typesafe-ai/*)
+  eval --model <id>                                    measure a model (claude-*, gemini-* or typesafe-ai/*) against data/golden/*.yml
   seed-demo [--remove]                                 add (or remove) demo articles for local use without a labeling key
 `;
 
@@ -43,7 +43,7 @@ function formatReport(r: SourceReport): string {
   return r.error ? `${line}  ${r.error}` : line;
 }
 
-/** Checks, before any work, that `model` names a known provider (claude-* or gemini-*) whose API key is set. */
+/** Checks, before any work, that `model` names a known provider (claude-*, gemini-* or typesafe-ai/*) whose API key is set. */
 export function resolveLabelerFactory(
   model: string,
   env: NodeJS.ProcessEnv,
@@ -52,7 +52,13 @@ export function resolveLabelerFactory(
   if (deps.makeLabeler) return deps.makeLabeler;
   const error = labelerConfigError(model, env);
   if (error !== undefined) return { error };
-  return (m, taxonomy) => createLabeler({ model: m, taxonomy, env });
+  return (m, taxonomy) =>
+    createLabeler({
+      model: m,
+      taxonomy,
+      env,
+      jevSecondaryThreshold: loadConfig(env.ATTN_DATA_DIR ?? dataDir()).jev_secondary_threshold,
+    });
 }
 
 async function withPipelineLock(url: string, io: Io, fn: () => Promise<number>): Promise<number> {
