@@ -157,10 +157,10 @@ skills, and ATTN ranks existing articles by their priorities and level.
   (`GOOGLE_GENERATIVE_AI_API_KEY`), any other prefix is a startup error ("unknown LABEL_MODEL provider"). Same
   prompt, output schema, temperature 0 (ignored by models that reject sampling parameters, such as Haiku 5.5) and
   error handling (401/403/404 fatal, 429 stops the run, 503/529 retried with `label_overload_backoff_ms`), plus
-  Anthropic's 400 "credit balance is too low" (`invalid_request_error`) is fatal, since every later call would fail
+  Anthropic's 402 `billing_error` and 400 "credit balance is too low" (`invalid_request_error`) are fatal, since every later call would fail
   the same way. Extended thinking is off for Claude (`reasoning: 'none'`; effort `low` on models that cannot turn
   it off): a classification does not need it and it bills as output. The system prompt is sent with Anthropic
-  prompt caching. Claude has no free tier: it is paid per token, and
+  prompt caching. Every labeling call, for both providers, caps output at 1024 tokens (a label is ~100). Claude has no free tier: it is paid per token, and
   `label_max_chars` drives the cost. The model is still chosen only by eval results; `attn eval` now prints the
   run's token totals so the cost can be compared. The privacy invariant is unchanged: only public article text is
   sent, to either provider.

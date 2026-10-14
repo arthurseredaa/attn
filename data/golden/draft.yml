@@ -1,7 +1,8 @@
 # Golden set: the Claude-drafted reference, drafted by Claude (2026-10-14) by reading each article and
 # accepted by the owner on 2026-10-14 as the golden set instead of hand-labeling (docs/decisions.md).
 # `pnpm attn eval` therefore measures agreement with this reference. The owner may still correct items
-# (via the review page, or by editing them here).
+# (via the review page at https://claude.ai/artifact/LdSKh6rm5twdFDVcw7GJma (its decisions are copied into
+# this file before use), or by editing them here).
 # Format: see README "Evaluation". Every data/golden/*.yml file is read.
 - url: https://claude.dev/blog/building-effective-agent-automations
   primary_skill: workflow-automation

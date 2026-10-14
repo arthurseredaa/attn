@@ -170,6 +170,7 @@ text, which is cut to `label_max_chars` (`data/config.yml`, default 20000 charac
 cost knob. The system prompt (taxonomy and rubrics) is the same on every call and is sent with Anthropic prompt
 caching, so within the cache lifetime (5 minutes) repeated calls bill it at the cheaper cache-read rate. Claude Haiku
 5.5 does not accept a temperature: the SDK drops the `temperature: 0` setting for it and prints a warning per call.
+Every call, for either provider, caps the output at 1024 tokens (a label is about 100).
 Extended thinking, billed as output tokens, is turned off for Claude (`reasoning: 'none'`; on a model that cannot
 turn it off, such as Opus 5.5, the SDK uses its lowest setting, effort `low`, and prints a warning).
 
@@ -182,7 +183,7 @@ retried after each pause in `label_overload_backoff_ms` (default 2 s, 5 s, 10 s,
 still overloaded the article becomes `failed` (one attempt used) and the run goes on. A 429 is a quota limit, not
 retried: the run ends and the remaining articles stay `pending`.
 A bad or missing API key (401/403), an unknown model id (404) or, on Anthropic, an exhausted credit balance (400
-"credit balance is too low") is fatal: the run stops at once without
+"credit balance is too low") or a billing error (402 `billing_error`) is fatal: the run stops at once without
 changing that article's status or attempts, `attn label` prints the provider error and exits 1, and the API job
 logs it at error level. `attn eval` stops the same way and exits 1 with the partial report; it also exits 1 when
 not a single article could be scored.
@@ -272,8 +273,9 @@ The numbers are illustrative.
 - `quality_within1`: quality within +-1.
 - `evaluated=n of total` and `failed:`: articles whose text could not be fetched or was too short are listed
   and excluded from the percentages.
-- `tokens:` the provider's token totals over the run, the last line: `input` counts every input token, cached ones
-  included; `cache_read` and `cache_write` (only when the provider reports them) are the cached part. Multiply by
+- `tokens:` the provider's token totals over the run, the last line. It includes calls whose output failed to
+  parse (they were billed) but not HTTP error responses, which carry no usage. `input` counts every input token,
+  cached ones included; `cache_read` and `cache_write` (only when the provider reports them) are the cached part. Multiply by
   the provider's current per-token prices to get the run's cost; ATTN does not store prices.
 - `disagreements:` names, per article, each field that did not match. Difficulty off by one is listed; quality
   off by one is not. Empty skill sets print as `-`.
