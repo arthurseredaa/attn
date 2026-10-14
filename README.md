@@ -6,13 +6,14 @@ It is curation only: links to existing articles, no generated content.
 
 ## Status
 
-Stage 4 of 5 done: onboarding + profile (stage 3: website + auth). Built: GitHub sign-in (session cookie), the public articles API
-(`/api/articles`, `/api/sources`, `/api/taxonomy`) and the Next.js site (landing page and the public All list
-with source, skill and date filters). Earlier stages: the monorepo, validated YAML data, the Postgres
-schema, `attn collect` (RSS, Atom and sitemap sources with conditional GET, URL normalization and
-deduplication), article text extraction, LLM labeling (`attn label`), model evaluation against a golden set
-(`attn eval`) and the API job that runs collect then label daily. Onboarding, ranking, levels and the personal
-feed are planned.
+MVP complete: stage 5 of 5 (For you + feedback). Built: collect (RSS, Atom and sitemap sources with conditional GET,
+URL normalization and deduplication, article text extraction) and the API job that runs collect then label daily;
+LLM labeling (`attn label`) with model evaluation against a golden set (`attn eval`); the website with GitHub
+sign-in (session cookie), the public articles API and the All list; onboarding with a situational quiz and the
+Profile (skill levels, focus, reading history, 👍 share); the personal For you feed ranked by skill priority and
+level, with feedback buttons (read, 👍, too easy, too hard, not interested) that change the user's skill state; and
+`attn seed-demo` for local demo data without a labeling key. What is left is the owner's: see
+[MVP done-criteria and hand-off](#mvp-done-criteria-and-hand-off).
 
 ## Requirements
 
@@ -51,6 +52,7 @@ Over plain http, set `COOKIE_SECURE=false` in `.env` or sign-in cookies will not
 | `pnpm attn collect [--source <id>]... [--backfill-days <n>]` | Collect new articles from all sources, or only the given ones |
 | `pnpm attn label [--limit <n>]` | Label pending articles with `LABEL_MODEL` (see Labeling) |
 | `pnpm attn eval --model <id>` | Measure a model against the golden set; writes nothing to the DB (see Evaluation) |
+| `pnpm attn seed-demo [--remove]` | Insert deterministic labeled demo articles so For you works without a Gemini key; `--remove` deletes them |
 | `pnpm api` | Start the API on `PORT` (default 3001); `GET /api/health`; runs the daily job |
 | `pnpm web` | Start the Next.js site in dev mode on port 3000; rewrites `/api/*` to `API_URL` (default `http://localhost:3001`) |
 
@@ -62,11 +64,11 @@ Over plain http, set `COOKIE_SECURE=false` in `.env` or sign-in cookies will not
 ```
 data/                YAML validated by zod schemas from packages/shared
 packages/shared      zod schemas
-packages/core        db/, collect/, extract/, label/, pipeline/, eval/, data loading, cli.ts
-                     (rank/, levels/ are planned)
+packages/core        db/, collect/, extract/, label/, pipeline/, eval/, rank/, levels/, demo/, data loading, cli.ts
+scripts/smoke.sh     end-to-end smoke of For you + feedback against the api
 docker-compose.yml   postgres, api, web
-apps/api             NestJS: auth (GitHub OAuth, sessions), articles, sources/taxonomy, health, the daily job
-apps/web             Next.js app router site: landing page and the public All list
+apps/api             NestJS: auth (GitHub OAuth, sessions), articles, sources/taxonomy, feed, events, health, the daily job
+apps/web             Next.js app router site: landing page, the public All list, onboarding, Profile, For you
 ```
 
 ## Sign in with GitHub (OAuth app)
@@ -104,6 +106,9 @@ All routes are under `/api`; errors are JSON `{ "error", "message" }`.
 - `POST /api/onboarding`: submit quiz results and optional focus; creates or redoes the user's skill levels
 - `PUT /api/focus`: replace the ordered focus skills (onboarded users only)
 - `GET /api/profile`: the signed-in user's skill levels and focus
+- `GET /api/feed?offset=`: the For you page (20 cards, `{ items, nextOffset }`), ranked for the signed-in user
+- `POST /api/articles/:id/events`: record feedback with `{ kind }` (`read`, `like`, `too_easy`, `too_hard`,
+  `not_interested`); 200 `{ kind, recorded }`, a repeated click is a no-op (`recorded: false`)
 
 ## Docker
 
@@ -268,6 +273,69 @@ pnpm attn eval --model gemini-3.5-flash-lite
 Compare the six lines and the disagreement lists, then set the winner as `LABEL_MODEL` in `.env`. Because the
 text cache is shared, the comparison is on identical text. Prompt or taxonomy changes also move the scores, so
 re-run all candidates after such a change.
+
+## How For you ranks
+
+One SQL query per request, nothing precomputed per user. For each of the user's skills, `t = level + difficulty
+offset` (an unassessed skill has level 1 and is uncertain). `t` is clamped to 4 at the top only (a level-4 skill
+with offset +1 would otherwise match difficulties that do not exist and vanish); there is no lower clamp. An
+article is a candidate when:
+
+- its primary skill is a focus skill, or a background skill with `quality >= background_quality_min` (4);
+- its difficulty is `t` or `t+1` (the difficulty band); for an uncertain skill the band widens to `t-1 ... t+2`;
+- `quality >= quality_min` (2);
+- it is a `release` or `news` item only if published within `fresh_days` (14); other types have no age limit;
+- the user has no `read` or `not_interested` event for it.
+
+`score = priority x interest x fit x quality / 4`. `priority` is `(6 - r) / 5` for focus rank `r` and
+`background_priority` (0.1) for background skills; `interest` is the user's per-skill weight (1.0 at the start);
+`fit` is `fit_next` (1.0) for difficulty `t+1`, `fit_same` (0.8) for `t` and `fit_stretch` (0.5) for the rest of
+the band. Order: score descending, then newest first, then id (so paging is stable). `page_size` (20) cards per
+page; "Load more" asks for the next offset. All constants are in `data/config.yml`. Redoing the quiz for a skill
+resets its difficulty offset for good: feedback recorded before the latest quiz answer for that skill no longer
+counts.
+
+## Feedback
+
+Feedback applies to the article's primary skill, only to skills that exist after onboarding (a user who has not
+onboarded has events recorded but no skill effects).
+
+- **Read** (opens the article in a new tab): the card leaves the feed. If the article's difficulty is at or above
+  the user's level, the skill gets +1 point; `points_per_level` (5) points give +1 level (cap 4) and reset points.
+- **👍**: no ranking effect. The share of 👍 among read articles is the quality metric, shown on the Profile.
+- **Too easy / Too hard**: `difficulty_offset = clamp(round((too_easy - too_hard) / offset_k), -1, +1)`, recomputed
+  from that skill's events after each click (`offset_k` is 3).
+- **Not interested**: `interest = max(interest x interest_decay, interest_min)` (0.8 and 0.2); the card leaves the feed.
+
+Every click is idempotent per user, article and kind: repeating it changes nothing.
+
+## Local demo without API keys
+
+Labeling needs a Gemini key; the demo does not.
+
+1. Start Postgres: `docker compose up -d --wait`, or any local Postgres 17 at `DATABASE_URL`.
+2. `pnpm attn migrate`, then `pnpm attn seed-demo` (labeled demo articles under `https://example.com/demo/...`).
+3. Run `pnpm api` and `pnpm web`, and sign in (needs GitHub OAuth credentials), or run `bash scripts/smoke.sh`,
+   which creates a throwaway user and session, exercises the whole For you loop through the api and prints nine
+   `ok:` lines. `API_PORT` (default 3001) picks the api port and the script refuses a port that is in use;
+   `KEEP=1` keeps the smoke user and demo articles.
+4. Clean up with `pnpm attn seed-demo --remove` (the smoke script does it for you unless `KEEP=1`).
+
+## MVP done-criteria and hand-off
+
+The MVP is done when the owner judges that ATTN covers their own use case. Then `~/Projects/ai-news` is archived
+and its scheduled task disabled, not before. This repo does not do that.
+
+Verifiably done in this repo: collect, label, eval, onboarding and quiz, For you, feedback, Profile, CI.
+
+Owner hand-off:
+
+- Review `data/golden/draft.yml`, then choose `LABEL_MODEL` from `attn eval` results and set it in `.env`.
+- Review the quiz DRAFT using [docs/quiz-owner-review.md](docs/quiz-owner-review.md).
+- Set GitHub OAuth credentials and do a real sign-in round trip (never exercised here).
+- Build the Docker images (never built in the authoring environment).
+- Decide on openai-news (dropped: Cloudflare 403, see Known limitations).
+- Run ATTN for a trial period, then archive the old `ai-news` repo and disable its scheduled task (owner's call).
 
 ## Known limitations
 

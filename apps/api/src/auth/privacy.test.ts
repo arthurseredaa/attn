@@ -16,8 +16,10 @@ function tsFiles(dir: string): string[] {
 }
 
 describe('privacy invariant', () => {
-  it('auth and articles never reference the labeler', () => {
-    const files = [...tsFiles(join(root, 'auth')), ...tsFiles(join(root, 'articles'))];
+  it('auth, articles, feed and events never reference the labeler', () => {
+    const dirs = ['auth', 'articles', 'feed', 'events'];
+    const files = dirs.flatMap((d) => tsFiles(join(root, d)));
+    for (const d of dirs) expect(tsFiles(join(root, d)).length, d).toBeGreaterThan(0);
     expect(files.length).toBeGreaterThan(0);
     for (const f of files) expect(readFileSync(f, 'utf8'), f).not.toMatch(FORBIDDEN);
   });
