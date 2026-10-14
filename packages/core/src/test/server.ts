@@ -19,12 +19,15 @@ export interface TestServer {
   close(): Promise<void>;
 }
 
-/** Local HTTP server on an ephemeral port. Unknown path -> 404; default status 200. */
+/** Local HTTP server on an ephemeral port. Unknown path -> 404; default status 200; every response closes its connection. */
 export async function startServer(initial: Record<string, Route> = {}): Promise<TestServer> {
   const routes = new Map<string, Route>(Object.entries(initial));
   const requests: TestServer['requests'] = [];
 
   const server = createServer((req, res) => {
+    // No keep-alive: a pooled client socket must not outlive this server and be reused against a later
+    // server that got the same ephemeral port (seen as HTTPParserError in oauth.e2e).
+    res.setHeader('connection', 'close');
     const chunks: Buffer[] = [];
     req.on('data', (c: Buffer) => chunks.push(c));
     req.on('end', () => {
