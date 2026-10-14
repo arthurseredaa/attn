@@ -110,6 +110,10 @@ All routes are under `/api`; errors are JSON `{ "error", "message" }`.
 - `POST /api/articles/:id/events`: record feedback with `{ kind }` (`read`, `like`, `too_easy`, `too_hard`,
   `not_interested`); 200 `{ kind, recorded }`, a repeated click is a no-op (`recorded: false`)
 
+`POST /api/onboarding`, `PUT /api/focus` and `POST /api/articles/:id/events` accept only `Content-Type:
+application/json` (parameters such as `; charset=utf-8` are fine); anything else, including a form post or no body,
+gets 415 `{ "error": "unsupported_media_type" }`. The session check comes first, so an anonymous request gets 401.
+
 ## Docker
 
 `docker compose up --build` starts postgres, api and web, and serves the site on http://localhost:3000. The

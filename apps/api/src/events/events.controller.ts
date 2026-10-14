@@ -4,6 +4,7 @@ import { articleIdParamSchema, eventBodySchema, type EventResponse } from '@attn
 import { CurrentUser } from '../auth/current-user';
 import type { AuthUser } from '../auth/session';
 import { SessionGuard } from '../auth/session.guard';
+import { JsonBodyGuard } from '../common/json-body.guard';
 import { parseWith } from '../common/zod';
 import { EventsService } from './events.service';
 
@@ -13,7 +14,7 @@ export class EventsController {
 
   @Post(':id/events')
   @HttpCode(200)
-  @UseGuards(SessionGuard)
+  @UseGuards(SessionGuard, JsonBodyGuard)
   record(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -21,7 +22,7 @@ export class EventsController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<EventResponse> {
     res.setHeader('Cache-Control', 'no-store');
-    const articleId = parseWith(articleIdParamSchema, id, 'query');
+    const articleId = parseWith(articleIdParamSchema, id, 'params');
     const { kind } = parseWith(eventBodySchema, body, 'body');
     return this.events.record(user, articleId, kind);
   }

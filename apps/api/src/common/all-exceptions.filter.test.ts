@@ -40,6 +40,7 @@ describe('AllExceptionsFilter', () => {
     expect(errorCodeForStatus(503)).toBe('service_unavailable');
     expect(errorCodeForStatus(500)).toBe('internal_error');
     expect(errorCodeForStatus(413)).toBe('payload_too_large');
+    expect(errorCodeForStatus(415)).toBe('unsupported_media_type');
     expect(errorCodeForStatus(418)).toBe('error');
   });
 

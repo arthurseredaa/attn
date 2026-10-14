@@ -4,6 +4,7 @@ import { focusBodySchema, onboardingBodySchema, quizQuerySchema, type Profile, t
 import { CurrentUser } from '../auth/current-user';
 import type { AuthUser } from '../auth/session';
 import { SessionGuard } from '../auth/session.guard';
+import { JsonBodyGuard } from '../common/json-body.guard';
 import { parseWith } from '../common/zod';
 import { OnboardingService } from './onboarding.service';
 
@@ -25,11 +26,13 @@ export class OnboardingController {
 
   @Post('onboarding')
   @HttpCode(200)
+  @UseGuards(JsonBodyGuard) // runs after the controller-level SessionGuard
   submit(@CurrentUser() user: AuthUser, @Body() body: unknown): Promise<Profile> {
     return this.onboarding.submit(user, parseWith(onboardingBodySchema, body, 'body'));
   }
 
   @Put('focus')
+  @UseGuards(JsonBodyGuard)
   changeFocus(@CurrentUser() user: AuthUser, @Body() body: unknown): Promise<Profile> {
     return this.onboarding.changeFocus(user, parseWith(focusBodySchema, body, 'body'));
   }

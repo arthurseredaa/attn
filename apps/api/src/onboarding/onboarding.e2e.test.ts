@@ -267,6 +267,30 @@ describe('POST /api/onboarding', () => {
     expect(await ctx.db.select().from(userSkills)).toHaveLength(0);
   });
 
+  it('415 for non-JSON bodies after the session check; JSON with parameters is accepted', async () => {
+    const form = (headers: H, method = 'POST', path = '/onboarding') =>
+      fetch(`${ctx.base}/api${path}`, {
+        method,
+        headers: { ...headers, 'content-type': 'application/x-www-form-urlencoded' },
+        body: 'focus=evals',
+      });
+    expect((await form({})).status).toBe(401);
+    expect((await form({}, 'PUT', '/focus')).status).toBe(401);
+    const me = await signIn(ctx);
+    for (const [method, path] of [['POST', '/onboarding'], ['PUT', '/focus']] as const) {
+      const res = await form(me.headers, method, path);
+      expect(res.status, path).toBe(415);
+      expect(await res.json(), path).toEqual({ error: 'unsupported_media_type', message: expect.any(String) });
+    }
+    expect(await rows(me.user.id)).toHaveLength(0);
+    const ok = await fetch(`${ctx.base}/api/onboarding`, {
+      method: 'POST',
+      headers: { ...me.headers, 'content-type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({ focus: ['evals'], answers: [] }),
+    });
+    expect(ok.status).toBe(200);
+  });
+
   it('distinguishes malformed JSON from schema errors', async () => {
     const { headers } = await signIn(ctx);
     const bad = await fetch(`${ctx.base}/api/onboarding`, {
@@ -397,7 +421,8 @@ describe('PUT /api/focus', () => {
     const me = await onboarded();
     const bad: unknown[] = [{ focus: [] }, { focus: ['a', 'b', 'c', 'd', 'e', 'f'] }, { focus: ['evals', 'evals'] }, {}];
     for (const b of bad) expect((await call('PUT', '/focus', me.headers, b)).status).toBe(400);
-    expect((await call('PUT', '/focus', me.headers)).status).toBe(400);
+    // no body and no content type: not JSON
+    expect((await call('PUT', '/focus', me.headers)).status).toBe(415);
     expect((await call('PUT', '/focus', me.headers, { focus: ['nope'] })).status).toBe(422);
     expect(await ranks(me.user.id)).toEqual(FOCUS);
   });

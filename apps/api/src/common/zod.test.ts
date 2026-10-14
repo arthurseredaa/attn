@@ -20,5 +20,6 @@ describe('parseWith', () => {
     expect(() => parseWith(schema, [], 'body')).toThrow(/^body: /);
     expect(() => parseWith(schema, 'x', 'body')).toThrow(/^body: /);
     expect(() => parseWith(schema, null, 'query')).toThrow(/^query: /);
+    expect(() => parseWith(z.string().regex(/^\d+$/), 'abc', 'params')).toThrow(/^params: /);
   });
 });

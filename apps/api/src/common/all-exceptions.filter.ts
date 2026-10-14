@@ -10,6 +10,7 @@ const CODES: Record<number, string> = {
   404: 'not_found',
   409: 'conflict',
   413: 'payload_too_large',
+  415: 'unsupported_media_type',
   422: 'unprocessable_entity',
   429: 'too_many_requests',
   503: 'service_unavailable',

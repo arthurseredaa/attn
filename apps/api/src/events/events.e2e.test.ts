@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { articleEvents, loadTaxonomy, roleSkillIds, saveOnboarding, userSkills } from '@attn/core';
 import { resetDb } from '@attn/core/testing';
 import { errorBodySchema, eventResponseSchema, type EventKind } from '@attn/shared';
@@ -133,6 +133,43 @@ describe('POST /api/articles/:id/events', () => {
     expect(await ctx.db.select().from(userSkills)).toHaveLength(0);
   });
 
+  it("records for an onboarded user lacking the article's primary-skill row, without skill effects", async () => {
+    const me = await signIn(ctx);
+    await onboard(me.user.id);
+    await ctx.db.delete(userSkills).where(and(eq(userSkills.userId, me.user.id), eq(userSkills.skillId, S2)));
+    const before = await ctx.db.select().from(userSkills).where(eq(userSkills.userId, me.user.id));
+    expect(before.some((r) => r.skillId === S2)).toBe(false);
+    const kinds: EventKind[] = ['read', 'too_easy', 'too_hard', 'not_interested'];
+    for (const kind of kinds) {
+      expect(await record(me, await seed({ primary: S2, difficulty: 4 }), kind)).toEqual({ kind, recorded: true });
+    }
+    expect(await eventRows()).toHaveLength(kinds.length);
+    expect(await ctx.db.select().from(userSkills).where(eq(userSkills.userId, me.user.id))).toEqual(before);
+  });
+
+  it('requires application/json after the session check (415), parameters allowed', async () => {
+    const me = await signIn(ctx);
+    await onboard(me.user.id);
+    const id = await seed();
+    const send = (headers: Record<string, string>, body: string) =>
+      fetch(`${ctx.base}/api/articles/${id}/events`, { method: 'POST', headers, body });
+    // anonymous: 401 wins over 415
+    const anon = await send({ 'content-type': 'application/x-www-form-urlencoded' }, 'kind=read');
+    expect(anon.status).toBe(401);
+    expect(errorBodySchema.parse(await anon.json()).error).toBe('unauthorized');
+    for (const type of ['application/x-www-form-urlencoded', 'text/plain', 'multipart/form-data; boundary=x']) {
+      const body = type.startsWith('application/x-www') ? 'kind=read' : JSON.stringify({ kind: 'read' });
+      const res = await send({ ...me.headers, 'content-type': type }, body);
+      expect(res.status, type).toBe(415);
+      expect(await res.json(), type).toEqual({ error: 'unsupported_media_type', message: expect.any(String) });
+    }
+    expect((await send(me.headers, JSON.stringify({ kind: 'read' }))).status).toBe(415);
+    expect(await eventRows()).toHaveLength(0);
+    const ok = await send({ ...me.headers, 'content-type': 'application/json; charset=utf-8' }, JSON.stringify({ kind: 'read' }));
+    expect(ok.status).toBe(200);
+    expect(eventResponseSchema.parse(await ok.json())).toEqual({ kind: 'read', recorded: true });
+  });
+
   it('returns 404 for missing, pending and failed articles', async () => {
     const me = await signIn(ctx);
     await onboard(me.user.id);
@@ -141,6 +178,7 @@ describe('POST /api/articles/:id/events', () => {
     for (const id of [999999, pending, failed]) {
       const res = await post(me, id, { kind: 'read' });
       expect(res.status).toBe(404);
+      expect(res.headers.get('cache-control')).toBe('no-store');
       expect(errorBodySchema.parse(await res.json()).error).toBe('not_found');
     }
     expect(await eventRows()).toHaveLength(0);
@@ -153,10 +191,16 @@ describe('POST /api/articles/:id/events', () => {
     for (const bad of ['abc', '0', '-1', '1.5', '99999999999']) {
       const res = await post(me, bad, { kind: 'read' });
       expect(res.status, bad).toBe(400);
-      expect(errorBodySchema.parse(await res.json()).error).toBe('bad_request');
+      expect(res.headers.get('cache-control'), bad).toBe('no-store');
+      const err = errorBodySchema.parse(await res.json());
+      expect(err.error).toBe('bad_request');
+      expect(err.message, bad).toMatch(/^params: /);
     }
     for (const body of [{}, { kind: 'share' }, { kind: 'read', extra: 1 }, '{not json', '']) {
-      expect((await post(me, id, body)).status, JSON.stringify(body)).toBe(400);
+      const res = await post(me, id, body);
+      expect(res.status, JSON.stringify(body)).toBe(400);
+      // the handler sets no-store before parsing; malformed JSON is refused earlier, by the body parser
+      if (body !== '{not json') expect(res.headers.get('cache-control'), JSON.stringify(body)).toBe('no-store');
     }
     expect(await eventRows()).toHaveLength(0);
     expect((await skillRow(me.user.id)).points).toBe(0);
@@ -172,7 +216,6 @@ describe('POST /api/articles/:id/events', () => {
     expect((await skillRow(b.user.id)).interest).toBe(1);
     expect((await record(b, id, 'not_interested')).recorded).toBe(true);
     expect((await skillRow(a.user.id)).interest).toBeCloseTo(0.8);
-    expect(S2).toBeDefined();
   });
 
   it('exposes only kind and recorded', async () => {
