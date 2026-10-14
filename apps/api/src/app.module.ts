@@ -3,6 +3,7 @@ import { ArticlesModule } from './articles/articles.module';
 import { AuthModule } from './auth/auth.module';
 import { AppConfigModule } from './config/config.module';
 import { DbModule } from './db/db.module';
+import { EventsModule } from './events/events.module';
 import { FeedModule } from './feed/feed.module';
 import { HealthModule } from './health/health.module';
 import { JobsModule } from './jobs/jobs.module';
@@ -22,6 +23,7 @@ import { ProfileModule } from './profile/profile.module';
     ProfileModule,
     OnboardingModule,
     FeedModule,
+    EventsModule,
   ],
 })
 export class AppModule {}
