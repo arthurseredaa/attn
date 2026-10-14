@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import {
   articlesPageSchema,
   errorBodySchema,
+  feedPageSchema,
   meSchema,
   profileSchema,
   quizResponseSchema,
@@ -13,6 +14,7 @@ import {
   type ArticlesPage,
   type ArticlesQuery,
   type ErrorBody,
+  type FeedPage,
   type Me,
   type Profile,
   type QuizResponse,
@@ -81,4 +83,9 @@ export async function getProfile(): Promise<Profile> {
 export async function getQuiz(skills: string[]): Promise<QuizResponse> {
   const cookie = (await cookies()).toString();
   return apiGet('/quiz', quizResponseSchema, { query: { skills: skills.join(',') }, cookie });
+}
+
+export async function getFeed(offset = 0): Promise<FeedPage> {
+  const cookie = (await cookies()).toString(); // outside any try/catch, see getMe
+  return apiGet('/feed', feedPageSchema, { cookie, query: { offset } });
 }

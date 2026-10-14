@@ -6,6 +6,7 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
+  { href: '/for-you', label: 'For you', auth: 'user' },
   { href: '/all', label: 'All', auth: 'any' },
   { href: '/profile', label: 'Profile', auth: 'user' },
 ];
