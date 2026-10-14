@@ -46,8 +46,8 @@ async function collect(args: string[], env: NodeJS.ProcessEnv, io: Io, deps: Dep
   let backfillDays: number | undefined;
   const rawDays = values['backfill-days'];
   if (rawDays !== undefined) {
-    if (!/^\d+$/.test(rawDays) || Number(rawDays) < 1) {
-      io.err(`--backfill-days must be a positive integer, got "${rawDays}"`);
+    if (!/^\d+$/.test(rawDays) || !Number.isSafeInteger(Number(rawDays)) || Number(rawDays) < 1 || Number(rawDays) > 3650) {
+      io.err(`--backfill-days must be an integer from 1 to 3650, got "${rawDays}"`);
       return 1;
     }
     backfillDays = Number(rawDays);

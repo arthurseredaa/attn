@@ -172,10 +172,22 @@ describe('sitemap', () => {
     expect(server.hits('/news/gamma')).toBe(0);
   });
 
-  it('falls back to a slug title when the page 404s', async () => {
-    server.setRoute('/news/beta', { status: 404 });
-    await run(sitemap('s', '/sitemap.xml'));
-    expect((await rows()).map((a) => a.title)).toEqual(['Alpha OG', 'Beta']);
+  it('skips, does not insert and keeps validators when a page fetch fails; a later run retries', async () => {
+    const src = sitemap('s', '/sitemap.xml');
+    server.setRoute('/sitemap.xml', fixtureRoute('sitemap.xml', { ...xml, ETag: '"v1"' }));
+    server.setRoute('/news/beta', { status: 500 });
+    const r1 = await run(src);
+    expect(counts(r1)).toEqual({ seen: 4, inserted: 1, duplicates: 0, tooOld: 1, skipped: 2 });
+    expect((await rows()).map((a) => a.title)).toEqual(['Alpha OG']);
+    const st = await stateOf('s');
+    expect(st?.etag).toBeNull();
+    expect(st?.lastRunAt).toEqual(now);
+
+    server.setRoute('/news/beta', html('Beta OG'));
+    const r2 = await run(src);
+    expect(r2.status).toBe('ok');
+    expect((await rows()).map((a) => a.title)).toEqual(['Alpha OG', 'Beta OG', 'Gamma OG']);
+    expect((await stateOf('s'))?.etag).toBe('"v1"');
   });
 
   it('follows a sitemap index one level deep', async () => {
@@ -249,5 +261,25 @@ describe('collectAll', () => {
     const reports = await collectAll({ db, config, now, sources, onlySourceIds: ['b'] });
     expect(reports.map((r) => r.sourceId)).toEqual(['b']);
     expect(server.hits('/rss.xml')).toBe(0);
+  });
+});
+
+describe('failure isolation', () => {
+  it('reports an error result when recording the failure also fails', async () => {
+    const broken = new Proxy(db, {
+      get(t, prop, recv) {
+        if (prop === 'insert') throw new Error('db down');
+        return Reflect.get(t, prop, recv);
+      },
+    }) as Db;
+    server.setRoute('/feed.xml', { status: 500 });
+    const reports = await collectAll({
+      db: broken,
+      sources: [rss('a', '/feed.xml'), rss('b', '/feed.xml')],
+      config,
+      now,
+    });
+    expect(reports.map((r) => r.status)).toEqual(['error', 'error']);
+    expect(reports[0]!.error).toContain('failed to record failure');
   });
 });

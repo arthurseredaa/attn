@@ -103,6 +103,7 @@ export async function collectSource(
 
   try {
     const state = await getState(db, source.id);
+    let pageFetchFailed = false;
     const res = await conditionalGet(source.url, state, fetchFn, timeoutMs);
     if (res.status === 'not_modified') {
       await recordSuccess(db, source.id, { etag: res.etag, lastModified: res.lastModified }, now);
@@ -156,8 +157,13 @@ export async function collectSource(
         try {
           title = parsePageTitle(await getText(url, fetchFn, timeoutMs));
         } catch {
-          title = null;
+          // Page unavailable: do not insert (a made-up title would be permanent) and
+          // keep the old validators below so the next run re-reads the sitemap and retries.
+          pageFetchFailed = true;
+          report.skipped++;
+          continue;
         }
+        // Page fetched but has no title: fall back to the URL slug.
         title = title || slugTitle(url);
         if (!passesFilter({ url, title }, source.filter)) {
           report.skipped++;
@@ -186,11 +192,19 @@ export async function collectSource(
       else report.duplicates++;
     }
 
-    await recordSuccess(db, source.id, { etag: res.etag, lastModified: res.lastModified }, now);
+    const validators = pageFetchFailed
+      ? { etag: state?.etag ?? null, lastModified: state?.lastModified ?? null }
+      : { etag: res.etag, lastModified: res.lastModified };
+    await recordSuccess(db, source.id, validators, now);
     return report;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await recordFailure(db, source.id, message, now);
+    try {
+      await recordFailure(db, source.id, message, now);
+    } catch (recordErr) {
+      const detail = recordErr instanceof Error ? recordErr.message : String(recordErr);
+      return { ...report, status: 'error', error: `${message} (also failed to record failure: ${detail})` };
+    }
     return { ...report, status: 'error', error: message };
   }
 }

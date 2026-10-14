@@ -68,6 +68,12 @@ describe('sourcesSchema', () => {
     const s = { id: 'a', name: 'A', type: 'rss', url: 'https://x.test/f' };
     expect(sourcesSchema.safeParse([s, s]).success).toBe(false);
   });
+  it('rejects empty filter arrays', () => {
+    const base = { id: 'a', name: 'A', type: 'rss', url: 'https://x.test/f' };
+    for (const filter of [{ keywords: [] }, { path_prefix: [] }]) {
+      expect(sourceSchema.safeParse({ ...base, filter }).success).toBe(false);
+    }
+  });
   it('accepts a filter on rss and sitemap', () => {
     const filter = { path_prefix: ['/blog/'], keywords: ['ai'] };
     expect(sourceSchema.safeParse({ id: 'a', name: 'A', type: 'rss', url: 'https://x.test/f', filter }).success).toBe(true);

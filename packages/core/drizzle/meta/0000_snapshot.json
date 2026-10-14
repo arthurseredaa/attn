@@ -1,5 +1,5 @@
 {
-  "id": "054ef3b5-e4d0-4de8-a971-8253b350d8b6",
+  "id": "23b2a072-5ead-4e19-8429-01bdc0982447",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -40,7 +40,6 @@
         "kind": {
           "name": "kind",
           "type": "event_kind",
-          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -122,6 +121,21 @@
         }
       },
       "indexes": {
+        "article_skills_skill_id_idx": {
+          "name": "article_skills_skill_id_idx",
+          "columns": [
+            {
+              "expression": "skill_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "article_skills_one_primary_idx": {
           "name": "article_skills_one_primary_idx",
           "columns": [
@@ -241,7 +255,6 @@
         "label_status": {
           "name": "label_status",
           "type": "label_status",
-          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
           "default": "'pending'"
@@ -262,7 +275,6 @@
         "type": {
           "name": "type",
           "type": "article_type",
-          "typeSchema": "public",
           "primaryKey": false,
           "notNull": false
         },
@@ -421,7 +433,7 @@
           "name": "answered_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "default": "now()"
         }
       },

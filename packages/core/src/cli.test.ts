@@ -68,7 +68,7 @@ describe('attn collect', () => {
     expect((await db.select().from(articles)).map((a) => a.title).sort()).toEqual(['First post', 'Future', 'Undated']);
   });
 
-  it.each(['0', 'abc'])('rejects --backfill-days %s', async (v) => {
+  it.each(['0', 'abc', '3651', '99999999999999999999'])('rejects --backfill-days %s', async (v) => {
     expect(await run(['collect', '--backfill-days', v], env, io, deps)).toBe(1);
     expect(err.join('\n')).toContain('--backfill-days');
   });

@@ -92,6 +92,7 @@ export const articleSkills = pgTable(
   },
   (t) => [
     primaryKey({ columns: [t.articleId, t.skillId] }),
+    index('article_skills_skill_id_idx').on(t.skillId),
     uniqueIndex('article_skills_one_primary_idx').on(t.articleId).where(sql`${t.isPrimary}`),
   ],
 );
@@ -131,7 +132,7 @@ export const quizAnswers = pgTable(
     firstOption: integer('first_option').notNull(),
     secondOption: integer('second_option').notNull(),
     quizVersion: integer('quiz_version').notNull(),
-    answeredAt: timestamptz('answered_at').defaultNow(),
+    answeredAt: timestamptz('answered_at').notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.questionId] })],
 );

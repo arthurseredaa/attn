@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -5,12 +6,15 @@ import path from 'node:path';
 import { dataDir, loadConfig, loadSources, loadTaxonomy } from './data';
 
 let dir: string;
+let priorEnv: string | undefined;
 beforeEach(() => {
+  priorEnv = process.env.ATTN_DATA_DIR;
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'attn-data-'));
 });
 afterEach(() => {
   fs.rmSync(dir, { recursive: true, force: true });
-  delete process.env.ATTN_DATA_DIR;
+  if (priorEnv === undefined) delete process.env.ATTN_DATA_DIR;
+  else process.env.ATTN_DATA_DIR = priorEnv;
 });
 
 const write = (name: string, body: string) => fs.writeFileSync(path.join(dir, name), body);
@@ -47,6 +51,8 @@ describe('data loaders', () => {
 
   it('dataDir defaults to repo-root data/', () => {
     delete process.env.ATTN_DATA_DIR;
-    expect(dataDir()).toMatch(/attn\/data$/);
+    const repoData = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../data');
+    expect(dataDir()).toBe(repoData);
+    expect(fs.existsSync(path.join(repoData, 'sources.yml'))).toBe(true);
   });
 });

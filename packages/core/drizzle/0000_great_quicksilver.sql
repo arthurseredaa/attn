@@ -46,7 +46,7 @@ CREATE TABLE "quiz_answers" (
 	"first_option" integer NOT NULL,
 	"second_option" integer NOT NULL,
 	"quiz_version" integer NOT NULL,
-	"answered_at" timestamp with time zone DEFAULT now(),
+	"answered_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "quiz_answers_user_id_question_id_pk" PRIMARY KEY("user_id","question_id")
 );
 --> statement-breakpoint
@@ -97,6 +97,7 @@ ALTER TABLE "article_skills" ADD CONSTRAINT "article_skills_article_id_articles_
 ALTER TABLE "quiz_answers" ADD CONSTRAINT "quiz_answers_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_skills" ADD CONSTRAINT "user_skills_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "article_skills_skill_id_idx" ON "article_skills" USING btree ("skill_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "article_skills_one_primary_idx" ON "article_skills" USING btree ("article_id") WHERE "article_skills"."is_primary";--> statement-breakpoint
 CREATE INDEX "articles_guid_idx" ON "articles" USING btree ("guid");--> statement-breakpoint
 CREATE INDEX "articles_title_hash_idx" ON "articles" USING btree ("title_hash");--> statement-breakpoint

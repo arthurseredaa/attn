@@ -3,9 +3,9 @@ import { z } from 'zod';
 const pathPrefix = z.string().min(1).startsWith('/');
 
 export const sourceFilterSchema = z.object({
-  path_prefix: z.array(pathPrefix).optional(),
-  exclude_path_prefix: z.array(pathPrefix).optional(),
-  keywords: z.array(z.string().min(1)).optional(),
+  path_prefix: z.array(pathPrefix).min(1).optional(),
+  exclude_path_prefix: z.array(pathPrefix).min(1).optional(),
+  keywords: z.array(z.string().min(1)).min(1).optional(),
 });
 export type SourceFilter = z.infer<typeof sourceFilterSchema>;
 
