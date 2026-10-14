@@ -110,4 +110,67 @@ describe('real quiz bank', () => {
       for (const o of q.options) expect(o.text.length, `${q.id}: ${o.text}`).toBeLessThanOrEqual(280);
     }
   });
+
+  describe('length and wording guards', () => {
+    const questions = () => loadQuiz().questions;
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    const pearson = (xs: number[], ys: number[]) => {
+      const mx = mean(xs);
+      const my = mean(ys);
+      let num = 0;
+      let dx = 0;
+      let dy = 0;
+      xs.forEach((x, i) => {
+        const y = ys[i] ?? 0;
+        num += (x - mx) * (y - my);
+        dx += (x - mx) ** 2;
+        dy += (y - my) ** 2;
+      });
+      return dx === 0 || dy === 0 ? 0 : num / Math.sqrt(dx * dy);
+    };
+
+    it('does not make the longest option the top level in more than 35% of questions', () => {
+      const qs = questions();
+      const hits = qs.filter((q) => {
+        const lengths = q.options.map((o) => o.text.length);
+        const top = Math.max(...q.options.map((o) => o.level));
+        return q.options[lengths.indexOf(Math.max(...lengths))]?.level === top;
+      });
+      expect(hits.length / qs.length).toBeLessThanOrEqual(0.35);
+    });
+
+    it('keeps option length uncorrelated with level (mean Pearson r within +-0.3)', () => {
+      const rs = questions().map((q) =>
+        pearson(
+          q.options.map((o) => o.text.length),
+          q.options.map((o) => o.level),
+        ),
+      );
+      expect(Math.abs(mean(rs))).toBeLessThanOrEqual(0.3);
+    });
+
+    it('keeps the mean option length of every level within 10% of the overall mean', () => {
+      const all = questions().flatMap((q) => q.options);
+      const overall = mean(all.map((o) => o.text.length));
+      for (const level of [0, 1, 2, 3, 4]) {
+        const m = mean(all.filter((o) => o.level === level).map((o) => o.text.length));
+        expect(Math.abs(m - overall) / overall, `level ${level}`).toBeLessThanOrEqual(0.1);
+      }
+    });
+
+    it('keeps options within 15% of their question mean length', () => {
+      for (const q of questions()) {
+        const m = mean(q.options.map((o) => o.text.length));
+        for (const o of q.options) {
+          expect(Math.abs(o.text.length - m) / m, `${q.id}: ${o.text}`).toBeLessThanOrEqual(0.15);
+        }
+      }
+    });
+
+    it('uses no hedge words and few "I have not" openers', () => {
+      const texts = questions().flatMap((q) => q.options.map((o) => o.text));
+      expect(texts.filter((t) => /\b(hope|somehow|simply|whatever)\b/i.test(t))).toEqual([]);
+      expect(texts.filter((t) => /\bI (have not|haven't)\b/i.test(t)).length).toBeLessThanOrEqual(2);
+    });
+  });
 });
