@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
-import type { Taxonomy } from '@attn/shared';
+import type { Config, Taxonomy } from '@attn/shared';
 import { loadConfig, loadSources, loadTaxonomy, dataDir } from './data';
 import { createDb, PIPELINE_LOCK_KEY, runMigrations, withAdvisoryLock } from './db';
 import { collectAll, type SourceReport } from './collect/collect';
@@ -48,6 +48,7 @@ export function resolveLabelerFactory(
   model: string,
   env: NodeJS.ProcessEnv,
   deps: Deps,
+  config?: Pick<Config, 'jev_secondary_threshold'>,
 ): ((model: string, taxonomy: Taxonomy) => Labeler) | { error: string } {
   if (deps.makeLabeler) return deps.makeLabeler;
   const error = labelerConfigError(model, env);
@@ -57,7 +58,7 @@ export function resolveLabelerFactory(
       model: m,
       taxonomy,
       env,
-      jevSecondaryThreshold: loadConfig(env.ATTN_DATA_DIR ?? dataDir()).jev_secondary_threshold,
+      jevSecondaryThreshold: (config ?? loadConfig(env.ATTN_DATA_DIR ?? dataDir())).jev_secondary_threshold,
     });
 }
 
@@ -98,14 +99,14 @@ async function labelCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps
     io.err('LABEL_MODEL is not set');
     return 1;
   }
-  const factory = resolveLabelerFactory(model, env, deps);
+  const dir = env.ATTN_DATA_DIR ?? dataDir();
+  const config = loadConfig(dir);
+  const factory = resolveLabelerFactory(model, env, deps, config);
   if ('error' in factory) {
     io.err(factory.error);
     return 1;
   }
 
-  const dir = env.ATTN_DATA_DIR ?? dataDir();
-  const config = loadConfig(dir);
   const taxonomy = loadTaxonomy(dir);
   const labeler = factory(model, taxonomy);
 
@@ -157,7 +158,8 @@ async function evalCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps:
     io.err(`no golden items found in ${dir}/golden; see README "Evaluation"`);
     return 1;
   }
-  const factory = resolveLabelerFactory(model, env, deps);
+  const config = loadConfig(dir);
+  const factory = resolveLabelerFactory(model, env, deps, config);
   if ('error' in factory) {
     io.err(factory.error);
     return 1;
@@ -167,7 +169,7 @@ async function evalCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps:
     labeler: factory(model, taxonomy),
     golden,
     cache: createTextCache(defaultCacheDir(env)),
-    config: loadConfig(dir),
+    config,
     ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
     ...(deps.sleep ? { sleep: deps.sleep } : {}),
     ...(deps.now ? { now: deps.now } : {}),

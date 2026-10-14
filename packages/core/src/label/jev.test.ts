@@ -9,7 +9,7 @@ import {
   GatewayModelNotFoundError,
   GatewayRateLimitError,
 } from '@ai-sdk/gateway';
-import { taxonomySkillIds } from '@attn/shared';
+import { articleTypeSchema, taxonomySkillIds } from '@attn/shared';
 import { loadTaxonomy } from '../data';
 import { DIFFICULTY_RUBRIC, QUALITY_RUBRIC, TYPE_RUBRIC } from './prompt';
 import { FatalLabelerError, OverloadedError, RateLimitError } from './errors';
@@ -91,7 +91,7 @@ describe('buildJevQuestions', () => {
     }
     const t = questions.type!;
     if (t.type !== 'choice') throw new Error('not a choice');
-    expect(Object.keys(t.criteria)).toEqual(['release', 'tutorial', 'deep_dive', 'news', 'research']);
+    expect(Object.keys(t.criteria)).toEqual([...articleTypeSchema.options]);
   });
 });
 
@@ -136,14 +136,14 @@ describe('mapJevAnswers', () => {
     expect(map(a, 0.95).secondary_skills).toEqual([]);
   });
 
-  it('treats a refused or missing secondary question as not covered', () => {
+  it('defensively treats a refused or missing secondary answer as not covered (decide never passes one on)', () => {
     const a = answers({ probs: { 'cc-plugins': 0.9 } });
     a['secondary:cc-plugins'] = { type: 'refusal' };
     delete a['secondary:cc-subagents'];
     expect(map(a).secondary_skills).toEqual([]);
   });
 
-  it('rejects a refused or missing core answer, and a choice outside the schema', () => {
+  it('defensively rejects a refused or missing core answer, and a choice outside the schema', () => {
     for (const id of ['primary_skill', 'type', 'difficulty', 'quality']) {
       const refused = answers();
       refused[id] = { type: 'refusal' };
@@ -212,6 +212,45 @@ describe('createJevLabeler', () => {
     expect(err).not.toBeInstanceOf(OverloadedError);
   });
 
+  it('turns a refused secondary question into probability 0 and still labels the article', async () => {
+    const a = answers({ probs: { 'cc-plugins': 0.9, 'cc-subagents': 0.8 } });
+    a['secondary:cc-plugins'] = { type: 'refusal' };
+    expect((await labeler(() => ok(a)).label(article)).secondary_skills).toEqual(['cc-subagents']);
+  });
+
+  it.each(['primary_skill', 'type', 'difficulty', 'quality'])(
+    'fails the article, as a plain failure, when %s is refused, and still counts the billed tokens',
+    async (id) => {
+      const a = answers();
+      a[id] = { type: 'refusal' };
+      const l = labeler(() => ok(a, { inputTokens: 40, outputTokens: 3 }));
+      const err = await l.label(article).catch((e: unknown) => e);
+      expect((err as Error).name).toBe('AI_DecisionRefusalError');
+      expect(err).not.toBeInstanceOf(FatalLabelerError);
+      expect(err).not.toBeInstanceOf(RateLimitError);
+      expect(err).not.toBeInstanceOf(OverloadedError);
+      expect(l.usage?.()).toEqual({ inputTokens: 40, outputTokens: 3 });
+    },
+  );
+
+  it('counts the tokens of a billed call whose answers fail decide validation', async () => {
+    const l = labeler(() => ok(answers({ primary: 'not-a-skill' }), { inputTokens: 55, outputTokens: 2 }));
+    await l.label(article).catch(() => undefined);
+    expect(l.usage?.()).toEqual({ inputTokens: 55, outputTokens: 2 });
+  });
+
+  it('counts nothing for a call that failed with an HTTP error', async () => {
+    const l = labeler(() => Promise.reject(new GatewayInternalServerError({ statusCode: 500 })));
+    await l.label(article).catch(() => undefined);
+    expect(l.usage?.()).toEqual({ inputTokens: 0, outputTokens: 0 });
+  });
+
+  it('maps a decision model that does not support a question type to FatalLabelerError', async () => {
+    const model = new DecisionMockModel({ supportedQuestionTypes: ['choice'], doDecide: async () => ok(answers()) });
+    const l = createJevLabeler({ model: 'typesafe-ai/jev', taxonomy, decisionModel: model, maxRetries: 0 });
+    expect(await l.label(article).catch((e: unknown) => e)).toBeInstanceOf(FatalLabelerError);
+  });
+
   it('constructs with an api key and no network', () => {
     expect(createJevLabeler({ model: 'typesafe-ai/jev', taxonomy, apiKey: 'vck_dummy' }).model).toBe('typesafe-ai/jev');
   });
@@ -254,6 +293,39 @@ describe('jev error mapping', () => {
     const err = await fail(e);
     expect(err).toBeInstanceOf(FatalLabelerError);
     expect((err as Error).message).toContain(status);
+  });
+
+  it('keeps the provider message of the free-tier 403 instead of a generic hint', async () => {
+    const msg =
+      'Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D for unrestricted access.';
+    const err = await fail(new GatewayInternalServerError({ message: msg, statusCode: 403 }));
+    expect(err).toBeInstanceOf(FatalLabelerError);
+    expect((err as Error).message).toBe(`provider rejected the request (403): ${msg}`);
+  });
+
+  it('keeps fatal messages on one line, at most ~300 characters, without key-shaped tokens', async () => {
+    const long = `bad\nrequest vck_abcdefghijklmnop1234 ${'x'.repeat(500)}`;
+    const err = await fail(new GatewayAuthenticationError({ message: long, statusCode: 401 }));
+    const m = (err as Error).message;
+    expect(m).not.toContain('\n');
+    expect(m).not.toContain('vck_abcdefghijklmnop1234');
+    expect(m.length).toBeLessThan(360);
+  });
+
+  it('maps a 409 to OverloadedError (retryable)', async () => {
+    expect(await fail(api(409, 'conflict'))).toBeInstanceOf(OverloadedError);
+  });
+
+  it.each([
+    ['413', api(413, 'Payload too large')],
+    ['400 context length', new GatewayInvalidRequestError({ message: 'context length exceeded', statusCode: 400 })],
+    ['422 input too long', api(422, 'input is too long for this model')],
+  ])('leaves an article-caused %s as a plain per-article failure', async (_n, e) => {
+    const err = await fail(e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err).not.toBeInstanceOf(FatalLabelerError);
+    expect(err).not.toBeInstanceOf(RateLimitError);
+    expect(err).not.toBeInstanceOf(OverloadedError);
   });
 
   it('maps a 429 (gateway or API) to RateLimitError', async () => {

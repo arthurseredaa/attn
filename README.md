@@ -183,8 +183,10 @@ about 36 questions against the same state (title, URL and the article text cut t
 rubrics as the other labelers, and one yes/no question per skill for `secondary_skills`, since decide has no
 multi-select. The secondary skills are those with probability at least `jev_secondary_threshold` (`data/config.yml`,
 default 0.5), highest first, at most 3, never the primary. `experimental_decide` is an experimental API and may change
-between AI SDK releases. A gateway 4xx other than 408 and 429 (a bad key, no credit, a rejected question) is fatal,
-and a 5xx is retried like an overload. Per-article tokens are mostly the skill descriptions plus the article text.
+between AI SDK releases. Fatal for the run: 401/402/403/404 (bad key, no credit, a restricted model such as the
+free-tier 403, unknown model) and a 400/422 that does not blame the article; the provider's own message is printed.
+A 409 or 5xx is retried like an overload; a 413 or an input-too-long 400/422 fails only that article. Estimate:
+about 11k input tokens per article if the gateway bills the state once (not yet verified with a real call).
 
 It takes pending articles oldest first (at most `label_batch`, or `--limit` if smaller), one at a time with
 `label_delay_ms` between model calls. For each article it fetches the page, extracts the readable text and

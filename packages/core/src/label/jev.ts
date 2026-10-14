@@ -42,6 +42,9 @@ const LEVELS = ['0', '1', '2', '3', '4'] as const;
 
 type Questions = Record<string, DecisionQuestion>;
 
+/** A decision model object (not a bare model id string, not the deprecated evaluation shape). */
+type DecisionModelObject = Extract<DecisionModel, { doDecide: unknown }>;
+
 /**
  * Every question for one article, all answered in a single decide call against the same state:
  * `primary_skill`, `type`, `difficulty` and `quality` are choices, and each taxonomy skill has a boolean
@@ -100,9 +103,38 @@ export class InvalidJevOutputError extends Error {
 }
 
 /**
+ * Wraps a decision model so that (1) the tokens of every call that returns are counted before `decide` validates the
+ * answers, which can still throw for a call that was billed, and (2) a refusal on a secondary-skill question becomes
+ * probability 0, because `decide` fails the whole call on any refusal. A refusal on primary_skill, type, difficulty
+ * or quality is left alone: `decide` then throws and the article fails. Properties are copied one by one because the
+ * gateway model keeps `provider` behind a getter.
+ */
+function withUsageAndSecondaryRefusals(inner: DecisionModelObject, usage: LabelTokenUsage): DecisionModelObject {
+  return {
+    specificationVersion: inner.specificationVersion,
+    provider: inner.provider,
+    modelId: inner.modelId,
+    supportedQuestionTypes: inner.supportedQuestionTypes,
+    async doDecide(options) {
+      const result = await inner.doDecide(options);
+      usage.inputTokens += result.usage?.inputTokens ?? 0;
+      usage.outputTokens += result.usage?.outputTokens ?? 0;
+      const answers = { ...result.answers };
+      for (const [id, a] of Object.entries(answers)) {
+        if (a.type === 'refusal' && id.startsWith(JEV_QUESTION_IDS.secondaryPrefix)) {
+          answers[id] = { type: 'boolean', probability: 0 };
+        }
+      }
+      return { ...result, answers };
+    },
+  };
+}
+
+/**
  * Turns decide's answers into a Label. Secondary skills are the skills whose boolean probability is at least
  * `threshold`, never the primary skill, highest probability first (taxonomy order breaks ties), at most 3.
- * A refused secondary question counts as "not covered"; any problem with the other four makes the output invalid.
+ * `decide` itself rejects refusals and missing answers, and the labeler turns a secondary refusal into probability 0
+ * first; the checks here are a second line of defense. Any problem with the four choices makes the output invalid.
  */
 export function mapJevAnswers(
   answers: Readonly<Record<string, JevAnswer | undefined>>,
@@ -145,7 +177,7 @@ export interface JevLabelerOptions {
   apiKey?: string;
   /** Minimum probability for a skill to become a secondary skill; defaults to `jev_secondary_threshold`'s 0.5. */
   secondaryThreshold?: number;
-  decisionModel?: DecisionModel;
+  decisionModel?: DecisionModelObject;
   maxRetries?: number;
   /** For tests: replaces the HTTP client so no request leaves the process. */
   fetch?: typeof globalThis.fetch;
@@ -154,18 +186,17 @@ export interface JevLabelerOptions {
 /**
  * A labeler on TypeSafe AI's `jev` decision model through the Vercel AI Gateway: one `experimental_decide` call per
  * article answers all questions against the same article text. Errors map as for the other providers (429 stops
- * the run, 401/402/403/404 and any other request-level 4xx are fatal, 5xx is retried with the overload backoff).
+ * the run, 401/402/403/404 and a 400/422 not blamed on the article are fatal, 409/5xx is retried with the overload backoff).
  */
 export function createJevLabeler(opts: JevLabelerOptions): Labeler {
-  const model =
+  const inner =
     opts.decisionModel ??
-    createGateway({ apiKey: opts.apiKey, ...(opts.fetch ? { fetch: opts.fetch } : {}) }).decisionModel(
-      opts.model as Parameters<ReturnType<typeof createGateway>['decisionModel']>[0],
-    );
+    createGateway({ apiKey: opts.apiKey, ...(opts.fetch ? { fetch: opts.fetch } : {}) }).decisionModel(opts.model);
   const questions = buildJevQuestions(opts.taxonomy);
   const threshold = opts.secondaryThreshold ?? DEFAULT_JEV_SECONDARY_THRESHOLD;
   const maxRetries = opts.maxRetries ?? 1;
   const usage: LabelTokenUsage = { inputTokens: 0, outputTokens: 0 };
+  const model = withUsageAndSecondaryRefusals(inner, usage);
   return {
     model: opts.model,
     usage: () => ({ ...usage }),
@@ -176,8 +207,6 @@ export function createJevLabeler(opts: JevLabelerOptions): Labeler {
       } catch (e) {
         throw mapProviderError(e, { gateway: true });
       }
-      usage.inputTokens += result.usage.inputTokens ?? 0;
-      usage.outputTokens += result.usage.outputTokens ?? 0;
       return mapJevAnswers(result.answers as Readonly<Record<string, JevAnswer | undefined>>, opts.taxonomy, threshold);
     },
   };

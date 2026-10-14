@@ -60,7 +60,7 @@ export function createPipelineSteps(deps: PipelineStepsDeps): PipelineSteps {
  * prefix names. An unknown prefix throws FatalLabelerError, so a mistyped LABEL_MODEL stops the API at startup.
  */
 export function labelerFromEnv(
-  env: Pick<Env, 'labelModel' | 'googleApiKey' | 'anthropicApiKey'> & Partial<Pick<Env, 'jevApiKey'>>,
+  env: Pick<Env, 'labelModel' | 'googleApiKey' | 'anthropicApiKey' | 'jevApiKey'>,
   taxonomy: Taxonomy,
   config?: Pick<Config, 'jev_secondary_threshold'>,
 ): Labeler | null {

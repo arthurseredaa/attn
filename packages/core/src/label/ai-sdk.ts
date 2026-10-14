@@ -45,13 +45,14 @@ export const LABEL_MAX_OUTPUT_TOKENS = 1024;
 const OVERLOAD_STATUSES = new Set([503, 529]);
 const OVERLOAD_TEXT = /overloaded|high demand/i;
 /** Statuses a gateway raises for a transient upstream failure; the Anthropic and Google paths keep OVERLOAD_STATUSES. */
-const GATEWAY_TRANSIENT_STATUSES = new Set([500, 502, 503, 504, 529]);
+const GATEWAY_TRANSIENT_STATUSES = new Set([409, 500, 502, 503, 504, 529]);
 
 /** Per-provider tuning of the error mapping. */
 export interface ErrorMappingOptions {
   /**
-   * Gateway-style provider: any 4xx except 408 and 429 is fatal (a rejected request or config repeats for every
-   * article, so the run must stop instead of failing each one), and 500/502/504 count as transient like 503/529.
+   * Gateway-style provider: besides 401/402/403/404, a 400/422 whose message does not point at the article
+   * (context length, token count) is fatal, because a rejected request or config repeats for every article;
+   * 409/500/502/504 count as transient like 503/529. Other 4xx (413, 408, input-caused 400/422) fail that article only.
    */
   gateway?: boolean;
 }
@@ -88,22 +89,25 @@ function isCreditExhausted(f: HttpFailure): boolean {
   }
 }
 
+/** A 400/422 that blames the article itself (too long, too many tokens) is a per-article failure, not a config problem. */
+const INPUT_CAUSED = /context|too (long|large)|token|length/i;
+
+/** The provider's own message on one line, at most 300 characters, with anything key-shaped masked. */
+function describe(message: string): string {
+  const one = message.replace(/\s+/g, ' ').trim().replace(/\b(?:vck|sk|AIza)[-_A-Za-z0-9]{8,}/g, '[redacted]');
+  return one.length > 300 ? `${one.slice(0, 300)}...` : one;
+}
+
 function fatalReason(e: unknown, opts: ErrorMappingOptions): string | undefined {
   if (LoadAPIKeyError.isInstance(e)) return 'missing API key';
   if (opts.gateway && Experimental_DecisionUnsupportedQuestionTypeError.isInstance(e)) {
-    return `the decision model does not support a question type this labeler sends: ${e.message}`;
+    return `the decision model does not support a question type this labeler sends: ${describe(e.message)}`;
   }
   const f = httpFailure(e);
-  if (!f) return undefined;
-  if (f.statusCode !== undefined && FATAL_STATUSES.has(f.statusCode)) {
-    return f.statusCode === 402
-      ? 'provider rejected the request (402): billing problem on the provider account'
-      : `provider rejected the request (${f.statusCode}): check the API key and the model id`;
-  }
-  if (isCreditExhausted(f)) return 'provider rejected the request (400): credit balance is too low';
-  if (opts.gateway && f.statusCode !== undefined && f.statusCode >= 400 && f.statusCode < 500 && f.statusCode !== 408) {
-    return `provider rejected the request (${f.statusCode}): ${f.message}`;
-  }
+  if (!f || f.statusCode === undefined) return undefined;
+  const rejected = `provider rejected the request (${f.statusCode}): ${describe(f.message)}`;
+  if (FATAL_STATUSES.has(f.statusCode) || isCreditExhausted(f)) return rejected;
+  if (opts.gateway && (f.statusCode === 400 || f.statusCode === 422) && !INPUT_CAUSED.test(f.message)) return rejected;
   return undefined;
 }
 
