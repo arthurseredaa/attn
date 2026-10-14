@@ -19,6 +19,7 @@ describe('cursor', () => {
     ['wrong shape', b64('{"t":1,"id":"x"}')],
     ['invalid date', b64('{"t":"2026-13-45T00:00:00.000Z","id":1}')],
     ['negative id', b64('{"t":"2026-03-02T00:00:00.000Z","id":-1}')],
+    ['id above int4', b64('{"t":"2026-03-02T00:00:00.000Z","id":2147483648}')],
     ['non-integer id', b64('{"t":"2026-03-02T00:00:00.000Z","id":1.5}')],
   ])('rejects %s', (_n, s) => {
     expect(() => decodeCursor(s)).toThrow(InvalidCursorError);

@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { articleSkills, articles, type Db } from '@attn/core';
-import { resolveDateRange, type ArticleCard, type ArticlesPage, type ArticlesQuery, type Config, type Source, type Taxonomy } from '@attn/shared';
+import { articlesPageSchema, resolveDateRange, type ArticleCard, type ArticlesPage, type ArticlesQuery, type Config, type Source, type Taxonomy } from '@attn/shared';
 import { and, desc, eq, gte, inArray, lt, sql, type SQL } from 'drizzle-orm';
 import { APP_CONFIG, DB, SOURCES, TAXONOMY } from '../tokens';
 import { decodeCursor, encodeCursor } from './cursor';
@@ -23,7 +23,8 @@ export class ArticlesService {
   async list(query: ArticlesQuery): Promise<ArticlesPage> {
     const limit = query.limit ?? this.config.page_size;
     const { from, toExclusive } = resolveDateRange(query);
-    const conds: SQL[] = [eq(articles.labelStatus, 'labeled')];
+    // Only http(s) urls are served (the card schema rejects anything else); filtering in SQL keeps page sizes and cursors exact.
+    const conds: SQL[] = [eq(articles.labelStatus, 'labeled'), sql`${articles.url} ~* '^https?://'`];
     if (query.source) conds.push(eq(articles.sourceId, query.source));
     if (query.skill) {
       conds.push(sql`exists (select 1 from ${articleSkills} where ${articleSkills.articleId} = ${articles.id} and ${articleSkills.skillId} = ${query.skill})`);
@@ -68,8 +69,10 @@ export class ArticlesService {
         .map((s) => ({ id: s.skillId, name: this.skillNames.get(s.skillId) ?? s.skillId, isPrimary: s.isPrimary })),
     }));
 
+    // Cursor precision is milliseconds: safe because every published_at write comes from a JS Date.
     const last = page[page.length - 1];
     const nextCursor = rows.length > limit && last ? encodeCursor({ publishedAt: last.publishedAt, id: last.id }) : null;
-    return { items, nextCursor };
+    // Unreachable failure after the SQL filter; if it ever fires it is a logged 500 via the exception filter.
+    return articlesPageSchema.parse({ items, nextCursor });
   }
 }

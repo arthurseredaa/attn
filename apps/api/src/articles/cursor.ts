@@ -7,7 +7,9 @@ export interface Cursor {
   id: number;
 }
 
-const payload = z.object({ t: z.iso.datetime(), id: z.number().int().nonnegative() });
+// Millisecond precision is lossless here: all published_at values are written from JS Dates.
+// id is capped at int4 max, otherwise Postgres raises "out of range" (a 500).
+const payload = z.object({ t: z.iso.datetime(), id: z.number().int().nonnegative().max(2147483647) });
 
 export function encodeCursor(c: Cursor): string {
   return Buffer.from(JSON.stringify({ t: c.publishedAt.toISOString(), id: c.id }), 'utf8').toString('base64url');

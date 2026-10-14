@@ -44,6 +44,29 @@ describe('GET /api/articles', () => {
     expect(ids(articlesPageSchema.parse(r.body))).toEqual([ok]);
   });
 
+  it('never serves non-http(s) urls and keeps pagination exact', async () => {
+    const t = (n: number) => at(`2026-02-0${n}T00:00:00.000Z`);
+    const a = await seed({ publishedAt: t(1) });
+    await seed({ publishedAt: t(2), url: 'javascript:alert(1)' });
+    const b = await seed({ publishedAt: t(3) });
+    await seed({ publishedAt: t(4), url: 'ftp://example.com/x' });
+    const c = await seed({ publishedAt: t(5) });
+    const full = await page();
+    expect(ids(full)).toEqual([c, b, a]);
+    const p1 = await page('?limit=3');
+    expect(p1.nextCursor).toBeNull();
+    const p2 = await page('?limit=2');
+    expect(ids(p2)).toEqual([c, b]);
+    expect(ids(await page(`?limit=2&cursor=${p2.nextCursor}`))).toEqual([a]);
+  });
+
+  it('400 for a cursor id above int4', async () => {
+    const cursor = Buffer.from('{"t":"2026-03-02T00:00:00.000Z","id":2147483648}').toString('base64url');
+    const r = await get(`?cursor=${cursor}`);
+    expect(r.status).toBe(400);
+    expect((r.body as { error: string }).error).toBe('bad_request');
+  });
+
   it('orders newest first, ties by id descending', async () => {
     const old = await seed({ publishedAt: at('2026-01-01T00:00:00.000Z') });
     const t = at('2026-02-01T00:00:00.000Z');
