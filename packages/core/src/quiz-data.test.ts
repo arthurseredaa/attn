@@ -586,5 +586,145 @@ describe("real quiz bank", () => {
       );
       expect(rate).toBeLessThanOrEqual(chance + 0.12);
     });
+
+    // Rules 29-30 (bank polish): word families, word rarity and situation echo, on the whole bank and each half.
+    type BankQ = ReturnType<typeof questions>[number];
+    const halves = (): [string, BankQ[]][] => {
+      const qs = questions();
+      return [
+        ["whole bank", qs],
+        ["questions 1-32", qs.slice(0, 32)],
+        ["questions 33-64", qs.slice(32)],
+      ];
+    };
+    /** Top-level hit rate, chance, and expected chosen vs random level of a solver over `qs`. */
+    const solve = (
+      qs: BankQ[],
+      score: (text: string, q: BankQ) => number,
+      mode: Mode,
+    ) => {
+      let hit = 0;
+      let chance = 0;
+      let picked = 0;
+      let random = 0;
+      for (const q of qs) {
+        const levels = q.options.map((o) => o.level);
+        const top = Math.max(...levels);
+        const w = pickWeights(
+          q.options.map((o) => score(o.text, q)),
+          mode,
+        );
+        hit += levels.reduce((s, l, i) => s + (l === top ? (w[i] ?? 0) : 0), 0);
+        chance += levels.filter((l) => l === top).length / levels.length;
+        picked += levels.reduce((s, l, i) => s + (w[i] ?? 0) * l, 0);
+        random += mean(levels);
+      }
+      const n = qs.length;
+      return {
+        hit: hit / n,
+        chance: chance / n,
+        picked: picked / n,
+        random: random / n,
+      };
+    };
+
+    /** Rule 29 marker families, fixed a priori by the rule text. */
+    const FAMILIES: Record<string, RegExp> = {
+      "lazy/docs":
+        /\b(manually|by hand|past(e|es|ed|ing)|rerun\w*|let the agent|docs?|documented|examples?|defaults?|templates?)\b/i,
+      "rigor adjectives":
+        /\b(fixed|strict|single|verified|versioned|central|required|dedicated|signed|pinned)\b/i,
+      "compound tokens":
+        /(\b\w+-\w+\b|\b[a-z]+[A-Z]\w*\b|\b[A-Z][a-z]+[A-Z]\w*\b|\b[A-Z]{2,}s?\b)/,
+    };
+
+    describe.each(Object.keys(FAMILIES))("word family: %s", (family) => {
+      const re = FAMILIES[family] as RegExp;
+      const marked = (t: string) => (re.test(t) ? 1 : 0);
+
+      it.each(halves().map(([name]) => name))(
+        "spreads the family over levels (per-level share within 50% of the overall share) on the %s",
+        (name) => {
+          const qs = halves().find(([n]) => n === name)?.[1] ?? [];
+          const all = qs.flatMap((q) => q.options);
+          const overall = mean(all.map((o) => marked(o.text)));
+          expect(overall).toBeGreaterThan(0);
+          for (const level of [0, 1, 2, 3, 4]) {
+            const share = mean(
+              all.filter((o) => o.level === level).map((o) => marked(o.text)),
+            );
+            expect(
+              Math.abs(share - overall) / overall,
+              `level ${level}: ${share.toFixed(2)} vs ${overall.toFixed(2)}`,
+            ).toBeLessThanOrEqual(0.5);
+          }
+        },
+      );
+
+      it.each(halves().map(([name]) => name))(
+        "does not raise the chosen level by dropping marked options, or by keeping only them (<= random + 0.20), on the %s",
+        (name) => {
+          const qs = halves().find(([n]) => n === name)?.[1] ?? [];
+          for (const mode of ["dropHighest", "dropLowest"] as const) {
+            const { picked, random } = solve(qs, marked, mode);
+            expect(picked, mode).toBeLessThanOrEqual(random + 0.2);
+          }
+        },
+      );
+    });
+
+    const words = (t: string) => t.match(/[A-Za-z][A-Za-z'-]*/g) ?? [];
+    /** Rule 30: mean IDF of an option's words (3+ letters), IDF over all options of the whole bank. */
+    const meanIdf = () => {
+      const df = new Map<string, number>();
+      const all = questions().flatMap((q) => q.options);
+      for (const o of all)
+        for (const w of new Set(
+          words(o.text)
+            .filter((x) => x.length >= 3)
+            .map((x) => x.toLowerCase()),
+        ))
+          df.set(w, (df.get(w) ?? 0) + 1);
+      return (text: string) => {
+        const ws = words(text)
+          .filter((x) => x.length >= 3)
+          .map((x) => x.toLowerCase());
+        return mean(ws.map((w) => Math.log(all.length / (df.get(w) ?? 1))));
+      };
+    };
+    /** Rule 30: share of the option's content words (4+ letters) whose 5-letter stem occurs in the situation. */
+    const situationEcho = (text: string, q: BankQ) => {
+      const stems = (t: string) =>
+        words(t)
+          .filter(
+            (w) => w.length >= 4 && !FUNCTION_WORDS.has(w.toLowerCase()),
+          )
+          .map((w) => w.toLowerCase().slice(0, 5));
+      const situation = new Set(stems(q.situation));
+      const option = stems(text);
+      return option.length === 0
+        ? 0
+        : option.filter((s) => situation.has(s)).length / option.length;
+    };
+
+    describe.each(["meanIdf", "situationEcho"])("solver: %s", (feature) => {
+      const score = (): ((t: string, q: BankQ) => number) => {
+        if (feature === "situationEcho") return situationEcho;
+        const idf = meanIdf();
+        return (t) => idf(t);
+      };
+      it.each(halves().map(([name]) => name))(
+        "stays near chance (<= chance + 0.12) and does not inflate the level (<= random + 0.30) on the %s",
+        (name) => {
+          const qs = halves().find(([n]) => n === name)?.[1] ?? [];
+          const f = score();
+          for (const mode of ["max", "min", "dropLowest", "dropHighest"] as const) {
+            const { hit, chance, picked, random } = solve(qs, f, mode);
+            expect(hit, `${mode} hit`).toBeLessThanOrEqual(chance + 0.12);
+            expect(picked, `${mode} level`).toBeLessThanOrEqual(random + 0.3);
+          }
+        },
+      );
+    });
   });
 });
