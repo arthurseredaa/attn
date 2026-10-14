@@ -170,6 +170,8 @@ text, which is cut to `label_max_chars` (`data/config.yml`, default 20000 charac
 cost knob. The system prompt (taxonomy and rubrics) is the same on every call and is sent with Anthropic prompt
 caching, so within the cache lifetime (5 minutes) repeated calls bill it at the cheaper cache-read rate. Claude Haiku
 5.5 does not accept a temperature: the SDK drops the `temperature: 0` setting for it and prints a warning per call.
+Extended thinking, billed as output tokens, is turned off for Claude (`reasoning: 'none'`; on a model that cannot
+turn it off, such as Opus 5.5, the SDK uses its lowest setting, effort `low`, and prints a warning).
 
 It takes pending articles oldest first (at most `label_batch`, or `--limit` if smaller), one at a time with
 `label_delay_ms` between model calls. For each article it fetches the page, extracts the readable text and
@@ -179,7 +181,8 @@ keeps it in memory only; just `word_count` is stored. A page that cannot be fetc
 retried after each pause in `label_overload_backoff_ms` (default 2 s, 5 s, 10 s, so three retries); if it is
 still overloaded the article becomes `failed` (one attempt used) and the run goes on. A 429 is a quota limit, not
 retried: the run ends and the remaining articles stay `pending`.
-A bad or missing API key (401/403) or an unknown model id (404) is fatal: the run stops at once without
+A bad or missing API key (401/403), an unknown model id (404) or, on Anthropic, an exhausted credit balance (400
+"credit balance is too low") is fatal: the run stops at once without
 changing that article's status or attempts, `attn label` prints the provider error and exits 1, and the API job
 logs it at error level. `attn eval` stops the same way and exits 1 with the partial report; it also exits 1 when
 not a single article could be scored.
@@ -374,7 +377,8 @@ Verifiably done in this repo: collect, label, eval, onboarding and quiz, For you
 
 Owner hand-off:
 
-- Review `data/golden/draft.yml`, then choose `LABEL_MODEL` from `attn eval` results and set it in `.env`.
+- Choose `LABEL_MODEL` from `attn eval` results against `data/golden/draft.yml` (the accepted Claude-drafted
+  reference) and set it in `.env`.
 - Review the quiz DRAFT using [docs/quiz-owner-review.md](docs/quiz-owner-review.md).
 - Set GitHub OAuth credentials and do a real sign-in round trip (never exercised here).
 - Build the Docker images (never built in the authoring environment).
