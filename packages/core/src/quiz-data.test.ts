@@ -196,18 +196,96 @@ describe("real quiz bank", () => {
       }
     });
 
-    const FIRST_PERSON = /\b(I|my|me|myself)\b/i;
-    const JUSTIFICATION = /\b(since|because|so I|so that)\b/i;
-    const JARGON = /\b(script|CI|hook|hooks)\b/;
+    type Opt = { text: string; level: number };
+    type Q = { id: string; options: Opt[] };
     const allOptions = () => questions().flatMap((q) => q.options);
-    const share = (opts: { text: string }[], re: RegExp) =>
-      opts.filter((o) => re.test(o.text)).length / opts.length;
-    const lengthRank = (q: { options: { text: string }[] }, i: number) => {
+    const lengthRank = (q: Q, i: number) => {
       const lengths = q.options.map((o) => o.text.length);
       return (
         lengths.filter((l) => l < (lengths[i] ?? 0)).length /
         (lengths.length - 1)
       );
+    };
+
+    const PRONOUN = /\b(I|my|me|myself|we|our|us|mine)\b/i;
+    const REASON = /\b(since|because|so|as|which|in case|in order to)\b/i;
+    const FILLER =
+      /\b(then done|anyway|figure|maybe|probably|just|simply|hope|hopefully|somehow|whatever|for now|see how|at all|and move on)\b/i;
+    const ENGINEERING = new RegExp(
+      "\\b(" +
+        [
+          "ci",
+          "hooks?",
+          "scripts?",
+          "tests?",
+          "lint\\w*",
+          "schemas?",
+          "sandbox\\w*",
+          "tokens?",
+          "prs?",
+          "diffs?",
+          "logs?",
+          "configs?",
+          "flags?",
+          "prompts?",
+          "branch\\w*",
+          "commits?",
+          "evals?",
+          "fixtures?",
+          "mocks?",
+          "pipelines?",
+          "deploy\\w*",
+          "permissions?",
+          "allowlists?",
+          "mcp",
+          "sdk",
+          "containers?",
+          "worktrees?",
+          "tools?",
+          "workflows?",
+          "repos?",
+          "plugins?",
+          "subagents?",
+          "cron",
+          "json",
+          "api",
+          "oauth",
+          "servers?",
+          "settings",
+        ].join("|") +
+        ")\\b",
+      "gi",
+    );
+    const count = (re: RegExp, text: string) => text.match(re)?.length ?? 0;
+
+    const FEATURES: Record<string, (text: string) => number> = {
+      pronoun: (t) => count(new RegExp(PRONOUN.source, "gi"), t),
+      semicolons: (t) => count(/;/g, t),
+      sentences: (t) => count(/[.!?](\s|$)/g, t),
+      pastTenseOpener: (t) => (/ed$/i.test(t.split(" ")[0] ?? "") ? 1 : 0),
+      filler: (t) => count(new RegExp(FILLER.source, "gi"), t),
+      reason: (t) => count(new RegExp(REASON.source, "gi"), t),
+      engineering: (t) => count(ENGINEERING, t),
+      length: (t) => t.length,
+      commas: (t) => count(/,/g, t),
+      words: (t) => t.split(/\s+/).length,
+    };
+
+    /** Expected hit rate of a blind guess and the rate of a solver that picks by `score`, ties split fractionally. */
+    const solverRate = (score: (o: Opt, i: number, q: Q) => number) => {
+      const qs = questions();
+      let hits = 0;
+      let chance = 0;
+      for (const q of qs) {
+        const top = Math.max(...q.options.map((o) => o.level));
+        const scores = q.options.map((o, i) => score(o, i, q));
+        const best = Math.max(...scores);
+        const picked = q.options.filter((_, i) => scores[i] === best);
+        hits += picked.filter((o) => o.level === top).length / picked.length;
+        chance +=
+          q.options.filter((o) => o.level === top).length / q.options.length;
+      }
+      return { rate: hits / qs.length, chance: chance / qs.length };
     };
 
     it("does not make the shortest option the top level in more than 35% of questions", () => {
@@ -231,30 +309,16 @@ describe("real quiz bank", () => {
       expect(Math.abs(mean(ranks) - 0.5)).toBeLessThanOrEqual(0.15);
     });
 
-    it("spreads first person evenly over levels (+-15 points of the overall share)", () => {
-      const all = allOptions();
-      const overall = share(all, FIRST_PERSON);
-      for (const level of [0, 1, 2, 3, 4]) {
-        const s = share(
-          all.filter((o) => o.level === level),
-          FIRST_PERSON,
-        );
-        expect(Math.abs(s - overall), `level ${level}`).toBeLessThanOrEqual(
-          0.15,
-        );
-      }
-    });
-
-    it("keeps justification clauses rare (<= 25% at level 0, <= 10% elsewhere)", () => {
-      const all = allOptions();
-      for (const level of [0, 1, 2, 3, 4]) {
-        const s = share(
-          all.filter((o) => o.level === level),
-          JUSTIFICATION,
-        );
-        expect(s, `level ${level}`).toBeLessThanOrEqual(
-          level === 0 ? 0.25 : 0.1,
-        );
+    it("writes every option as one plain imperative sentence", () => {
+      for (const o of allOptions()) {
+        expect(o.text, o.text).toMatch(/^[A-Z][a-z]+ /);
+        expect(FEATURES.pronoun?.(o.text), o.text).toBe(0);
+        expect(FEATURES.semicolons?.(o.text), o.text).toBe(0);
+        expect(FEATURES.sentences?.(o.text), o.text).toBe(1);
+        expect(FEATURES.pastTenseOpener?.(o.text), o.text).toBe(0);
+        expect(FEATURES.filler?.(o.text), o.text).toBe(0);
+        expect(FEATURES.reason?.(o.text), o.text).toBe(0);
+        expect(FEATURES.commas?.(o.text), o.text).toBeLessThanOrEqual(2);
       }
     });
 
@@ -274,44 +338,28 @@ describe("real quiz bank", () => {
       }
     });
 
-    it('keeps script/CI/hook vocabulary off a single level and "by hand"/"paste" off level 0 only', () => {
-      const all = allOptions();
-      expect(
-        share(
-          all.filter((o) => o.level === 4),
-          JARGON,
-        ),
-      ).toBeLessThanOrEqual(0.4);
-      const manual = /by hand|paste/i;
-      expect(
-        all.filter((o) => o.level > 0 && manual.test(o.text)).length,
-      ).toBeGreaterThan(0);
+    describe.each(Object.keys(FEATURES))("feature solver: %s", (name) => {
+      it.each([
+        ["highest", 1],
+        ["lowest", -1],
+      ] as const)(
+        "picking the option with the %s value stays near chance (<= chance + 0.12)",
+        (_dir, sign) => {
+          const f = FEATURES[name] as (t: string) => number;
+          const { rate, chance } = solverRate((o) => sign * f(o.text));
+          expect(rate).toBeLessThanOrEqual(chance + 0.12);
+        },
+      );
     });
 
-    it("is not solvable by a naive surface-cue solver (picks the top level in <= 40%)", () => {
-      const qs = questions();
-      const hits = qs.filter((q) => {
-        const scores = q.options.map(
-          (o, i) =>
-            lengthRank(q, i) +
-            (FIRST_PERSON.test(o.text) ? 0 : 1) +
-            (o.text.startsWith("Write") ? 1 : 0) +
-            (JARGON.test(o.text) ? 1 : 0),
-        );
-        const best = q.options[scores.indexOf(Math.max(...scores))];
-        return best?.level === Math.max(...q.options.map((o) => o.level));
-      });
-      expect(hits.length / qs.length).toBeLessThanOrEqual(0.4);
-    });
-
-    it('uses no hedge words and few "I have not" openers', () => {
-      const texts = questions().flatMap((q) => q.options.map((o) => o.text));
-      expect(
-        texts.filter((t) => /\b(hope|somehow|simply|whatever)\b/i.test(t)),
-      ).toEqual([]);
-      expect(
-        texts.filter((t) => /\bI (have not|haven't)\b/i.test(t)).length,
-      ).toBeLessThanOrEqual(2);
+    it("is not solvable by combining length, 'Write' opener and engineering vocabulary (<= chance + 0.12)", () => {
+      const { rate, chance } = solverRate(
+        (o, i, q) =>
+          lengthRank(q, i) +
+          (o.text.startsWith("Write") ? 1 : 0) +
+          Math.min(count(ENGINEERING, o.text), 3) / 3,
+      );
+      expect(rate).toBeLessThanOrEqual(chance + 0.12);
     });
   });
 });
