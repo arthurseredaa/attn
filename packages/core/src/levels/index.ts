@@ -6,3 +6,4 @@ export * from './points';
 export * from './store';
 export * from './profile';
 export * from './feedback';
+export * from './events';
