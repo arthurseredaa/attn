@@ -22,7 +22,7 @@ export function FocusPicker({
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-muted">Pick 1 to 5 skills, then drag to order them. The first one matters most.</p>
+      <p className="text-sm text-muted">{`Pick 1 to ${MAX_FOCUS} skills, then drag to order them. The first one matters most.`}</p>
       {taxonomy.domains.map((d) => {
         const skills = d.skills.filter((s) => s.roles.includes(role));
         if (skills.length === 0) return null;

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { quizAnswers, userSkills, users, type Db } from '../db';
 import { resetDb, testDb } from '../test/db';
 import { FocusError } from './role';
-import { FOCUS_LOCK_NAMESPACE, FocusBusyError, isOnboarded, NotOnboardedError, saveOnboarding, setFocus } from './store';
+import { FOCUS_LOCK_NAMESPACE, FocusBusyError, isOnboarded, lockUser, NotOnboardedError, saveOnboarding, setFocus } from './store';
 
 const roles = ['s1', 's2', 's3', 's4', 's5', 's6'];
 const ver = 7;
@@ -274,6 +274,17 @@ describe('concurrency (per-user focus lock)', () => {
     await setFocus(db, u, ['s2'], roles); // a free lock is taken right away
     expect(await ranks(u)).toEqual({ s2: 1 });
   }, 20_000);
+});
+
+describe('lock timeout scope', () => {
+  it('applies lock_timeout only while taking the lock', async () => {
+    const seen = await db.transaction(async (tx) => {
+      await lockUser(tx, u);
+      const r = await tx.execute(sql`select current_setting('lock_timeout') as v`);
+      return (r as unknown as { rows?: { v: string }[] }).rows?.[0]?.v ?? (r as unknown as { v: string }[])[0]?.v;
+    });
+    expect(seen).toBe('0');
+  });
 });
 
 describe('isolation', () => {

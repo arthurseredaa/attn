@@ -41,10 +41,13 @@ export interface OnboardingInput {
   quizVersion: number;
 }
 
-async function lockUser(tx: Tx, userId: string): Promise<void> {
+/** @internal exported for the lock_timeout scope test. */
+export async function lockUser(tx: Tx, userId: string): Promise<void> {
   await tx.execute(sql.raw(`set local lock_timeout = '${FOCUS_LOCK_TIMEOUT}'`));
   try {
     await tx.execute(sql`select pg_advisory_xact_lock(${FOCUS_LOCK_NAMESPACE}, hashtext(${userId}))`);
+    // The timeout is for acquiring the lock only; later statements in the tx must not inherit it.
+    await tx.execute(sql`set local lock_timeout = 0`);
   } catch (e) {
     if (sqlState(e) === LOCK_NOT_AVAILABLE) throw new FocusBusyError();
     throw e;

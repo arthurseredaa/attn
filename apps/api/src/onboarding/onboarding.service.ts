@@ -1,4 +1,4 @@
-import { ConflictException, Inject, Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, UnprocessableEntityException } from '@nestjs/common';
 import {
   FocusBusyError,
   FocusError,
@@ -31,8 +31,6 @@ const NO_BANK: Quiz = { version: 0, questions: [] };
 
 @Injectable()
 export class OnboardingService {
-  private readonly logger = new Logger('Onboarding');
-  private readonly warned = new Set<string>();
 
   constructor(
     @Inject(DB) private readonly db: Db,
@@ -45,10 +43,6 @@ export class OnboardingService {
   private bankFor(role: string): Quiz {
     const bank = this.banks.get(role);
     if (bank) return bank;
-    if (!this.warned.has(role)) {
-      this.warned.add(role);
-      this.logger.warn(`no quiz bank for role "${role}" (expected data/quiz/${role}.yml); its skills stay unassessed`);
-    }
     return NO_BANK;
   }
 

@@ -6,7 +6,7 @@ It is curation only: links to existing articles, no generated content.
 
 ## Status
 
-Stage 3 of 5: website + auth. Built: GitHub sign-in (session cookie), the public articles API
+Stage 4 of 5 done: onboarding + profile (stage 3: website + auth). Built: GitHub sign-in (session cookie), the public articles API
 (`/api/articles`, `/api/sources`, `/api/taxonomy`) and the Next.js site (landing page and the public All list
 with source, skill and date filters). Earlier stages: the monorepo, validated YAML data, the Postgres
 schema, `attn collect` (RSS, Atom and sitemap sources with conditional GET, URL normalization and
@@ -100,6 +100,10 @@ All routes are under `/api`; errors are JSON `{ "error", "message" }`.
 - `GET /api/articles?source=&skill=&from=&to=&cursor=&limit=`: labeled articles, newest first, cursor pagination
 - `GET /api/sources`
 - `GET /api/taxonomy`
+- `GET /api/quiz?skills=`: quiz questions (no answers) for the signed-in user's role, for the given skills
+- `POST /api/onboarding`: submit quiz results and optional focus; creates or redoes the user's skill levels
+- `PUT /api/focus`: replace the ordered focus skills (onboarded users only)
+- `GET /api/profile`: the signed-in user's skill levels and focus
 
 ## Docker
 

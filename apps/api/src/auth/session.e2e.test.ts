@@ -39,6 +39,14 @@ describe('GET /api/me', () => {
     expect(body).toEqual({ id: user.id, login: user.login, name: user.name, avatarUrl: user.avatarUrl, role: 'dev' });
   });
 
+  it('returns a null avatar when the stored one is not http(s)', async () => {
+    const user = await seedUser(ctx.db, { avatarUrl: 'javascript:alert(1)' });
+    const { token } = await svc.create(user.id);
+    const res = await fetch(`${ctx.base}/api/me`, { headers: cookie(token) });
+    expect(res.status).toBe(200);
+    expect(meSchema.parse(await res.json()).avatarUrl).toBeNull();
+  });
+
   it('401 for garbage and never-issued tokens', async () => {
     for (const t of ['garbage', '%E0%A4%A', 'A'.repeat(43)]) {
       const res = await fetch(`${ctx.base}/api/me`, { headers: cookie(t) });

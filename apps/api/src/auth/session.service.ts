@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { sessions, users, type Db } from '@attn/core';
 import { and, eq, gt, lt } from 'drizzle-orm';
+import { httpUrlOrNull } from '@attn/shared';
 import { DB } from '../tokens';
 import { SESSION_TTL_MS, generateToken, hashToken, type AuthUser } from './session';
 
@@ -22,7 +23,7 @@ export class SessionService {
       .innerJoin(users, eq(users.id, sessions.userId))
       .where(and(eq(sessions.id, hashToken(token)), gt(sessions.expiresAt, new Date())))
       .limit(1);
-    return row ?? null;
+    return row ? { ...row, avatarUrl: httpUrlOrNull(row.avatarUrl) } : null;
   }
 
   async destroy(token: string): Promise<void> {

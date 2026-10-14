@@ -90,7 +90,6 @@ describe('loadQuizBanks', () => {
 
   it('the real data has a bank for every role', () => {
     const roles = [...new Set(loadTaxonomy().domains.flatMap((d) => d.skills.flatMap((s) => s.roles)))];
-    expect(roles).toEqual(['dev']);
-    expect([...loadQuizBanks().keys()]).toEqual(roles);
+    expect([...loadQuizBanks().keys()].sort()).toEqual([...roles].sort());
   });
 });
