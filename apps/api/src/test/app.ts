@@ -14,6 +14,7 @@ export function testEnv(overrides: Partial<Env> = {}): Env {
     port: 0,
     labelModel: undefined,
     googleApiKey: undefined,
+    anthropicApiKey: undefined,
     scheduleEnabled: false,
     appUrl: 'http://localhost:3000',
     githubClientId: undefined,

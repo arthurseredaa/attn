@@ -9,7 +9,7 @@ import type { Env } from '../config/env';
 import { testEnv } from '../test/app';
 import { ENV, PIPELINE_STEPS } from '../tokens';
 import { PipelineJob } from './pipeline.job';
-import { createPipelineSteps } from './pipeline.steps';
+import { createPipelineSteps, labelerFromEnv } from './pipeline.steps';
 
 const config = {
   ...loadConfig(),
@@ -128,5 +128,30 @@ describe('createPipelineSteps', () => {
       inserted: 2,
     });
     expect(await db.select().from(articles)).toHaveLength(2);
+  });
+});
+
+describe('labelerFromEnv', () => {
+  const keys = { googleApiKey: undefined, anthropicApiKey: undefined };
+
+  it('is null without LABEL_MODEL or without the key of the chosen provider', () => {
+    expect(labelerFromEnv({ ...keys, labelModel: undefined, googleApiKey: 'k', anthropicApiKey: 'k' }, taxonomy)).toBeNull();
+    expect(labelerFromEnv({ ...keys, labelModel: 'claude-haiku-5-5', googleApiKey: 'k' }, taxonomy)).toBeNull();
+    expect(labelerFromEnv({ ...keys, labelModel: 'gemini-3.6-flash', anthropicApiKey: 'k' }, taxonomy)).toBeNull();
+  });
+
+  it('builds the labeler of the provider named by the model prefix', () => {
+    expect(labelerFromEnv({ ...keys, labelModel: 'claude-haiku-5-5', anthropicApiKey: 'k' }, taxonomy)?.model).toBe(
+      'claude-haiku-5-5',
+    );
+    expect(labelerFromEnv({ ...keys, labelModel: 'gemini-3.6-flash', googleApiKey: 'k' }, taxonomy)?.model).toBe(
+      'gemini-3.6-flash',
+    );
+  });
+
+  it('throws at startup on an unknown provider prefix', () => {
+    expect(() => labelerFromEnv({ labelModel: 'gpt-5', googleApiKey: 'k', anthropicApiKey: 'k' }, taxonomy)).toThrow(
+      /unknown LABEL_MODEL provider/,
+    );
   });
 });

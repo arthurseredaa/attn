@@ -8,6 +8,7 @@ describe('loadEnv', () => {
       port: 3001,
       labelModel: undefined,
       googleApiKey: undefined,
+      anthropicApiKey: undefined,
       scheduleEnabled: true,
       appUrl: 'http://localhost:3000',
       githubClientId: undefined,
@@ -23,11 +24,13 @@ describe('loadEnv', () => {
       DATABASE_URL: 'postgres://x',
       LABEL_MODEL: '',
       GOOGLE_GENERATIVE_AI_API_KEY: '',
+      ANTHROPIC_API_KEY: '',
       PORT: '',
       SCHEDULE_ENABLED: '',
     });
     expect(env.labelModel).toBeUndefined();
     expect(env.googleApiKey).toBeUndefined();
+    expect(env.anthropicApiKey).toBeUndefined();
     expect(env.port).toBe(3001);
     expect(env.scheduleEnabled).toBe(true);
   });
@@ -37,6 +40,7 @@ describe('loadEnv', () => {
       DATABASE_URL: 'postgres://x',
       LABEL_MODEL: 'm',
       GOOGLE_GENERATIVE_AI_API_KEY: 'k',
+      ANTHROPIC_API_KEY: 'a',
       PORT: '4000',
       SCHEDULE_ENABLED: 'false',
     });
@@ -45,6 +49,7 @@ describe('loadEnv', () => {
       port: 4000,
       labelModel: 'm',
       googleApiKey: 'k',
+      anthropicApiKey: 'a',
       scheduleEnabled: false,
       appUrl: 'http://localhost:3000',
       githubClientId: undefined,

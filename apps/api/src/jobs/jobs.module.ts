@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
-import { createGeminiLabeler, type Db, type Labeler } from '@attn/core';
+import type { Db, Labeler } from '@attn/core';
 import type { Config, Source, Taxonomy } from '@attn/shared';
 import type { Env } from '../config/env';
 import { APP_CONFIG, DB, ENV, LABELER, PIPELINE_STEPS, SOURCES, TAXONOMY } from '../tokens';
 import { PipelineJob } from './pipeline.job';
 import { PipelineScheduler } from './pipeline.scheduler';
-import { createPipelineSteps } from './pipeline.steps';
+import { createPipelineSteps, labelerFromEnv } from './pipeline.steps';
 
 @Module({
   imports: [ScheduleModule.forRoot()],
@@ -14,14 +14,7 @@ import { createPipelineSteps } from './pipeline.steps';
     {
       provide: LABELER,
       inject: [ENV, TAXONOMY],
-      useFactory: (env: Env, taxonomy: Taxonomy): Labeler | null =>
-        env.labelModel && env.googleApiKey
-          ? createGeminiLabeler({
-              model: env.labelModel,
-              taxonomy,
-              apiKey: env.googleApiKey,
-            })
-          : null,
+      useFactory: (env: Env, taxonomy: Taxonomy): Labeler | null => labelerFromEnv(env, taxonomy),
     },
     {
       provide: PIPELINE_STEPS,

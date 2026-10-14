@@ -29,6 +29,7 @@ services:
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       LABEL_MODEL: ${LABEL_MODEL:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-}
       # SCHEDULE_ENABLED is deliberately not set: the daily collect+label job runs inside this container by default.

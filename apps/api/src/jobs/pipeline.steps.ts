@@ -1,6 +1,8 @@
 import {
   collectAll,
+  createLabeler,
   labelPending,
+  labelProviderFor,
   type Db,
   type FetchFn,
   type LabelReport,
@@ -8,6 +10,7 @@ import {
   type SourceReport,
 } from '@attn/core';
 import type { Config, Source, Taxonomy } from '@attn/shared';
+import type { Env } from '../config/env';
 
 export type LabelStepResult = ({ status: 'done' } & LabelReport) | { status: 'skipped'; reason: string };
 
@@ -34,7 +37,7 @@ export function createPipelineSteps(deps: PipelineStepsDeps): PipelineSteps {
       if (!labeler) {
         return {
           status: 'skipped',
-          reason: 'LABEL_MODEL or GOOGLE_GENERATIVE_AI_API_KEY is not set',
+          reason: 'LABEL_MODEL or its provider key (ANTHROPIC_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY) is not set',
         };
       }
       return {
@@ -50,4 +53,18 @@ export function createPipelineSteps(deps: PipelineStepsDeps): PipelineSteps {
       };
     },
   };
+}
+
+/**
+ * The daily job's labeler: null (label step skipped) without LABEL_MODEL or without the key of the provider its
+ * prefix names. An unknown prefix throws FatalLabelerError, so a mistyped LABEL_MODEL stops the API at startup.
+ */
+export function labelerFromEnv(
+  env: Pick<Env, 'labelModel' | 'googleApiKey' | 'anthropicApiKey'>,
+  taxonomy: Taxonomy,
+): Labeler | null {
+  if (!env.labelModel) return null;
+  const keys = { ANTHROPIC_API_KEY: env.anthropicApiKey, GOOGLE_GENERATIVE_AI_API_KEY: env.googleApiKey };
+  if (!keys[labelProviderFor(env.labelModel).apiKeyVar]) return null;
+  return createLabeler({ model: env.labelModel, taxonomy, env: keys });
 }
