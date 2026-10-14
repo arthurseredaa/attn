@@ -1,6 +1,6 @@
 import { and, eq, isNotNull, sql } from 'drizzle-orm';
 import { quizAnswers, userSkills, type Db } from '../db';
-import { assertValidFocus } from './role';
+import { assertValidFocus, FocusError } from './role';
 import type { QuizAnswer, SkillQuizResult } from './quiz';
 
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
@@ -63,6 +63,10 @@ export async function saveOnboarding(db: Db, input: OnboardingInput): Promise<vo
 
   await db.transaction(async (tx) => {
     await lockUser(tx, userId);
+    if (!focus) {
+      const existing = await tx.select({ one: sql<number>`1` }).from(userSkills).where(eq(userSkills.userId, userId)).limit(1);
+      if (existing.length === 0) throw new FocusError('empty', 'Pick a focus first');
+    }
     await ensureRows(tx, userId, roleSkillIds);
     if (focus) await writeFocus(tx, userId, focus);
     for (const r of results) {

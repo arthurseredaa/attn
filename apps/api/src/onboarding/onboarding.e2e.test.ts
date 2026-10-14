@@ -159,6 +159,7 @@ describe('POST /api/onboarding', () => {
     const qa = await answerRows(me.user.id);
     expect(qa).toHaveLength(4);
     expect(qa.find((r) => r.questionId === 'ce-1')).toMatchObject({ firstOption: 2, secondOption: 4 });
+    expect(qa.find((r) => r.questionId === 'ce-2')).toMatchObject({ firstOption: 3, secondOption: 0 });
   });
 
   it('quiz-only retake keeps focus; 422 for a never-onboarded user', async () => {
@@ -247,7 +248,9 @@ describe('POST /api/onboarding', () => {
       ],
     });
     expect(res.status).toBe(422);
-    expect(errorBodySchema.parse(await res.json()).message).toBe('Skill not in your role: pm-only');
+    const msg = errorBodySchema.parse(await res.json()).message;
+    expect(msg).toBe('Skill not in your role: pm-only');
+    expect(msg.toLowerCase()).not.toContain('level');
     expect(await rows(me.user.id)).toHaveLength(0);
     expect(await answerRows(me.user.id)).toHaveLength(0);
   });
@@ -272,6 +275,20 @@ describe('POST /api/onboarding', () => {
     const body = errorBodySchema.parse(await invalid.json());
     expect(body.message).not.toBe('Malformed JSON body');
     expect(body.message).toContain('focus');
+  });
+
+  it('does not relabel app validation errors or catch trailing junk wrongly', async () => {
+    const { headers } = await signIn(ctx);
+    const send = (body: string) =>
+      fetch(`${ctx.base}/api/onboarding`, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body });
+    for (const key of ['Unexpected token', 'in JSON at position 3']) {
+      const res = await send(JSON.stringify({ focus: ['evals'], answers: [], [key]: 1 }));
+      expect(res.status).toBe(400);
+      expect(errorBodySchema.parse(await res.json()).message).toContain(key);
+    }
+    const junk = await send('{"focus":[]}x');
+    expect(junk.status).toBe(400);
+    expect(await junk.json()).toEqual({ error: 'bad_request', message: 'Malformed JSON body' });
   });
 });
 

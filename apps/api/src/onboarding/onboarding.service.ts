@@ -1,10 +1,9 @@
-import { BadRequestException, ConflictException, Inject, Injectable, UnprocessableEntityException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, UnprocessableEntityException } from '@nestjs/common';
 import {
   FocusError,
   NotOnboardedError,
   QuizAnswerError,
   assertValidFocus,
-  isOnboarded,
   presentQuiz,
   roleSkillIds,
   saveOnboarding,
@@ -14,6 +13,7 @@ import {
 } from '@attn/core';
 import type { Config, FocusBody, OnboardingBody, Profile, Quiz, QuizResponse, Taxonomy } from '@attn/shared';
 import type { AuthUser } from '../auth/session';
+import { AppValidationError } from '../common/zod';
 import { ProfileService } from '../profile/profile.service';
 import { APP_CONFIG, DB, QUIZ, TAXONOMY } from '../tokens';
 
@@ -36,7 +36,7 @@ export class OnboardingService {
   quiz(user: AuthUser, skills: string[]): QuizResponse {
     const role = roleSkillIds(this.taxonomy, user.role);
     const unknown = skills.find((s) => !role.includes(s));
-    if (unknown) throw new BadRequestException(`Unknown skill: ${unknown}`);
+    if (unknown) throw new AppValidationError(`Unknown skill: ${unknown}`);
     return presentQuiz(this.quizBank, skills);
   }
 
@@ -44,7 +44,6 @@ export class OnboardingService {
     const role = roleSkillIds(this.taxonomy, user.role);
     try {
       if (body.focus) assertValidFocus(body.focus, role);
-      else if (!(await isOnboarded(this.db, user.id))) throw new UnprocessableEntityException('Pick a focus first');
       const results = scoreQuiz(this.quizBank, body.answers, this.config.uncertain_spread);
       const outside = results.find((r) => !role.includes(r.skillId));
       if (outside) throw new UnprocessableEntityException(`Skill not in your role: ${outside.skillId}`);
