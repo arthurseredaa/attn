@@ -15,7 +15,7 @@ export DATABASE_URL
 
 API_PORT="${API_PORT:-3001}"
 BASE="http://localhost:${API_PORT}/api"
-GITHUB_ID=999001
+GITHUB_ID=-999001 # negative: GitHub never issues it, so no real user can match
 
 if lsof -nP -iTCP:"$API_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
   echo "smoke: port $API_PORT is already in use; pick a free one, e.g. API_PORT=3021 bash scripts/smoke.sh" >&2

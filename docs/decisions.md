@@ -122,13 +122,29 @@ skills, and ATTN ranks existing articles by their priorities and level.
   - `fit_next` 1.0: fit when the article difficulty is `t + 1`.
   - `fit_same` 0.8: fit when the difficulty is `t`.
   - `fit_stretch` 0.5: fit for any other difficulty inside the uncertain range (`t - 1`, `t + 2`).
-- **`t` is clamped at the top only:** `t = least(level + difficulty_offset, 4)`, no lower clamp (a literal
+- **`t` is clamped at the top only** (Stage 5 plan Decision 2): `t = least(level + difficulty_offset, 4)`, no lower clamp (a literal
   deviation from spec §6.1). Without it a level-4 skill with offset +1 matches difficulty 5 and 6, which
   never exist, so the skill vanishes from For you and the user can never click "too hard" to undo the
   offset. Level 0 with offset -1 keeps `t = -1` (difficulty 0 still shows), which correctly narrows.
   Revert: drop the `least(..., 4)`.
-- **Offset reset on quiz redo:** the difficulty offset is recomputed only from `too_easy`/`too_hard` events
+- **Offset reset on quiz redo** (Stage 5 plan Decision 14): the difficulty offset is recomputed only from `too_easy`/`too_hard` events
   created after the user's latest quiz answer for that skill (none: all events). Spec §5.1 says redoing
   the quiz resets `difficulty_offset`; §5.3 says it is recomputed from events, and recomputing from all
   history would bring the old offset back on the next click. Revert (use full history): delete one
   `WHERE` clause in `levels/events.ts`.
+- **A read card collapses instead of disappearing** (final fix wave, deviates from spec §6.1 "Read removes the
+  card"). After a successful `read` the card stays in place as a one-line strip "Read ✓ · 👍 · Too easy · Too
+  hard"; each button still works and disables once sent, and "Not interested" is no longer offered. The article
+  is already excluded server-side, so it leaves the list on the next page load or navigation. Why: spec §5.3's
+  quality metric is the share of 👍 among read articles, and too easy / too hard are judgements made after
+  reading; with literal removal neither could be given after reading, so the metric and the offset calibration
+  would get almost no input. "Load more" therefore counts server-side exclusions, not DOM removals:
+  `offset = served - (distinct cards with read or not_interested sent from this list)` (`feedNextOffset` in
+  `@attn/shared`, refining plan Decision 10). Feedback buttons on Profile history rows were not added. Revert:
+  make the card call the parent's remove on `read` again.
+- **Overload retry is configured** (`label_overload_backoff_ms`, default `[2000, 5000, 10000]`): a provider
+  overload (HTTP 503/529 or "high demand") retries the same article after each pause, then fails that article and
+  the run continues; a 429 still stops the run (spec §4.2). Classified by status first, message text second.
+- **State-changing routes require JSON** (`POST /onboarding`, `PUT /focus`, `POST /articles/:id/events`): any
+  other content type, or none, gets 415 `unsupported_media_type`, as defense in depth against cross-site form
+  posts. The session check runs first, so anonymous requests still get 401.

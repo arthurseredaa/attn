@@ -105,7 +105,8 @@ All routes are under `/api`; errors are JSON `{ "error", "message" }`.
 - `GET /api/quiz?skills=`: quiz questions (no answers) for the signed-in user's role, for the given skills
 - `POST /api/onboarding`: submit quiz results and optional focus; creates or redoes the user's skill levels
 - `PUT /api/focus`: replace the ordered focus skills (onboarded users only)
-- `GET /api/profile`: the signed-in user's skill levels and focus
+- `GET /api/profile`: the signed-in user's skill levels and focus, reading history (latest 20, plus the total) and
+  the 👍 share among read articles
 - `GET /api/feed?offset=`: the For you page (20 cards, `{ items, nextOffset }`), ranked for the signed-in user
 - `POST /api/articles/:id/events`: record feedback with `{ kind }` (`read`, `like`, `too_easy`, `too_hard`,
   `not_interested`); 200 `{ kind, recorded }`, a repeated click is a no-op (`recorded: false`)
@@ -300,7 +301,8 @@ article is a candidate when:
 `background_priority` (0.1) for background skills; `interest` is the user's per-skill weight (1.0 at the start);
 `fit` is `fit_next` (1.0) for difficulty `t+1`, `fit_same` (0.8) for `t` and `fit_stretch` (0.5) for the rest of
 the band. Order: score descending, then newest first, then id (so paging is stable). `page_size` (20) cards per
-page; "Load more" asks for the next offset. All constants are in `data/config.yml`. Redoing the quiz for a skill
+page; "Load more" asks for the next offset (cards served so far minus the ones read or dismissed since, which the
+server no longer ranks). All constants are in `data/config.yml`. Redoing the quiz for a skill
 resets its difficulty offset for good: feedback recorded before the latest quiz answer for that skill no longer
 counts.
 
@@ -309,8 +311,10 @@ counts.
 Feedback applies to the article's primary skill, only to skills that exist after onboarding (a user who has not
 onboarded has events recorded but no skill effects).
 
-- **Read** (opens the article in a new tab): the card leaves the feed. If the article's difficulty is at or above
-  the user's level, the skill gets +1 point; `points_per_level` (5) points give +1 level (cap 4) and reset points.
+- **Read** (the title and the Read link both open the article in a new tab and record it): the article leaves the
+  feed. On screen the card collapses to a strip "Read ✓ · 👍 · Too easy · Too hard", so feedback can still be given
+  after reading; it is gone on the next page load. If the article's difficulty is at or above the user's level,
+  the skill gets +1 point; `points_per_level` (5) points give +1 level (cap 4) and reset points.
 - **👍**: no ranking effect. The share of 👍 among read articles is the quality metric, shown on the Profile.
 - **Too easy / Too hard**: `difficulty_offset = clamp(round((too_easy - too_hard) / offset_k), -1, +1)`, recomputed
   from that skill's events after each click (`offset_k` is 3).
@@ -327,15 +331,18 @@ Labeling needs a Gemini key; the demo does not.
 3. Run `pnpm api` and `pnpm web`, and sign in (needs GitHub OAuth credentials), or run `bash scripts/smoke.sh`,
    which creates a throwaway user and session, exercises the whole For you loop through the api and prints nine
    `ok:` lines. `API_PORT` (default 3001) picks the api port and the script refuses a port that is in use;
-   `KEEP=1` keeps the smoke user and demo articles.
-4. Clean up with `pnpm attn seed-demo --remove` (the smoke script does it for you unless `KEEP=1`).
+   `KEEP=1` keeps the smoke user and demo articles. The smoke user has the negative `github_id` -999001 (GitHub never
+   issues negative ids) and is deleted afterwards; still, never run smoke against a shared or production DB.
+4. Clean up with `pnpm attn seed-demo --remove`. The smoke script removes only demo articles it inserted itself, so
+   after step 2 (where the demo articles already exist) it removes none and this step is yours.
 
 ## MVP done-criteria and hand-off
 
 The MVP is done when the owner judges that ATTN covers their own use case. Then `~/Projects/ai-news` is archived
 and its scheduled task disabled, not before. This repo does not do that.
 
-Verifiably done in this repo: collect, label, eval, onboarding and quiz, For you, feedback, Profile, CI.
+Verifiably done in this repo: collect, label, eval, onboarding and quiz, For you, feedback, Profile. A CI workflow
+(`.github/workflows/ci.yml`) is configured but has never run: the repo has no remote yet.
 
 Owner hand-off:
 
@@ -343,6 +350,7 @@ Owner hand-off:
 - Review the quiz DRAFT using [docs/quiz-owner-review.md](docs/quiz-owner-review.md).
 - Set GitHub OAuth credentials and do a real sign-in round trip (never exercised here).
 - Build the Docker images (never built in the authoring environment).
+- Push to GitHub and see CI green.
 - Decide on openai-news (dropped: Cloudflare 403, see Known limitations).
 - Run ATTN for a trial period, then archive the old `ai-news` repo and disable its scheduled task (owner's call).
 
