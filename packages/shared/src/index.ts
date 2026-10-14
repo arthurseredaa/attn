@@ -5,3 +5,5 @@ export * from './config';
 export * from './quiz';
 export * from './golden';
 export * from './label';
+export * from './api';
+export * from './reading';
