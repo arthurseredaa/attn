@@ -1,5 +1,9 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  test: { include: ['packages/*/src/**/*.test.ts'], fileParallelism: false },
+  test: {
+    globalSetup: ['packages/core/src/test/global-setup.ts'],
+    include: ['packages/*/src/**/*.test.ts'],
+    fileParallelism: false,
+  },
 });
