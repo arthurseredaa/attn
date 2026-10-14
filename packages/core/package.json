@@ -12,6 +12,7 @@
     "test": "vitest run --root ../.. packages/core/"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "4.0.79",
     "@ai-sdk/google": "^4.0.95",
     "@attn/shared": "workspace:*",
     "@mozilla/readability": "^0.6.0",
