@@ -62,5 +62,13 @@ export async function runEval(opts: EvalOptions): Promise<EvalReport> {
     }
   }
 
-  return buildReport({ model: labeler.model, total: golden.length, scored, failures, rateLimited, ...(fatal !== undefined ? { fatal } : {}) });
+  return buildReport({
+    model: labeler.model,
+    total: golden.length,
+    scored,
+    failures,
+    rateLimited,
+    ...(fatal !== undefined ? { fatal } : {}),
+    ...(labeler.usage ? { usage: labeler.usage() } : {}),
+  });
 }

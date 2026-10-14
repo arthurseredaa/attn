@@ -1,4 +1,5 @@
 import type { GoldenItem, LabelOutput } from '@attn/shared';
+import type { LabelTokenUsage } from '../label';
 
 export type EvalField = 'primary_skill' | 'secondary_skills' | 'difficulty' | 'type' | 'quality';
 export interface Disagreement {
@@ -36,6 +37,8 @@ export interface EvalReport {
   fatal?: string;
   metrics: EvalMetrics | null;
   disagreements: Disagreement[];
+  /** Provider token totals for the run, when the labeler reports them. */
+  usage?: LabelTokenUsage;
 }
 
 export function jaccard(a: readonly string[], b: readonly string[]): number {
@@ -80,6 +83,7 @@ export function buildReport(args: {
   failures: EvalFailure[];
   rateLimited: boolean;
   fatal?: string;
+  usage?: LabelTokenUsage;
 }): EvalReport {
   const { scored } = args;
   const scores = scored.map((s) => scoreItem(s.expected, s.actual));
@@ -104,7 +108,16 @@ export function buildReport(args: {
     ...(args.fatal !== undefined ? { fatal: args.fatal } : {}),
     metrics,
     disagreements: scored.flatMap((s) => findDisagreements(s.url, s.expected, s.actual)),
+    ...(args.usage !== undefined ? { usage: args.usage } : {}),
   };
+}
+
+/** `tokens: input=<n> output=<n>[ cache_read=<n>][ cache_write=<n>]`; input counts cached tokens too. */
+export function formatUsage(u: LabelTokenUsage): string {
+  const parts = [`input=${u.inputTokens}`, `output=${u.outputTokens}`];
+  if (u.cacheReadTokens !== undefined) parts.push(`cache_read=${u.cacheReadTokens}`);
+  if (u.cacheWriteTokens !== undefined) parts.push(`cache_write=${u.cacheWriteTokens}`);
+  return `tokens: ${parts.join(' ')}`;
 }
 
 export function formatEvalReport(report: EvalReport): string {
@@ -135,5 +148,6 @@ export function formatEvalReport(report: EvalReport): string {
   }
   if (report.rateLimited) lines.push('rate limited: evaluation stopped early');
   if (report.fatal) lines.push(`provider error: ${report.fatal}; evaluation stopped early`);
+  if (report.usage) lines.push(formatUsage(report.usage));
   return lines.join('\n');
 }

@@ -161,4 +161,14 @@ describe('formatEvalReport', () => {
     expect(out).toContain('rate limited: evaluation stopped early');
     expect(out).not.toContain('disagreements:');
   });
+  it('ends with the token totals, after a stop line, and omits cache fields the provider did not report', () => {
+    const base = { model: 'm', total: 1, scored: [], failures: [], rateLimited: true };
+    const full = formatEvalReport(
+      buildReport({ ...base, usage: { inputTokens: 100, outputTokens: 20, cacheReadTokens: 80, cacheWriteTokens: 0 } }),
+    ).split('\n');
+    expect(full.at(-2)).toBe('rate limited: evaluation stopped early');
+    expect(full.at(-1)).toBe('tokens: input=100 output=20 cache_read=80 cache_write=0');
+    const bare = formatEvalReport(buildReport({ ...base, usage: { inputTokens: 100, outputTokens: 20 } })).split('\n');
+    expect(bare.at(-1)).toBe('tokens: input=100 output=20');
+  });
 });

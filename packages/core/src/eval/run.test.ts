@@ -147,6 +147,21 @@ describe('runEval', () => {
     expect(r.rateLimited).toBe(false);
   });
 
+  it('reports the labeler token usage at the end of the run when the labeler exposes it', async () => {
+    const usage = { inputTokens: 1822, outputTokens: 12, cacheReadTokens: 900, cacheWriteTokens: 900 };
+    const labeler = { ...scenarioLabeler(), usage: () => usage };
+    const r = await runEval({ labeler, golden: golden(), cache: cache(), config, sleep });
+    expect(r.usage).toEqual(usage);
+    const lines = formatEvalReport(r).split('\n');
+    expect(lines.at(-1)).toBe('tokens: input=1822 output=12 cache_read=900 cache_write=900');
+  });
+
+  it('prints no token line for a labeler without usage', async () => {
+    const r = await runEval({ labeler: scenarioLabeler(), golden: golden(), cache: cache(), config, sleep });
+    expect(r.usage).toBeUndefined();
+    expect(formatEvalReport(r)).not.toContain('tokens:');
+  });
+
   it('sleeps before every labeler call except the first, cached or not', async () => {
     const c = cache();
     await runEval({ labeler: scenarioLabeler(), golden: golden(), cache: c, config, sleep });
