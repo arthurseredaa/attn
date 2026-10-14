@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@attn/shared": "workspace:*",
+    "cheerio": "^1.2.0",
     "drizzle-orm": "^0.45.4",
+    "fast-xml-parser": "^5.11.2",
     "postgres": "^3.4.9",
     "yaml": "^2.9.1"
   },

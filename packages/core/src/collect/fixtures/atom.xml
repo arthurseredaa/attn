@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Atom fixture</title>
+  <entry>
+    <title>Atom one</title>
+    <link rel="self" href="{{BASE}}/feed.atom"/>
+    <link rel="alternate" href="{{BASE}}/atom/one"/>
+    <id>tag:atom-one</id>
+    <published>2026-09-20T10:00:00Z</published>
+    <updated>2026-09-21T10:00:00Z</updated>
+  </entry>
+  <entry>
+    <title>Atom two</title>
+    <link href="{{BASE}}/atom/two"/>
+    <id>tag:atom-two</id>
+    <updated>2026-09-10T10:00:00Z</updated>
+  </entry>
+  <entry>
+    <title type="html">Atom &lt;b&gt;three&lt;/b&gt;</title>
+    <link href="{{BASE}}/atom/three"/>
+    <id>tag:atom-three</id>
+    <published>2026-09-01T10:00:00Z</published>
+  </entry>
+</feed>

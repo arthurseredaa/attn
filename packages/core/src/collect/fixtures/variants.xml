@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Variants</title>
+    <item>
+      <title>Dup A</title>
+      <link>{{BASE}}/Posts/Dup/?utm_source=x#top</link>
+      <guid>g-dup</guid>
+      <pubDate>Mon, 12 Oct 2026 10:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Dup B</title>
+      <link>{{BASE}}/Posts/Dup</link>
+      <guid>g-dup</guid>
+      <pubDate>Mon, 12 Oct 2026 10:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Dup C</title>
+      <link>{{BASE}}/Posts/Dup/</link>
+      <guid>g-dup</guid>
+      <pubDate>Mon, 12 Oct 2026 10:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Bad</title>
+      <link>javascript:alert(1)</link>
+      <pubDate>Mon, 12 Oct 2026 10:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Fixture feed</title>
+    <link>{{BASE}}/</link>
+    <item>
+      <title>First post</title>
+      <link>{{BASE}}/posts/one/</link>
+      <guid isPermaLink="true">{{BASE}}/posts/one/</guid>
+      <pubDate>Tue, 06 Oct 2026 10:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title><![CDATA[Tom &amp; Jerry]]></title>
+      <link>{{BASE}}/posts/two</link>
+      <guid isPermaLink="false">tag:two</guid>
+      <pubDate>Thu, 01 Oct 2026 09:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>No link</title>
+      <pubDate>Mon, 12 Oct 2026 10:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Undated</title>
+      <link>{{BASE}}/posts/four</link>
+      <pubDate>yesterday-ish</pubDate>
+    </item>
+    <item>
+      <title>Mail</title>
+      <link>mailto:editor@example.com</link>
+      <pubDate>Mon, 12 Oct 2026 10:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Old</title>
+      <link>{{BASE}}/posts/old</link>
+      <pubDate>Mon, 01 Jan 2024 10:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Future</title>
+      <link>{{BASE}}/posts/future</link>
+      <pubDate>Mon, 30 Nov 2026 10:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <link>{{BASE}}/posts/notitle</link>
+      <pubDate>Mon, 12 Oct 2026 11:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>
