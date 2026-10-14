@@ -10,8 +10,10 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.95",
     "@attn/shared": "workspace:*",
     "@mozilla/readability": "^0.6.0",
+    "ai": "^7.0.140",
     "cheerio": "^1.2.0",
     "drizzle-orm": "^0.45.4",
     "fast-xml-parser": "^5.11.2",
