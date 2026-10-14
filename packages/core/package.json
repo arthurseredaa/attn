@@ -8,7 +8,8 @@
     "./testing": "./src/testing.ts"
   },
   "scripts": {
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "test": "vitest run --root ../.. packages/core/"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.95",
