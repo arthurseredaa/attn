@@ -80,7 +80,7 @@ domains:
         roles: [dev]
       - id: human-in-the-loop
         name: Approvals and permissions
-        description: Runtime control of an agent: human approval of its actions, permission models, and interrupting a running agent in an application.
+        description: "Runtime control of an agent: human approval of its actions, permission models, and interrupting a running agent in an application."
         roles: [dev]
       - id: workflow-automation
         name: Workflow automation
@@ -144,7 +144,7 @@ domains:
     skills:
       - id: team-adoption
         name: Tooling adoption
-        description: Rolling out AI tooling across a team so that people actually use it: adoption strategy, buy-in and habits, rather than teaching sessions.
+        description: "Rolling out AI tooling across a team so that people actually use it: adoption strategy, buy-in and habits, rather than teaching sessions."
         roles: [dev]
       - id: shared-config-standards
         name: Shared configs and standards
@@ -160,5 +160,5 @@ domains:
         roles: [dev]
       - id: ai-code-governance
         name: AI code review and policies
-        description: Organizational rules for AI-written code: review requirements, team policies and security around AI use; not runtime approval flows inside an agent.
+        description: "Organizational rules for AI-written code: review requirements, team policies and security around AI use; not runtime approval flows inside an agent."
         roles: [dev]
