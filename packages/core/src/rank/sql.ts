@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { MAX_FOCUS, type ArticleCard, type ArticleType } from '@attn/shared';
 import type { Db } from '../db/client';
+import { MAX_LEVEL, UNASSESSED_LEVEL } from '../levels/scale';
 import type { RankDeps, RankParams, Ranker, ScoredCard } from './types';
 
 interface Row {
@@ -17,7 +18,14 @@ interface Row {
   skills: { id: string; isPrimary: boolean }[];
 }
 
+/** Article quality uses the same 0-4 scale as levels (`levelSchema`); score divides by its top. */
+const MAX_QUALITY = 4;
+
+// Structural constants (not tunables) inlined as literals, so the ranker and applyReadPoint cannot drift apart.
 const MAX_FOCUS_SQL = sql.raw(String(MAX_FOCUS));
+const UNASSESSED_LEVEL_SQL = sql.raw(String(UNASSESSED_LEVEL));
+const MAX_LEVEL_SQL = sql.raw(String(MAX_LEVEL));
+const MAX_QUALITY_SQL = sql.raw(String(MAX_QUALITY));
 
 function assertPaging(limit: number, offset: number): void {
   if (!Number.isInteger(limit) || limit < 1 || limit > 1000) throw new RangeError(`limit must be an integer 1..1000, got ${limit}`);
@@ -49,7 +57,7 @@ export class SqlRanker implements Ranker {
         select a.id, a.source_id, a.url, a.title, a.published_at, a.word_count,
                a.difficulty, a.type, a.quality,
                us.focus_rank, us.interest::numeric as interest,
-               least(coalesce(us.level, 1) + us.difficulty_offset, 4) as t,
+               least(coalesce(us.level, ${UNASSESSED_LEVEL_SQL}) + us.difficulty_offset, ${MAX_LEVEL_SQL}) as t,
                (us.level is null or us.uncertain) as unc
         from articles a
         join article_skills p on p.article_id = a.id and p.is_primary
@@ -72,7 +80,7 @@ export class SqlRanker implements Ranker {
           * (case when cand.difficulty = cand.t + 1 then ${c.fit_next}::numeric
                   when cand.difficulty = cand.t then ${c.fit_same}::numeric
                   else ${c.fit_stretch}::numeric end)
-          * cand.quality / 4 as score
+          * cand.quality / ${MAX_QUALITY_SQL} as score
         from cand
         where cand.difficulty between (case when cand.unc then cand.t - 1 else cand.t end)
                                   and (case when cand.unc then cand.t + 2 else cand.t + 1 end)
