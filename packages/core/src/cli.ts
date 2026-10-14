@@ -1,10 +1,13 @@
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
-import { loadConfig, loadSources, dataDir } from './data';
+import type { Taxonomy } from '@attn/shared';
+import { loadConfig, loadSources, loadTaxonomy, dataDir } from './data';
 import { createDb, runMigrations } from './db';
 import { collectAll, type SourceReport } from './collect/collect';
 import type { FetchFn } from './collect/http';
+import { createGeminiLabeler, type Labeler } from './label';
+import { labelPending, type LabelItemReport } from './pipeline';
 
 export interface Io {
   out(s: string): void;
@@ -14,13 +17,16 @@ export interface Io {
 export interface Deps {
   now?: Date;
   fetchFn?: FetchFn;
+  makeLabeler?: (model: string, taxonomy: Taxonomy) => Labeler;
+  sleep?: (ms: number) => Promise<void>;
 }
 
-const USAGE = `usage: attn <migrate | collect>
+const USAGE = `usage: attn <migrate | collect | label>
 
 commands:
   migrate                                              apply database migrations
   collect [--source <id>]... [--backfill-days <n>]    collect new articles from sources
+  label [--limit <n>]                                  label pending articles with the configured model
 `;
 
 const defaultIo: Io = {
@@ -31,6 +37,78 @@ const defaultIo: Io = {
 function formatReport(r: SourceReport): string {
   const line = `${r.sourceId}  ${r.status}  seen=${r.seen} inserted=${r.inserted} dup=${r.duplicates} old=${r.tooOld} skipped=${r.skipped}`;
   return r.error ? `${line}  ${r.error}` : line;
+}
+
+export function resolveLabelerFactory(
+  env: NodeJS.ProcessEnv,
+  deps: Deps,
+): ((model: string, taxonomy: Taxonomy) => Labeler) | { error: string } {
+  if (deps.makeLabeler) return deps.makeLabeler;
+  const apiKey = env.GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!apiKey) return { error: 'GOOGLE_GENERATIVE_AI_API_KEY is not set' };
+  return (model, taxonomy) => createGeminiLabeler({ model, taxonomy, apiKey });
+}
+
+function formatLabelItem(i: LabelItemReport): string {
+  const line = `${i.outcome}  ${i.url}`;
+  return i.error ? `${line}  ${i.error}` : line;
+}
+
+async function labelCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps: Deps): Promise<number> {
+  const { values } = parseArgs({ args, options: { limit: { type: 'string' } }, strict: true });
+
+  let limit: number | undefined;
+  const rawLimit = values.limit;
+  if (rawLimit !== undefined) {
+    if (!/^\d+$/.test(rawLimit) || !Number.isSafeInteger(Number(rawLimit)) || Number(rawLimit) < 1) {
+      io.err(`--limit must be a positive integer, got "${rawLimit}"`);
+      return 1;
+    }
+    limit = Number(rawLimit);
+  }
+
+  const url = env.DATABASE_URL;
+  if (!url) {
+    io.err('DATABASE_URL is not set');
+    return 1;
+  }
+  const model = env.LABEL_MODEL;
+  if (!model) {
+    io.err('LABEL_MODEL is not set');
+    return 1;
+  }
+  const factory = resolveLabelerFactory(env, deps);
+  if ('error' in factory) {
+    io.err(factory.error);
+    return 1;
+  }
+
+  const dir = env.ATTN_DATA_DIR ?? dataDir();
+  const config = loadConfig(dir);
+  const taxonomy = loadTaxonomy(dir);
+  const labeler = factory(model, taxonomy);
+
+  const { db, close } = createDb(url);
+  try {
+    const report = await labelPending({
+      db,
+      labeler,
+      config,
+      taxonomyVersion: taxonomy.version,
+      ...(limit !== undefined ? { limit } : {}),
+      ...(deps.sleep ? { sleep: deps.sleep } : {}),
+      ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
+      ...(deps.now ? { now: deps.now } : {}),
+    });
+    for (const i of report.items) io.out(formatLabelItem(i));
+    io.out(
+      `total: selected=${report.selected} labeled=${report.labeled} failed=${report.failed} rate_limited=${report.rateLimited ? 'yes' : 'no'}`,
+    );
+    if (report.rateLimited) io.out('rate limited by the provider; the remaining articles stay pending for the next run');
+    return 0;
+  } finally {
+    await close();
+  }
 }
 
 async function collect(args: string[], env: NodeJS.ProcessEnv, io: Io, deps: Deps): Promise<number> {
@@ -99,6 +177,8 @@ export async function run(argv: string[], env: NodeJS.ProcessEnv, io: Io = defau
       }
       case 'collect':
         return await collect(rest, env, io, deps);
+      case 'label':
+        return await labelCommand(rest, env, io, deps);
       default:
         io.err(command ? `unknown command: ${command}\n${USAGE}` : USAGE);
         return 1;
