@@ -5,4 +5,7 @@ export interface NavItem {
   auth: 'any' | 'user';
 }
 
-export const NAV_ITEMS: NavItem[] = [{ href: '/all', label: 'All', auth: 'any' }];
+export const NAV_ITEMS: NavItem[] = [
+  { href: '/all', label: 'All', auth: 'any' },
+  { href: '/profile', label: 'Profile', auth: 'user' },
+];

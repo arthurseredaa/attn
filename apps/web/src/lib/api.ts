@@ -6,12 +6,16 @@ import {
   articlesPageSchema,
   errorBodySchema,
   meSchema,
+  profileSchema,
+  quizResponseSchema,
   sourcesResponseSchema,
   taxonomySchema,
   type ArticlesPage,
   type ArticlesQuery,
   type ErrorBody,
   type Me,
+  type Profile,
+  type QuizResponse,
   type SourceSummary,
   type Taxonomy,
 } from '@attn/shared';
@@ -68,3 +72,13 @@ export const getArticles = (q: ArticlesQuery): Promise<ArticlesPage> =>
   apiGet('/articles', articlesPageSchema, { query: { ...q } });
 export const getSources = (): Promise<SourceSummary[]> => apiGet('/sources', sourcesResponseSchema);
 export const getTaxonomy = (): Promise<Taxonomy> => apiGet('/taxonomy', taxonomySchema);
+
+export async function getProfile(): Promise<Profile> {
+  const cookie = (await cookies()).toString(); // outside any try/catch, see getMe
+  return apiGet('/profile', profileSchema, { cookie });
+}
+
+export async function getQuiz(skills: string[]): Promise<QuizResponse> {
+  const cookie = (await cookies()).toString();
+  return apiGet('/quiz', quizResponseSchema, { query: { skills: skills.join(',') }, cookie });
+}

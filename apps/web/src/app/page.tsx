@@ -24,7 +24,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
         </p>
         <div className="flex flex-wrap items-center gap-3 pt-2">
           {me ? (
-            <Link href="/all" className="rounded-md bg-accent px-4 py-2 font-medium text-accent-fg">
+            <Link href="/profile" className="rounded-md bg-accent px-4 py-2 font-medium text-accent-fg">
               Open ATTN
             </Link>
           ) : (
