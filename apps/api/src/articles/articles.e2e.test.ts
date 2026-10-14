@@ -1,0 +1,184 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { loadSources, loadTaxonomy } from '@attn/core';
+import { resetDb } from '@attn/core/testing';
+import { articleCardSchema, articlesPageSchema, type ArticlesPage, type Config } from '@attn/shared';
+import { startTestApp, type TestApp } from '../test/app';
+import { seedArticle, skillIds, type SeedArticle } from '../test/seed';
+import { APP_CONFIG } from '../tokens';
+
+let ctx: TestApp;
+const [S1, S2, S3] = skillIds(3) as [string, string, string];
+const realSource = loadSources()[0]!;
+
+beforeEach(async () => {
+  ctx = await startTestApp();
+  await resetDb(ctx.db);
+});
+
+afterEach(async () => {
+  await ctx.close();
+});
+
+async function get(qs = ''): Promise<{ status: number; body: unknown }> {
+  const res = await fetch(`${ctx.base}/api/articles${qs}`);
+  return { status: res.status, body: await res.json() };
+}
+
+const page = async (qs = ''): Promise<ArticlesPage> => {
+  const r = await get(qs);
+  expect(r.status).toBe(200);
+  return articlesPageSchema.parse(r.body);
+};
+
+const at = (iso: string): Date => new Date(iso);
+const seed = (o: SeedArticle = {}) => seedArticle(ctx.db, { primary: S1, ...o });
+const ids = (p: ArticlesPage) => p.items.map((i) => i.id);
+
+describe('GET /api/articles', () => {
+  it('is public and returns labeled articles only', async () => {
+    const ok = await seed();
+    await seed({ status: 'pending' });
+    await seed({ status: 'failed' });
+    const r = await get();
+    expect(r.status).toBe(200);
+    expect(ids(articlesPageSchema.parse(r.body))).toEqual([ok]);
+  });
+
+  it('orders newest first, ties by id descending', async () => {
+    const old = await seed({ publishedAt: at('2026-01-01T00:00:00.000Z') });
+    const t = at('2026-02-01T00:00:00.000Z');
+    const a = await seed({ publishedAt: t });
+    const b = await seed({ publishedAt: t });
+    const c = await seed({ publishedAt: t });
+    const newest = await seed({ publishedAt: at('2026-03-01T00:00:00.000Z') });
+    expect(ids(await page())).toEqual([newest, c, b, a, old]);
+  });
+
+  it('builds the card from the row, taxonomy and sources', async () => {
+    const taxonomy = loadTaxonomy();
+    const nameOf = (id: string) => taxonomy.domains.flatMap((d) => d.skills).find((s) => s.id === id)!.name;
+    await seed({ primary: S1, secondary: [S2], sourceId: realSource.id, wordCount: 1500, publishedAt: at('2026-03-05T10:20:30.456Z') });
+    const [item] = (await page()).items;
+    expect(item!.skills).toEqual([
+      { id: S1, name: nameOf(S1), isPrimary: true },
+      { id: S2, name: nameOf(S2), isPrimary: false },
+    ]);
+    expect(item!.sourceName).toBe(realSource.name);
+    expect(item!.publishedAt).toBe('2026-03-05T10:20:30.456Z');
+    expect(Object.keys(item!).sort()).toEqual(Object.keys(articleCardSchema.shape).sort());
+  });
+
+  it('falls back for unknown source, orphan skill and null word count', async () => {
+    await seed({ sourceId: 'gone-source', primary: 'orphan-skill', wordCount: null });
+    const [item] = (await page()).items;
+    expect(item!.sourceName).toBe('gone-source');
+    expect(item!.skills).toEqual([{ id: 'orphan-skill', name: 'orphan-skill', isPrimary: true }]);
+    expect(item!.wordCount).toBeNull();
+  });
+
+  it('filters by source; unknown source gives an empty page', async () => {
+    const a = await seed({ sourceId: 'A' });
+    await seed({ sourceId: 'B' });
+    expect(ids(await page('?source=A'))).toEqual([a]);
+    expect(await get('?source=nope')).toEqual({ status: 200, body: { items: [], nextCursor: null } });
+  });
+
+  it('filters by skill on primary or secondary, without duplicates', async () => {
+    const both = await seed({ primary: S1, secondary: [S2] });
+    const only3 = await seed({ primary: S3 });
+    expect(ids(await page(`?skill=${S2}`))).toEqual([both]);
+    expect(ids(await page(`?skill=${S1}`))).toEqual([both]);
+    expect(ids(await page(`?skill=${S3}`))).toEqual([only3]);
+  });
+
+  it('applies date ranges with the documented bounds', async () => {
+    const a = await seed({ publishedAt: at('2026-03-01T23:59:59.999Z') });
+    const b = await seed({ publishedAt: at('2026-03-02T00:00:00.000Z') });
+    const c = await seed({ publishedAt: at('2026-03-02T12:00:00.000Z') });
+    const d = await seed({ publishedAt: at('2026-03-03T00:00:00.000Z') });
+    expect(ids(await page('?from=2026-03-02&to=2026-03-02')).sort()).toEqual([b, c].sort());
+    expect(ids(await page('?from=2026-03-02T12:00:00Z')).sort()).toEqual([c, d].sort());
+    expect(ids(await page('?to=2026-03-02T00:00:00Z')).sort()).toEqual([a, b].sort());
+  });
+
+  it('paginates across equal timestamps with no gaps or duplicates', async () => {
+    const t = at('2026-02-01T00:00:00.000Z');
+    for (let i = 0; i < 4; i++) await seed({ publishedAt: t });
+    for (let i = 0; i < 3; i++) await seed({ publishedAt: at(`2026-02-0${2 + i}T00:00:00.000Z`) });
+    const full = ids(await page('?limit=50'));
+    expect(full).toHaveLength(7);
+    const walked: number[] = [];
+    let cursor: string | null = null;
+    let last: ArticlesPage | undefined;
+    do {
+      last = await page(`?limit=2${cursor ? `&cursor=${cursor}` : ''}`);
+      walked.push(...ids(last));
+      cursor = last.nextCursor;
+    } while (cursor);
+    expect(walked).toEqual(full);
+    expect(last.nextCursor).toBeNull();
+  });
+
+  it('returns a null cursor exactly at the boundary', async () => {
+    for (let i = 0; i < 4; i++) await seed({ publishedAt: at(`2026-02-0${1 + i}T00:00:00.000Z`) });
+    expect((await page('?limit=4')).nextCursor).toBeNull();
+    const p1 = await page('?limit=3');
+    expect(p1.items).toHaveLength(3);
+    expect(typeof p1.nextCursor).toBe('string');
+    const p2 = await page(`?limit=3&cursor=${p1.nextCursor}`);
+    expect(p2.items).toHaveLength(1);
+    expect(p2.nextCursor).toBeNull();
+  });
+
+  it('combines a filter with a cursor', async () => {
+    const a: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      a.push(await seed({ sourceId: 'A', publishedAt: at(`2026-02-0${1 + i}T00:00:00.000Z`) }));
+      await seed({ sourceId: 'B', publishedAt: at(`2026-02-0${1 + i}T06:00:00.000Z`) });
+    }
+    const walked: number[] = [];
+    let cursor: string | null = null;
+    do {
+      const p: ArticlesPage = await page(`?source=A&limit=2${cursor ? `&cursor=${cursor}` : ''}`);
+      expect(p.items.every((i) => i.sourceId === 'A')).toBe(true);
+      walked.push(...ids(p));
+      cursor = p.nextCursor;
+    } while (cursor);
+    expect(walked).toEqual([...a].reverse());
+  });
+
+  it('defaults to page_size and accepts limit 1 and 50', async () => {
+    const pageSize = ctx.moduleRef.get<Config>(APP_CONFIG, { strict: false }).page_size;
+    for (let i = 0; i < pageSize + 1; i++) await seed({ publishedAt: new Date(Date.UTC(2026, 0, 1, 0, i)) });
+    const p = await page();
+    expect(p.items).toHaveLength(pageSize);
+    expect(p.nextCursor).not.toBeNull();
+    expect((await page('?limit=1')).items).toHaveLength(1);
+    expect((await page('?limit=50')).items).toHaveLength(pageSize + 1);
+  });
+
+  it.each([
+    ['limit=0', 'limit'],
+    ['limit=51', 'limit'],
+    ['limit=abc', 'limit'],
+    ['from=nope', 'from'],
+    ['to=2026-02-31', 'to'],
+    ['from=2026-03-02&to=2026-03-01', 'to'],
+    ['cursor=garbage', 'cursor'],
+    ['cursor=', 'cursor'],
+    ['skill=a&skill=b', 'skill'],
+  ])('400 with the error shape for %s', async (qs, field) => {
+    const r = await get(`?${qs}`);
+    expect(r.status).toBe(400);
+    const body = r.body as { error: string; message: string };
+    expect(Object.keys(body).sort()).toEqual(['error', 'message']);
+    expect(body.error).toBe('bad_request');
+    expect(body.message).toContain(field);
+    expect(JSON.stringify(body)).not.toMatch(/\bat\s.+:\d+|node_modules|stack/i);
+  });
+
+  it('returns an empty page for an empty database', async () => {
+    expect(await get()).toEqual({ status: 200, body: { items: [], nextCursor: null } });
+  });
+});
+
