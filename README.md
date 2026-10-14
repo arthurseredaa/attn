@@ -120,7 +120,8 @@ not published on the host; the browser reaches it only through the web proxy.
 ## Onboarding and the quiz bank
 
 `data/quiz/dev.yml` is the situational question bank for role `dev`: 32 skills x 2 questions, each with 4-6
-options that carry a hidden level (0-4). **It is a DRAFT: the owner must review it before it is trusted.** The
+options that carry a hidden level (0-4). **It is a DRAFT: the owner must review it before it is trusted**; start
+with the open close calls in [docs/quiz-owner-review.md](docs/quiz-owner-review.md). The
 levels never leave the server (`GET /api/quiz` strips them and shuffles the options). The bank is guarded by
 statistical anti-gaming tests in `packages/core/src/quiz-data.test.ts`; the authoring rules behind them are
 internal, in short: one imperative sentence per option, and no surface cue (length, wording, position) may
@@ -128,6 +129,8 @@ reveal the level.
 
 To add a question: use the id `<skill>-<n>`, write 4-6 situational options in scrambled level order, and run
 `pnpm vitest run packages/core/src/quiz-data.test.ts`.
+Each taxonomy role gets its bank from `data/quiz/<role>.yml` (loaded and validated at api start); a role
+without a file gets no quiz questions, so its users skip the quiz.
 
 Onboarding order: the user picks and orders 1-5 focus skills first; the quiz then covers the focus skills only
 (in rank order). Other skills stay unassessed (level 1, uncertain) until "Take quiz" on the Profile page.
