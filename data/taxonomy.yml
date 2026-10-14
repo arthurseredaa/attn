@@ -1,0 +1,164 @@
+version: 1
+levels:
+  - level: 0
+    label: Never touched it
+    description: Has never used this or has no real exposure to it.
+  - level: 1
+    label: Basic use
+    description: Uses it at a basic level, following examples and defaults.
+  - level: 2
+    label: Regular practice
+    description: Uses it regularly in day-to-day work and is comfortable with it.
+  - level: 3
+    label: Advanced
+    description: Uses it at an advanced level and customizes it to fit their own needs.
+  - level: 4
+    label: Builds it / expert
+    description: Builds it from scratch or is an expert who could teach it to others.
+domains:
+  - id: agentic-coding
+    name: Agentic coding
+    skills:
+      - id: context-engineering
+        name: CLAUDE.md, memory, context structure
+        description: Giving a coding agent the right context through CLAUDE.md files, memory, context compaction, and well-structured instructions.
+        roles: [dev]
+      - id: cc-skills-commands
+        name: Skills and slash commands
+        description: Writing custom skills and slash commands for Claude Code.
+        roles: [dev]
+      - id: cc-hooks
+        name: Hooks
+        description: Claude Code lifecycle hooks such as PreToolUse, PostToolUse and Stop, used to run deterministic automation around agent actions.
+        roles: [dev]
+      - id: cc-subagents
+        name: Subagents
+        description: Delegating tasks to subagents and defining custom agents in Claude Code.
+        roles: [dev]
+      - id: cc-plugins
+        name: Plugins
+        description: Packaging and distributing a Claude Code setup as a plugin.
+        roles: [dev]
+      - id: cc-mcp-usage
+        name: Using MCP in daily work
+        description: Connecting MCP servers to coding tools and using them in everyday work.
+        roles: [dev]
+      - id: cc-headless-ci
+        name: Headless, CI, scheduling
+        description: Running Claude Code non-interactively with claude -p, in CI, and as scheduled or cloud-hosted runs.
+        roles: [dev]
+      - id: parallel-agents
+        name: Parallel sessions
+        description: Running several agent sessions at the same time, using git worktrees and tools such as herdr to manage them.
+        roles: [dev]
+      - id: spec-driven-workflow
+        name: Spec, plan, execute
+        description: A development workflow that writes a specification and a plan before any code is written.
+        roles: [dev]
+      - id: agent-verification
+        name: Gates and verification
+        description: Verifying agent work with TDD and deterministic gates, so that the model does not get to decide whether the tests passed.
+        roles: [dev]
+  - id: agent-building
+    name: Building agents
+    skills:
+      - id: tool-use-loop
+        name: Tool loop on the Messages API
+        description: Implementing the tool-use loop by hand on top of the Messages API.
+        roles: [dev]
+      - id: agent-sdk
+        name: Claude Agent SDK
+        description: Building agents with the Claude Agent SDK.
+        roles: [dev]
+      - id: mcp-server-build
+        name: Building your own MCP server
+        description: Writing a custom MCP server, including transports and authentication.
+        roles: [dev]
+      - id: multi-agent-orchestration
+        name: Agent orchestration
+        description: Orchestrator-and-worker designs and pipelines made of several cooperating agents.
+        roles: [dev]
+      - id: human-in-the-loop
+        name: Approvals and permissions
+        description: Human approval of agent actions, permission models, and interrupting a running agent.
+        roles: [dev]
+      - id: workflow-automation
+        name: Workflow automation
+        description: n8n and similar automation tools that include LLM steps.
+        roles: [dev]
+  - id: ai-in-product
+    name: AI in the product
+    skills:
+      - id: ai-sdk
+        name: Vercel AI SDK
+        description: Using the Vercel AI SDK in TypeScript applications.
+        roles: [dev]
+      - id: streaming-ui
+        name: Streaming in the UI
+        description: Streaming model responses into a React or Vue interface.
+        roles: [dev]
+      - id: generative-ui
+        name: Generative UI
+        description: User interfaces that are generated from tool calls made by the model.
+        roles: [dev]
+      - id: structured-output
+        name: Structured output
+        description: Response schemas, zod, and validation of model output.
+        roles: [dev]
+  - id: quality-ops
+    name: Quality and production
+    skills:
+      - id: evals
+        name: Evals
+        description: Testing the quality of LLM output with evaluations.
+        roles: [dev]
+      - id: llm-observability
+        name: LLM tracing
+        description: Tracing and observability for LLM calls, for example with Langfuse.
+        roles: [dev]
+      - id: prompt-injection
+        name: Prompt injection
+        description: Security of agents and tools, and defenses against prompt injection.
+        roles: [dev]
+      - id: cost-caching
+        name: Cost and caching
+        description: Token usage, prompt caching, and keeping LLM costs under control.
+        roles: [dev]
+      - id: model-selection
+        name: Model and effort selection
+        description: Choosing which model and which effort level to use for a given task.
+        roles: [dev]
+  - id: knowledge
+    name: Knowledge
+    skills:
+      - id: embeddings
+        name: Embeddings
+        description: Embeddings and similarity search.
+        roles: [dev]
+      - id: rag
+        name: RAG
+        description: Retrieval-augmented generation pipelines.
+        roles: [dev]
+  - id: ai-in-team
+    name: AI in the team
+    skills:
+      - id: team-adoption
+        name: Tooling adoption
+        description: Rolling out AI tooling in a team so that people actually use it.
+        roles: [dev]
+      - id: shared-config-standards
+        name: Shared configs and standards
+        description: Shared configuration and style-guide rules for AI tools, kept consistent across projects without drift.
+        roles: [dev]
+      - id: ai-teaching
+        name: Workshops and training
+        description: Teaching a team to work with AI, including running workshops.
+        roles: [dev]
+      - id: codebase-agents
+        name: Agent over codebase documentation
+        description: A team-facing agent built on top of the codebase documentation.
+        roles: [dev]
+      - id: ai-code-governance
+        name: AI code review and policies
+        description: Review rules for AI-written code, plus team policies and security around AI use.
+        roles: [dev]

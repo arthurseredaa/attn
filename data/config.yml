@@ -1,0 +1,32 @@
+# How many days back collection reaches (applied on every run, including the first).
+backfill_days: 180
+# Articles sent to the labeler per batch.
+label_batch: 20
+# Pause between labeler batches, in milliseconds.
+label_delay_ms: 4000
+# Article text is truncated to this many characters before labeling.
+label_max_chars: 20000
+# Articles with less extracted text than this are not labeled.
+label_min_chars: 500
+# Labeling attempts per article before it is marked failed.
+label_max_attempts: 3
+# Cron expression for the daily collect + label run.
+schedule_cron: "0 6 * * *"
+# Labels whose difficulty estimates spread wider than this are flagged uncertain.
+uncertain_spread: 1.5
+# Points a user needs per skill level.
+points_per_level: 5
+# Offset constant used when turning skill points into a level (k).
+offset_k: 3
+# Per-day multiplier applied to interest weight (older signals count less).
+interest_decay: 0.8
+# Floor for the interest weight after decay.
+interest_min: 0.2
+# Minimum article quality (0-4) shown in the main feed.
+quality_min: 2
+# Minimum article quality (0-4) for background (out-of-level) recommendations.
+background_quality_min: 4
+# Articles newer than this many days count as fresh.
+fresh_days: 14
+# Articles per feed page.
+page_size: 20
