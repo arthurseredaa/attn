@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-import { Controller, Get, HttpCode, Inject, Post, Query, Req, Res } from '@nestjs/common';
+import { Controller, Get, HttpCode, Inject, Logger, Post, Query, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import type { AuthErrorCode } from '@attn/shared';
 import type { Env } from '../config/env';
@@ -18,8 +18,14 @@ function safeEqual(a: string, b: string): boolean {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
+function errMessage(e: unknown): string {
+  return e instanceof Error ? e.message : 'unknown error';
+}
+
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger('Auth');
+
   constructor(
     @Inject(ENV) private readonly env: Env,
     @Inject(SessionService) private readonly sessions: SessionService,
@@ -62,7 +68,8 @@ export class AuthController {
     try {
       const profile = await this.github.fetchUser(await this.github.exchangeCode(code));
       const user = await this.users.upsertGithubUser(profile);
-      await this.sessions.purgeExpired();
+      // best-effort housekeeping: must never block a login
+      await this.sessions.purgeExpired().catch((e: unknown) => this.logger.warn(`session purge failed: ${errMessage(e)}`));
       const old = cookies[SESSION_COOKIE];
       if (old) await this.sessions.destroy(old); // no stale session survives a new login
       const { token } = await this.sessions.create(user.id);
@@ -71,7 +78,9 @@ export class AuthController {
       res.setHeader('Cache-Control', 'no-store');
       res.setHeader('Referrer-Policy', 'no-referrer');
       res.redirect(302, `${this.env.appUrl}/all`);
-    } catch {
+    } catch (e) {
+      // message only: never the code, state, tokens or query
+      this.logger.warn(`oauth callback failed: ${errMessage(e)}`);
       this.fail(res, 'oauth_failed');
     }
   }

@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { Logger } from '@nestjs/common';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sessions, users } from '@attn/core';
 import { resetDb } from '@attn/core/testing';
 import { AUTH_ERROR_CODES } from '@attn/shared';
@@ -33,6 +34,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await ctx.close();
   await fake.close();
 });
@@ -252,6 +254,29 @@ describe('GET /api/auth/github/callback', () => {
     const { state } = await begin();
     expectFailure(await callback(`code=good-code&state=${state}`, `attn_oauth_state=${state}`), 'oauth_failed');
     expect(await counts()).toEqual({ users: 0, sessions: 0 });
+  });
+
+  it('GitHub /user 500 logs exactly one warn with the message only', async () => {
+    const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    fake.setRoute('/user', { status: 500, body: 'x' });
+    const { state } = await begin();
+    expectFailure(await callback(`code=good-code&state=${state}`, `attn_oauth_state=${state}`), 'oauth_failed');
+    expect(warn).toHaveBeenCalledTimes(1);
+    const line = String(warn.mock.calls[0]?.[0]);
+    expect(line).not.toContain('good-code');
+    expect(line).not.toContain(state);
+  });
+
+  it('a purgeExpired failure still logs the user in and warns', async () => {
+    const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    vi.spyOn(SessionService.prototype, 'purgeExpired').mockRejectedValue(new Error('db hiccup'));
+    const { state } = await begin();
+    const res = await callback(`code=good-code&state=${state}`, `attn_oauth_state=${state}`);
+    expect(res.headers.get('location')).toBe(`${LANDING}/all`);
+    expect(cookieOf(res, 'attn_session')).toBeDefined();
+    expect(await counts()).toEqual({ users: 1, sessions: 1 });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]?.[0])).toContain('db hiccup');
   });
 
   it('non-JSON token response -> oauth_failed', async () => {

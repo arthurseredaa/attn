@@ -1,5 +1,6 @@
 // Server-side API client. Server components call the api directly at API_URL
 // (the browser uses the /api/* rewrite instead). Import only from server components.
+import { cache } from 'react';
 import { cookies } from 'next/headers';
 import {
   articlesPageSchema,
@@ -51,7 +52,8 @@ export async function apiGet<T>(
   return schema.parse(json);
 }
 
-export async function getMe(): Promise<Me | null> {
+// cache(): Nav and pages share one /me call per request.
+export const getMe = cache(async (): Promise<Me | null> => {
   // Read cookies() OUTSIDE the try: Next signals "dynamic usage" by throwing from it,
   // and swallowing that would let a prerendered route cache a signed-out shell.
   const cookie = (await cookies()).toString();
@@ -60,7 +62,7 @@ export async function getMe(): Promise<Me | null> {
   } catch {
     return null; // 401, or the api is down: render the signed-out shell
   }
-}
+});
 
 export const getArticles = (q: ArticlesQuery): Promise<ArticlesPage> =>
   apiGet('/articles', articlesPageSchema, { query: { ...q } });

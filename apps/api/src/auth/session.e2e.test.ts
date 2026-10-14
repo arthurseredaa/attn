@@ -91,8 +91,24 @@ describe('POST /api/auth/logout', () => {
     expect(setCookie).toContain('attn_session=;');
     expect(setCookie).toMatch(/Max-Age=0|Expires=\w{3}, \d{2} \w{3} 1970/);
     expect(setCookie).toContain('Path=/');
+    expect(setCookie).toContain('HttpOnly');
+    expect(setCookie).toContain('SameSite=Lax');
     const me = await fetch(`${ctx.base}/api/me`, { headers: cookie(token) });
     expect(me.status).toBe(401);
+  });
+
+  it('clearing cookie carries HttpOnly, Secure, SameSite=Lax and Path=/ with the production default', async () => {
+    const app = await startTestApp({ cookieSecure: true });
+    try {
+      const res = await fetch(`${app.base}/api/auth/logout`, { method: 'POST', headers: cookie('whatever') });
+      expect(res.status).toBe(204);
+      const setCookie = res.headers.get('set-cookie') ?? '';
+      expect(setCookie).toContain('attn_session=;');
+      for (const attr of ['HttpOnly', 'Secure', 'SameSite=Lax', 'Path=/']) expect(setCookie).toContain(attr);
+      expect(setCookie).not.toContain('Path=/api');
+    } finally {
+      await app.close();
+    }
   });
 
   it('is idempotent: twice, and without a cookie', async () => {
