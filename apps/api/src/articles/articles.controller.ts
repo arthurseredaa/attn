@@ -1,6 +1,6 @@
-import { BadRequestException, Controller, Get, Inject, Query } from '@nestjs/common';
+import { Controller, Get, Inject, Query } from '@nestjs/common';
 import { articlesQuerySchema, type ArticlesPage } from '@attn/shared';
-import { parseWith } from '../common/zod';
+import { AppValidationError, parseWith } from '../common/zod';
 import { InvalidCursorError } from './cursor';
 import { ArticlesService } from './articles.service';
 
@@ -10,11 +10,11 @@ export class ArticlesController {
 
   @Get()
   async list(@Query() raw: Record<string, unknown>): Promise<ArticlesPage> {
-    const query = parseWith(articlesQuerySchema, raw);
+    const query = parseWith(articlesQuerySchema, raw, 'query');
     try {
       return await this.articles.list(query);
     } catch (e) {
-      if (e instanceof InvalidCursorError) throw new BadRequestException('cursor: invalid cursor');
+      if (e instanceof InvalidCursorError) throw new AppValidationError('cursor: invalid cursor');
       throw e;
     }
   }

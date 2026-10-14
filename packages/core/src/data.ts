@@ -39,9 +39,23 @@ export const loadTaxonomy = (dir: string = dataDir()): Taxonomy => loadYaml('tax
 export const loadSources = (dir: string = dataDir()): Source[] => loadYaml('sources.yml', sourcesSchema, dir);
 export const loadConfig = (dir: string = dataDir()): Config => loadYaml('config.yml', configSchema, dir);
 
-export function loadQuiz(role: string = 'dev', dir: string = dataDir()): Quiz {
+export function loadQuiz(role: string = 'dev', dir: string = dataDir(), taxonomy: Taxonomy = loadTaxonomy(dir)): Quiz {
   const quiz = loadYaml(`quiz/${role}.yml`, quizSchema, dir);
-  const issues = quizBankIssues(quiz, loadTaxonomy(dir));
+  const issues = quizBankIssues(quiz, taxonomy);
   if (issues.length > 0) throw new Error(`${path.join(dir, `quiz/${role}.yml`)}: ${issues.join('; ')}`);
   return quiz;
+}
+
+/**
+ * One bank per taxonomy role that has a `quiz/<role>.yml`, so adding a role is YAML only (spec §2).
+ * A role without a file is absent from the map; an invalid file throws.
+ */
+export function loadQuizBanks(dir: string = dataDir()): Map<string, Quiz> {
+  const taxonomy = loadTaxonomy(dir);
+  const roles = [...new Set(taxonomy.domains.flatMap((d) => d.skills.flatMap((s) => s.roles)))];
+  const banks = new Map<string, Quiz>();
+  for (const role of roles) {
+    if (fs.existsSync(path.join(dir, 'quiz', `${role}.yml`))) banks.set(role, loadQuiz(role, dir, taxonomy));
+  }
+  return banks;
 }

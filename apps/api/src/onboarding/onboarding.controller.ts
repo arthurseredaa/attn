@@ -18,7 +18,7 @@ export class OnboardingController {
     @Query() query: unknown,
     @Res({ passthrough: true }) res: Response,
   ): QuizResponse {
-    const { skills } = parseWith(quizQuerySchema, query);
+    const { skills } = parseWith(quizQuerySchema, query, 'query');
     res.setHeader('Cache-Control', 'no-store');
     return this.onboarding.quiz(user, skills);
   }
@@ -26,11 +26,11 @@ export class OnboardingController {
   @Post('onboarding')
   @HttpCode(200)
   submit(@CurrentUser() user: AuthUser, @Body() body: unknown): Promise<Profile> {
-    return this.onboarding.submit(user, parseWith(onboardingBodySchema, body));
+    return this.onboarding.submit(user, parseWith(onboardingBodySchema, body, 'body'));
   }
 
   @Put('focus')
   changeFocus(@CurrentUser() user: AuthUser, @Body() body: unknown): Promise<Profile> {
-    return this.onboarding.changeFocus(user, parseWith(focusBodySchema, body));
+    return this.onboarding.changeFocus(user, parseWith(focusBodySchema, body, 'body'));
   }
 }

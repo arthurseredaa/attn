@@ -1,9 +1,9 @@
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { quizAnswers, userSkills, users, type Db } from '../db';
 import { resetDb, testDb } from '../test/db';
 import { FocusError } from './role';
-import { isOnboarded, NotOnboardedError, saveOnboarding, setFocus } from './store';
+import { FOCUS_LOCK_NAMESPACE, FocusBusyError, isOnboarded, NotOnboardedError, saveOnboarding, setFocus } from './store';
 
 const roles = ['s1', 's2', 's3', 's4', 's5', 's6'];
 const ver = 7;
@@ -146,6 +146,21 @@ describe('saveOnboarding', () => {
     expect(await db.select().from(quizAnswers)).toEqual([]);
   });
 
+  it('rejects a never-onboarded user without focus with FocusError and writes nothing', async () => {
+    const attempt = saveOnboarding(db, {
+      ...base(),
+      results: [{ skillId: 's1', level: 2, uncertain: false }],
+      answers: [
+        { questionId: 's1-1', first: 2, second: 0 },
+        { questionId: 's1-2', first: 1, second: 3 },
+      ],
+    });
+    await expect(attempt).rejects.toBeInstanceOf(FocusError);
+    await expect(attempt).rejects.toMatchObject({ code: 'empty', message: 'Pick a focus first' });
+    expect(await rows(u)).toEqual([]);
+    expect(await db.select().from(quizAnswers)).toEqual([]);
+  });
+
   it('leaves ranks untouched when focus is undefined', async () => {
     await saveOnboarding(db, { ...base(), focus: ['s1', 's2'] });
     await saveOnboarding(db, { ...base(), results: [{ skillId: 's3', level: 1, uncertain: false }] });
@@ -195,6 +210,70 @@ describe('setFocus', () => {
     const isB = r.s1 === 1 && r.s4 === 2 && Object.keys(r).length === 2;
     expect(isA || isB).toBe(true);
   });
+});
+
+describe('concurrency (per-user focus lock)', () => {
+  const A = ['s3', 's2', 's1'];
+  const B = ['s1', 's4'];
+  const isExactly = (r: Record<string, number>, focus: string[]) =>
+    Object.keys(r).length === focus.length && focus.every((id, i) => r[id] === i + 1);
+
+  it('serializes racing first onboardings of one user', async () => {
+    await Promise.all(
+      Array.from({ length: 10 }, (_, i) =>
+        saveOnboarding(db, {
+          ...base(),
+          focus: i % 2 === 0 ? A : B,
+          results: [{ skillId: 's5', level: (i % 4) as 0 | 1 | 2 | 3, uncertain: false }],
+          answers: [
+            { questionId: 's5-1', first: i % 4, second: 4 },
+            { questionId: 's5-2', first: i % 4, second: 4 },
+          ],
+        }),
+      ),
+    );
+    expect((await rows(u)).map((r) => r.skillId)).toEqual(roles);
+    const r = await ranks(u);
+    expect(isExactly(r, A) || isExactly(r, B)).toBe(true);
+    expect(await db.select().from(quizAnswers)).toHaveLength(2);
+  });
+
+  it('serializes saveOnboarding with focus racing setFocus', async () => {
+    await saveOnboarding(db, { ...base(), focus: ['s6'] });
+    await Promise.all(
+      Array.from({ length: 10 }, (_, i) =>
+        i % 2 === 0 ? saveOnboarding(db, { ...base(), focus: A }) : setFocus(db, u, B, roles),
+      ),
+    );
+    const r = await ranks(u);
+    expect(isExactly(r, A) || isExactly(r, B)).toBe(true);
+  });
+
+  it('gives up with FocusBusyError when the lock is held too long, writing nothing', async () => {
+    await saveOnboarding(db, { ...base(), focus: ['s1'] });
+    let release!: () => void;
+    let locked!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    const isLocked = new Promise<void>((r) => (locked = r));
+    const holder = db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(${FOCUS_LOCK_NAMESPACE}, hashtext(${u}))`);
+      locked();
+      await held;
+    });
+    await isLocked;
+    const started = Date.now();
+    try {
+      await expect(setFocus(db, u, ['s2'], roles)).rejects.toBeInstanceOf(FocusBusyError);
+      await expect(saveOnboarding(db, { ...base(), focus: ['s3'] })).rejects.toBeInstanceOf(FocusBusyError);
+    } finally {
+      release();
+      await holder;
+    }
+    expect(Date.now() - started).toBeGreaterThanOrEqual(9_000); // two waits of lock_timeout = 5s
+    expect(await ranks(u)).toEqual({ s1: 1 });
+    await setFocus(db, u, ['s2'], roles); // a free lock is taken right away
+    expect(await ranks(u)).toEqual({ s2: 1 });
+  }, 20_000);
 });
 
 describe('isolation', () => {

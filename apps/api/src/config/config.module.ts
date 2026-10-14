@@ -1,5 +1,5 @@
 import { Global, Module } from '@nestjs/common';
-import { loadConfig, loadQuiz, loadSources, loadTaxonomy } from '@attn/core';
+import { loadConfig, loadQuizBanks, loadSources, loadTaxonomy } from '@attn/core';
 import { APP_CONFIG, ENV, QUIZ, SOURCES, TAXONOMY } from '../tokens';
 import { loadEnv } from './env';
 
@@ -10,7 +10,7 @@ import { loadEnv } from './env';
     { provide: APP_CONFIG, useFactory: () => loadConfig() },
     { provide: TAXONOMY, useFactory: () => loadTaxonomy() },
     { provide: SOURCES, useFactory: () => loadSources() },
-    { provide: QUIZ, useFactory: () => loadQuiz() },
+    { provide: QUIZ, useFactory: () => loadQuizBanks() }, // role -> bank, validated at boot
   ],
   exports: [ENV, APP_CONFIG, TAXONOMY, SOURCES, QUIZ],
 })

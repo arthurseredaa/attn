@@ -1,4 +1,5 @@
 import { Catch, HttpException, Logger, type ArgumentsHost, type ExceptionFilter } from '@nestjs/common';
+import { CodedHttpException } from './coded-http.exception';
 import { AppValidationError } from './zod';
 import type { Request, Response } from 'express';
 
@@ -52,7 +53,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const malformed =
         status === 400 && !(exception instanceof AppValidationError) && Boolean(req?.is?.('json')) && /JSON at position|Unexpected end of JSON|Unexpected token|is not valid JSON/.test(text) && Object.keys(extra).length === 0;
       res.status(status).json({
-        error: errorCodeForStatus(status),
+        error: exception instanceof CodedHttpException ? exception.code : errorCodeForStatus(status),
         message: malformed ? 'Malformed JSON body' : text, ...extra,
       });
       return;

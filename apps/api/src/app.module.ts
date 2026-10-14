@@ -9,5 +9,17 @@ import { MetaModule } from './meta/meta.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { ProfileModule } from './profile/profile.module';
 
-@Module({ imports: [AppConfigModule, DbModule, HealthModule, JobsModule, AuthModule, ArticlesModule, MetaModule, ProfileModule, OnboardingModule] })
+@Module({
+  imports: [
+    AppConfigModule,
+    DbModule,
+    HealthModule,
+    JobsModule,
+    AuthModule,
+    ArticlesModule,
+    MetaModule,
+    ProfileModule,
+    OnboardingModule,
+  ],
+})
 export class AppModule {}

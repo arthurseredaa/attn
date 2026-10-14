@@ -7,12 +7,18 @@ const schema = z.object({ n: z.coerce.number().int().min(1), nested: z.object({ 
 
 describe('parseWith', () => {
   it('returns parsed data', () => {
-    expect(parseWith(schema, { n: '3' })).toEqual({ n: 3 });
+    expect(parseWith(schema, { n: '3' }, 'query')).toEqual({ n: 3 });
   });
 
   it('throws BadRequestException naming the field', () => {
-    expect(() => parseWith(schema, { n: '0' })).toThrow(BadRequestException);
-    expect(() => parseWith(schema, { n: '0' })).toThrow(/^n: /);
-    expect(() => parseWith(schema, { n: 1, nested: {} })).toThrow(/nested\.a/);
+    expect(() => parseWith(schema, { n: '0' }, 'query')).toThrow(BadRequestException);
+    expect(() => parseWith(schema, { n: '0' }, 'query')).toThrow(/^n: /);
+    expect(() => parseWith(schema, { n: 1, nested: {} }, 'body')).toThrow(/^nested\.a: /);
+  });
+
+  it('labels root-level issues with where the input came from', () => {
+    expect(() => parseWith(schema, [], 'body')).toThrow(/^body: /);
+    expect(() => parseWith(schema, 'x', 'body')).toThrow(/^body: /);
+    expect(() => parseWith(schema, null, 'query')).toThrow(/^query: /);
   });
 });

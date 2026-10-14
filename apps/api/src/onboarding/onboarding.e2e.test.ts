@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { and, eq } from 'drizzle-orm';
-import { loadTaxonomy, quizAnswers, userSkills } from '@attn/core';
+import { and, eq, sql } from 'drizzle-orm';
+import { FOCUS_LOCK_NAMESPACE, loadTaxonomy, quizAnswers, userSkills } from '@attn/core';
 import { fixtureQuiz, resetDb } from '@attn/core/testing';
 import { errorBodySchema, profileSchema, quizResponseSchema, type Profile, type Quiz, type Taxonomy } from '@attn/shared';
 import { startTestApp, type TestApp } from '../test/app';
@@ -192,6 +192,12 @@ describe('POST /api/onboarding', () => {
       { focus: f, answers: [], extra: 1 },
     ];
     for (const b of bad) expect((await call('POST', '/onboarding', headers, b)).status).toBe(400);
+    // a JSON array reaches the schema ('"x"' is already refused by the strict JSON body parser)
+    const arr = await call('POST', '/onboarding', headers, []);
+    expect(errorBodySchema.parse(await arr.json()).message).toMatch(/^body: /);
+    const put = await call('PUT', '/focus', headers, []);
+    expect(put.status).toBe(400);
+    expect(errorBodySchema.parse(await put.json()).message).toMatch(/^body: /);
   });
 
   it('422 and no rows for bad domain input', async () => {
@@ -292,6 +298,74 @@ describe('POST /api/onboarding', () => {
   });
 });
 
+describe('quiz banks per role', () => {
+  const opts = [2, 0, 3, 1].map((level) => ({ text: `o${level}`, level: level as 0 | 1 | 2 | 3 }));
+  const pmQuiz: Quiz = {
+    version: 3,
+    questions: [
+      { id: 'pm-only-1', skill_id: 'pm-only', situation: 's', options: opts },
+      { id: 'pm-only-2', skill_id: 'pm-only', situation: 's', options: opts },
+    ],
+  };
+  const base = loadTaxonomy();
+  const taxonomy: Taxonomy = {
+    ...base,
+    domains: base.domains.map((d, i) =>
+      i === 0
+        ? {
+            ...d,
+            skills: [
+              ...d.skills,
+              { id: 'pm-only', name: 'PM', description: 'x', roles: ['pm'] },
+              { id: 'ops-only', name: 'Ops', description: 'x', roles: ['ops'] },
+            ],
+          }
+        : d,
+    ),
+  };
+
+  beforeEach(async () => {
+    await ctx.close();
+    ctx = await startTestApp({}, { quizBanks: new Map([['dev', fixtureQuiz], ['pm', pmQuiz]]), taxonomy });
+    await resetDb(ctx.db);
+  });
+
+  it("serves and scores each role's own bank", async () => {
+    const pm = await signIn(ctx, { role: 'pm' });
+    const quiz = quizResponseSchema.parse(await (await call('GET', '/quiz?skills=pm-only', pm.headers)).json());
+    expect(quiz.version).toBe(3);
+    expect(quiz.questions.map((q) => q.id)).toEqual(['pm-only-1', 'pm-only-2']);
+    const res = await call('POST', '/onboarding', pm.headers, {
+      focus: ['pm-only'],
+      answers: [
+        { questionId: 'pm-only-1', first: 0, second: 1 },
+        { questionId: 'pm-only-2', first: 0, second: 2 },
+      ],
+    });
+    expect(res.status).toBe(200);
+    expect(skill(profileSchema.parse(await res.json()), 'pm-only')).toMatchObject({ level: 2, quizzed: true });
+    expect((await answerRows(pm.user.id)).every((r) => r.quizVersion === 3)).toBe(true);
+
+    const dev = await signIn(ctx);
+    expect((await call('GET', '/quiz?skills=pm-only', dev.headers)).status).toBe(400);
+    const devRes = await call('POST', '/onboarding', dev.headers, {
+      focus: ['evals'],
+      answers: [{ questionId: 'pm-only-1', first: 0, second: 1 }],
+    });
+    expect(devRes.status).toBe(422);
+  });
+
+  it('a role without a bank gets no questions, and can still onboard', async () => {
+    const ops = await signIn(ctx, { role: 'ops' });
+    const quiz = quizResponseSchema.parse(await (await call('GET', '/quiz?skills=ops-only', ops.headers)).json());
+    expect(quiz).toEqual({ version: 0, questions: [], unavailable: ['ops-only'] });
+    const res = await call('POST', '/onboarding', ops.headers, { focus: ['ops-only'], answers: [] });
+    expect(res.status).toBe(200);
+    const bad = await call('POST', '/onboarding', ops.headers, { answers: [{ questionId: 'ops-only-1', first: 0, second: 1 }] });
+    expect(bad.status).toBe(422);
+  });
+});
+
 describe('PUT /api/focus', () => {
   it('409 before onboarding, nothing written', async () => {
     const { user, headers } = await signIn(ctx);
@@ -339,6 +413,31 @@ describe('PUT /api/focus', () => {
     expect([ra.status, rb.status]).toEqual([200, 200]);
     expect([a, b]).toContainEqual(await ranks(me.user.id));
   });
+
+  it('503 busy when another write of the same user holds the lock too long', async () => {
+    const me = await onboarded();
+    let release!: () => void;
+    let locked!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    const isLocked = new Promise<void>((r) => (locked = r));
+    const holder = ctx.db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(${FOCUS_LOCK_NAMESPACE}, hashtext(${me.user.id}))`);
+      locked();
+      await held;
+    });
+    await isLocked;
+    try {
+      const res = await call('PUT', '/focus', me.headers, { focus: ['evals'] });
+      expect(res.status).toBe(503);
+      const body = errorBodySchema.parse(await res.json());
+      expect(body.error).toBe('busy');
+      expect(body.message).toMatch(/try again/i);
+    } finally {
+      release();
+      await holder;
+    }
+    expect(await ranks(me.user.id)).toEqual(FOCUS);
+  }, 15_000);
 
   it('never touches another user', async () => {
     const me = await onboarded();

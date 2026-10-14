@@ -59,13 +59,17 @@ describe('GET /api/profile', () => {
     expect(allSkills(p)).toHaveLength(devSkills.length);
     expect(devSkills).toHaveLength(32);
     expect(allSkills(p).every((s) => !s.assessed && !s.quizzed)).toBe(true);
+    expect(p.history).toEqual({ items: [], total: 0 });
+    expect(p.likes).toEqual({ read: 0, liked: 0, share: null });
     expect(await ctx.db.select().from(userSkills)).toHaveLength(0);
   });
 
   it('shows focus, level and progress for an onboarded user', async () => {
     const { user, headers } = await signIn(ctx);
     const { a, b, c } = await onboard(user.id);
-    const p = profileSchema.parse(await (await getProfile(headers)).json());
+    const res = await getProfile(headers);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    const p = profileSchema.parse(await res.json());
     expect(p.onboarded).toBe(true);
     expect(p.focus.map((f) => [f.rank, f.skillId])).toEqual([
       [1, c],

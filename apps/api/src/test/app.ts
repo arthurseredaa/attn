@@ -34,7 +34,10 @@ export interface TestApp {
 }
 
 export interface TestAppExtra {
+  /** Replaces the `dev` bank (no other role gets one). */
   quiz?: Quiz;
+  /** Replaces every bank: role -> bank. */
+  quizBanks?: Map<string, Quiz>;
   taxonomy?: Taxonomy;
 }
 
@@ -42,7 +45,8 @@ export async function startTestApp(overrides: Partial<Env> = {}, extra: TestAppE
   let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(ENV)
     .useValue(testEnv(overrides));
-  if (extra.quiz) builder = builder.overrideProvider(QUIZ).useValue(extra.quiz);
+  const banks = extra.quizBanks ?? (extra.quiz ? new Map([['dev', extra.quiz]]) : undefined);
+  if (banks) builder = builder.overrideProvider(QUIZ).useValue(banks);
   if (extra.taxonomy) builder = builder.overrideProvider(TAXONOMY).useValue(extra.taxonomy);
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();

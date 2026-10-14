@@ -6,12 +6,30 @@ import type { QuizAnswer, SkillQuizResult } from './quiz';
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 export const FOCUS_LOCK_NAMESPACE = 727002; // PIPELINE_LOCK_KEY is 727001 (db/lock.ts); the two-int form keeps keyspaces apart
+/** How long a focus write waits for the per-user lock; a waiter holds a pool connection meanwhile. */
+export const FOCUS_LOCK_TIMEOUT = '5s';
 
 export class NotOnboardedError extends Error {
   constructor() {
     super('User has not completed onboarding');
     this.name = 'NotOnboardedError';
   }
+}
+
+/** Another focus or onboarding write of the same user held the lock longer than FOCUS_LOCK_TIMEOUT. */
+export class FocusBusyError extends Error {
+  constructor() {
+    super('Another change to your skills is still being saved; try again in a moment');
+    this.name = 'FocusBusyError';
+  }
+}
+
+const LOCK_NOT_AVAILABLE = '55P03';
+
+function sqlState(e: unknown): string | undefined {
+  const err = e as { code?: unknown; cause?: { code?: unknown } } | null;
+  const code = err?.cause?.code ?? err?.code;
+  return typeof code === 'string' ? code : undefined;
 }
 
 export interface OnboardingInput {
@@ -24,7 +42,19 @@ export interface OnboardingInput {
 }
 
 async function lockUser(tx: Tx, userId: string): Promise<void> {
-  await tx.execute(sql`select pg_advisory_xact_lock(${FOCUS_LOCK_NAMESPACE}, hashtext(${userId}))`);
+  await tx.execute(sql.raw(`set local lock_timeout = '${FOCUS_LOCK_TIMEOUT}'`));
+  try {
+    await tx.execute(sql`select pg_advisory_xact_lock(${FOCUS_LOCK_NAMESPACE}, hashtext(${userId}))`);
+  } catch (e) {
+    if (sqlState(e) === LOCK_NOT_AVAILABLE) throw new FocusBusyError();
+    throw e;
+  }
+}
+
+/** Onboarded = the user has at least one user_skills row (plan Decision 3); the one place that rule lives. */
+async function hasSkillRows(q: Db | Tx, userId: string): Promise<boolean> {
+  const rows = await q.select({ one: sql<number>`1` }).from(userSkills).where(eq(userSkills.userId, userId)).limit(1);
+  return rows.length > 0;
 }
 
 async function ensureRows(tx: Tx, userId: string, roleSkillIds: string[]): Promise<void> {
@@ -49,9 +79,8 @@ async function writeFocus(tx: Tx, userId: string, focus: string[]): Promise<void
   }
 }
 
-export async function isOnboarded(db: Db, userId: string): Promise<boolean> {
-  const rows = await db.select({ one: sql<number>`1` }).from(userSkills).where(eq(userSkills.userId, userId)).limit(1);
-  return rows.length > 0;
+export function isOnboarded(db: Db, userId: string): Promise<boolean> {
+  return hasSkillRows(db, userId);
 }
 
 export async function saveOnboarding(db: Db, input: OnboardingInput): Promise<void> {
@@ -63,10 +92,7 @@ export async function saveOnboarding(db: Db, input: OnboardingInput): Promise<vo
 
   await db.transaction(async (tx) => {
     await lockUser(tx, userId);
-    if (!focus) {
-      const existing = await tx.select({ one: sql<number>`1` }).from(userSkills).where(eq(userSkills.userId, userId)).limit(1);
-      if (existing.length === 0) throw new FocusError('empty', 'Pick a focus first');
-    }
+    if (!focus && !(await hasSkillRows(tx, userId))) throw new FocusError('empty', 'Pick a focus first');
     await ensureRows(tx, userId, roleSkillIds);
     if (focus) await writeFocus(tx, userId, focus);
     for (const r of results) {
@@ -104,8 +130,7 @@ export async function setFocus(db: Db, userId: string, focus: string[], roleSkil
   assertValidFocus(focus, roleSkillIds);
   await db.transaction(async (tx) => {
     await lockUser(tx, userId);
-    const existing = await tx.select({ one: sql<number>`1` }).from(userSkills).where(eq(userSkills.userId, userId)).limit(1);
-    if (existing.length === 0) throw new NotOnboardedError();
+    if (!(await hasSkillRows(tx, userId))) throw new NotOnboardedError();
     await ensureRows(tx, userId, roleSkillIds);
     await writeFocus(tx, userId, focus);
   });
