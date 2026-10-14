@@ -6,11 +6,13 @@ It is curation only: links to existing articles, no generated content.
 
 ## Status
 
-Stage 2 of 5: extract, label, eval and the daily job. Built: the monorepo, validated YAML data, the Postgres
+Stage 3 of 5: website + auth. Built: GitHub sign-in (session cookie), the public articles API
+(`/api/articles`, `/api/sources`, `/api/taxonomy`) and the Next.js site (landing page and the public All list
+with source, skill and date filters). Earlier stages: the monorepo, validated YAML data, the Postgres
 schema, `attn collect` (RSS, Atom and sitemap sources with conditional GET, URL normalization and
 deduplication), article text extraction, LLM labeling (`attn label`), model evaluation against a golden set
-(`attn eval`) and a small API skeleton that runs collect then label daily. Ranking, levels, auth, the
-endpoints and the web app are planned.
+(`attn eval`) and the API job that runs collect then label daily. Onboarding, ranking, levels and the personal
+feed are planned.
 
 ## Requirements
 
@@ -28,6 +30,16 @@ pnpm attn migrate
 pnpm attn collect
 ```
 
+Run the site in development (two terminals), then open http://localhost:3000:
+
+```sh
+pnpm api   # terminal 1: API on http://localhost:3001
+pnpm web   # terminal 2: Next.js on http://localhost:3000, proxies /api/* to the API
+```
+
+Over plain http, set `COOKIE_SECURE=false` in `.env` or sign-in cookies will not stick in some browsers
+(see Sign in with GitHub).
+
 ## Commands
 
 | Command | What it does |
@@ -40,6 +52,7 @@ pnpm attn collect
 | `pnpm attn label [--limit <n>]` | Label pending articles with `LABEL_MODEL` (see Labeling) |
 | `pnpm attn eval --model <id>` | Measure a model against the golden set; writes nothing to the DB (see Evaluation) |
 | `pnpm api` | Start the API on `PORT` (default 3001); `GET /api/health`; runs the daily job |
+| `pnpm web` | Start the Next.js site in dev mode on port 3000; rewrites `/api/*` to `API_URL` (default `http://localhost:3001`) |
 
 `attn collect` prints one line per source and a totals line. A failing source is recorded in
 `source_state.last_error` and does not stop the others.
@@ -51,10 +64,50 @@ data/                YAML validated by zod schemas from packages/shared
 packages/shared      zod schemas
 packages/core        db/, collect/, extract/, label/, pipeline/, eval/, data loading, cli.ts
                      (rank/, levels/ are planned)
-docker-compose.yml   postgres (api and web services are planned)
-apps/api             NestJS skeleton: health endpoint and the daily job (auth and endpoints: Stage 3)
-apps/web             planned
+docker-compose.yml   postgres, api, web
+apps/api             NestJS: auth (GitHub OAuth, sessions), articles, sources/taxonomy, health, the daily job
+apps/web             Next.js app router site: landing page and the public All list
 ```
+
+## Sign in with GitHub (OAuth app)
+
+1. On GitHub open Settings > Developer settings > OAuth Apps > New OAuth App.
+2. Homepage URL: `http://localhost:3000`. Authorization callback URL:
+   `http://localhost:3000/api/auth/github/callback` (the browser-facing origin plus `/api/auth/github/callback`).
+3. Put the client id and a generated client secret in `.env` as `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`.
+
+`APP_URL` is the browser-facing origin (default `http://localhost:3000`, no credentials in it); the redirect URI
+sent to GitHub is `${APP_URL}/api/auth/github/callback`, so change the OAuth app's URLs together with it. No
+scope is requested (public profile only). Without credentials the landing page shows a "not configured"
+message (`/api/auth/github` redirects to `/?auth_error=not_configured`).
+
+Session cookies are always `Secure` unless you set `COOKIE_SECURE=false`. You need that for plain-http local
+development (the api logs a warning at startup). Production must serve https and leave it unset.
+
+Checked live without GitHub credentials: the api answers on 3001, the web on 3000 rewrites `/api/*` to it, and
+`/api/auth/github` redirects to `/?auth_error=not_configured`. The real OAuth round trip has not been exercised
+(no credentials in the authoring environment); the api tests fake GitHub with a local HTTP server.
+
+## API
+
+All routes are under `/api`; errors are JSON `{ "error", "message" }`.
+
+- `GET /api/health`
+- `GET /api/auth/github`: start sign-in (redirects to GitHub)
+- `GET /api/auth/github/callback`: finish sign-in, set the session cookie, redirect to the site
+- `POST /api/auth/logout`: delete the session (204)
+- `GET /api/me`: the signed-in user (401 without a session)
+- `GET /api/articles?source=&skill=&from=&to=&cursor=&limit=`: labeled articles, newest first, cursor pagination
+- `GET /api/sources`
+- `GET /api/taxonomy`
+
+## Docker
+
+`docker compose up --build` starts postgres, api and web, and serves the site on http://localhost:3000. The
+Dockerfiles have not been built in the authoring environment (image pulls were broken there), so treat them as
+untested. The api container applies migrations on start and also runs the daily collect+label job. The compose
+site is plain http on localhost, so set `COOKIE_SECURE=false` in `.env` (compose passes it through). The api is
+not published on the host; the browser reaches it only through the web proxy.
 
 ## Data files
 

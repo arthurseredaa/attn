@@ -1,5 +1,4 @@
-# Local development Postgres for ATTN.
-# The api and web services are added in Stage 3 (host-agnostic compose).
+# ATTN: postgres, api and web. `docker compose up --build` serves the site on http://localhost:3000.
 services:
   postgres:
     image: postgres:17-alpine
@@ -15,6 +14,39 @@ services:
       test: ["CMD-SHELL", "pg_isready -U attn -d attn"]
       interval: 2s
       retries: 30
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://attn:attn@postgres:5432/attn
+      PORT: "3001"
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
+      LABEL_MODEL: ${LABEL_MODEL:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-}
+      # SCHEDULE_ENABLED is deliberately not set: the daily collect+label job runs inside this container by default.
+    expose:
+      - "3001"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        API_URL: http://api:3001
+    depends_on:
+      - api
+    environment:
+      API_URL: http://api:3001
+    ports:
+      - "3000:3000"
 
 volumes:
   pgdata:
