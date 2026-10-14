@@ -9,3 +9,4 @@ export * from './extract';
 export * from './label';
 export * from './pipeline';
 export type { FetchFn } from './collect/http';
+export * from './levels';
