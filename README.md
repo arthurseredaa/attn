@@ -117,6 +117,23 @@ not published on the host; the browser reaches it only through the web proxy.
 - `data/quiz/dev.yml`: DRAFT question bank for role dev (32 skills x 2 situational questions with hidden option levels); needs owner review.
 - `data/golden/`: hand-labeled articles for `attn eval`. It holds `draft.yml` for now (see Evaluation).
 
+## Onboarding and the quiz bank
+
+`data/quiz/dev.yml` is the situational question bank for role `dev`: 32 skills x 2 questions, each with 4-6
+options that carry a hidden level (0-4). **It is a DRAFT: the owner must review it before it is trusted.** The
+levels never leave the server (`GET /api/quiz` strips them and shuffles the options). The bank is guarded by
+statistical anti-gaming tests in `packages/core/src/quiz-data.test.ts`; the authoring rules behind them are
+internal, in short: one imperative sentence per option, and no surface cue (length, wording, position) may
+reveal the level.
+
+To add a question: use the id `<skill>-<n>`, write 4-6 situational options in scrambled level order, and run
+`pnpm vitest run packages/core/src/quiz-data.test.ts`.
+
+Onboarding order: the user picks and orders 1-5 focus skills first; the quiz then covers the focus skills only
+(in rank order). Other skills stay unassessed (level 1, uncertain) until "Take quiz" on the Profile page.
+Scoring knobs in `data/config.yml`: `uncertain_spread` (a skill is uncertain when the mean gap between first and
+second choice levels reaches it) and `points_per_level` (reading points needed for +1 level).
+
 ## Labeling
 
 `attn label` needs `LABEL_MODEL` and `GOOGLE_GENERATIVE_AI_API_KEY` in `.env`. Without them it exits 1 and names
@@ -139,7 +156,8 @@ Output: one line per article, `<outcome>  <url>[  <error>]`, then
 `total: selected=<n> labeled=<n> failed=<n> rate_limited=<yes|no>`.
 
 Privacy invariant: only the article `title`, `url` and public article text go to the model, and the `Labeler`
-type has no place for user data (quiz answers, levels, user ids). This is enforced by types and tests.
+type has no place for user data (quiz answers, levels, user ids). This is enforced by types and tests, and
+`packages/core/src/levels/privacy.test.ts` scans the sources and fails if user data reaches the LLM path.
 
 ### Daily job
 
