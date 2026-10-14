@@ -7,6 +7,8 @@ cd "$(dirname "$0")/.."
 
 if [ -z "${DATABASE_URL:-}" ] && [ -f .env ]; then
   DATABASE_URL="$(grep -E '^DATABASE_URL=.+' .env | head -1 | cut -d= -f2-)" || true
+  DATABASE_URL="${DATABASE_URL%\"}"; DATABASE_URL="${DATABASE_URL#\"}"
+  DATABASE_URL="${DATABASE_URL%\'}"; DATABASE_URL="${DATABASE_URL#\'}"
 fi
 : "${DATABASE_URL:?DATABASE_URL is required (export it or set it in .env)}"
 export DATABASE_URL
@@ -21,20 +23,22 @@ if lsof -nP -iTCP:"$API_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
 fi
 
 API_PID=""
+SEEDED=0 # demo articles this script inserted; only those are removed afterwards
 cleanup() {
   status=$?
   trap - EXIT
   set +e
   if [ -n "$API_PID" ]; then
+    # the api runs in its own process group (set -m below): stop exactly that group
+    kill -- "-$API_PID" 2>/dev/null
+    pkill -P "$API_PID" 2>/dev/null
     kill "$API_PID" 2>/dev/null
-    # pnpm/tsx spawn children; stop whatever still listens on our (previously free) port
-    lsof -nP -tiTCP:"$API_PORT" -sTCP:LISTEN 2>/dev/null | xargs kill 2>/dev/null
   fi
   if [ "${KEEP:-}" = "1" ]; then
     echo "smoke: KEEP=1, smoke user (github_id $GITHUB_ID) and demo articles kept" >&2
   else
     psql "$DATABASE_URL" -qc "delete from users where github_id = $GITHUB_ID;" >/dev/null 2>&1
-    pnpm -s attn seed-demo --remove >/dev/null 2>&1
+    if [ "$SEEDED" -gt 0 ]; then pnpm -s attn seed-demo --remove >/dev/null 2>&1; fi
   fi
   exit "$status"
 }
@@ -49,7 +53,9 @@ check() { # check <label> <json> <expression that must be true>
 }
 
 pnpm -s attn migrate >/dev/null
-pnpm -s attn seed-demo >/dev/null
+SEED_OUT="$(pnpm -s attn seed-demo)"
+SEEDED="$(printf %s "$SEED_OUT" | sed -n 's/.*demo articles: inserted=\([0-9][0-9]*\).*/\1/p' | head -1)"
+SEEDED="${SEEDED:-0}"
 
 TOKEN="$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n')"
 HASH="$(printf %s "$TOKEN" | shasum -a 256 | cut -d' ' -f1)"
@@ -57,8 +63,11 @@ psql "$DATABASE_URL" -qc "delete from users where github_id = $GITHUB_ID;"
 psql "$DATABASE_URL" -qc "insert into users (github_id, login, name) values ($GITHUB_ID, 'smoke', 'Smoke');"
 psql "$DATABASE_URL" -qc "insert into sessions (id, user_id, expires_at) select '$HASH', id, now() + interval '1 day' from users where github_id = $GITHUB_ID;"
 
+set -m
 SCHEDULE_ENABLED=false COOKIE_SECURE=false PORT="$API_PORT" pnpm -s api >/dev/null 2>&1 &
 API_PID=$!
+disown "$API_PID"
+set +m
 for _ in $(seq 1 60); do
   [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/health" || true)" = "200" ] && break
   kill -0 "$API_PID" 2>/dev/null || fail "api exited before becoming healthy"
