@@ -2,10 +2,11 @@ import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { eq } from 'drizzle-orm';
 import { articles, createFakeLabeler, loadConfig, loadTaxonomy, type Db } from '@attn/core';
-import { articleHtml, resetDb, startServer, testDb, TEST_DATABASE_URL, type TestServer } from '@attn/core/testing';
+import { articleHtml, resetDb, startServer, testDb, type TestServer } from '@attn/core/testing';
 import type { Source } from '@attn/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../config/env';
+import { testEnv } from '../test/app';
 import { ENV, PIPELINE_STEPS } from '../tokens';
 import { PipelineJob } from './pipeline.job';
 import { createPipelineSteps } from './pipeline.steps';
@@ -93,13 +94,7 @@ describe('createPipelineSteps', () => {
 
   it('end to end: one PipelineJob run collects then labels', async () => {
     const steps = createPipelineSteps(deps());
-    const env: Env = {
-      databaseUrl: TEST_DATABASE_URL,
-      port: 0,
-      labelModel: undefined,
-      googleApiKey: undefined,
-      scheduleEnabled: false,
-    };
+    const env: Env = testEnv();
     const ref = await Test.createTestingModule({
       providers: [PipelineJob, { provide: ENV, useValue: env }, { provide: PIPELINE_STEPS, useValue: steps }],
     }).compile();

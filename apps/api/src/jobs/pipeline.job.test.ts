@@ -1,20 +1,14 @@
 import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { TEST_DATABASE_URL } from '@attn/core/testing';
 import type { SourceReport } from '@attn/core';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import type { Env } from '../config/env';
+import { testEnv } from '../test/app';
 import { ENV, PIPELINE_STEPS } from '../tokens';
 import { PipelineJob } from './pipeline.job';
 import type { LabelStepResult, PipelineSteps } from './pipeline.steps';
 
-const env: Env = {
-  databaseUrl: TEST_DATABASE_URL,
-  port: 0,
-  labelModel: undefined,
-  googleApiKey: undefined,
-  scheduleEnabled: false,
-};
+const env: Env = testEnv();
 
 const report: SourceReport = {
   sourceId: 's',

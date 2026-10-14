@@ -7,11 +7,11 @@ export interface RouteResponse {
   body?: string;
   delayMs?: number;
 }
-export type Route = RouteResponse | ((req: IncomingMessage) => RouteResponse);
+export type Route = RouteResponse | ((req: IncomingMessage, body: string) => RouteResponse);
 
 export interface TestServer {
   baseUrl: string;
-  requests: { method: string; path: string; headers: IncomingMessage['headers'] }[];
+  requests: { method: string; path: string; headers: IncomingMessage['headers']; body: string }[];
   /** Count of requests to that path (query excluded). */
   hits(path: string): number;
   setRoute(path: string, route: Route): void;
@@ -25,21 +25,26 @@ export async function startServer(initial: Record<string, Route> = {}): Promise<
   const requests: TestServer['requests'] = [];
 
   const server = createServer((req, res) => {
-    const path = new URL(req.url ?? '/', 'http://localhost').pathname;
-    requests.push({ method: req.method ?? 'GET', path, headers: req.headers });
-    const route = routes.get(path);
-    if (!route) {
-      res.writeHead(404).end('not found');
-      return;
-    }
-    const r = typeof route === 'function' ? route(req) : route;
-    const send = () => {
-      if (res.destroyed) return;
-      res.writeHead(r.status ?? 200, r.headers ?? {});
-      res.end(r.body ?? '');
-    };
-    if (r.delayMs) setTimeout(send, r.delayMs);
-    else send();
+    const chunks: Buffer[] = [];
+    req.on('data', (c: Buffer) => chunks.push(c));
+    req.on('end', () => {
+      const body = Buffer.concat(chunks).toString('utf8');
+      const path = new URL(req.url ?? '/', 'http://localhost').pathname;
+      requests.push({ method: req.method ?? 'GET', path, headers: req.headers, body });
+      const route = routes.get(path);
+      if (!route) {
+        res.writeHead(404).end('not found');
+        return;
+      }
+      const r = typeof route === 'function' ? route(req, body) : route;
+      const send = () => {
+        if (res.destroyed) return;
+        res.writeHead(r.status ?? 200, r.headers ?? {});
+        res.end(r.body ?? '');
+      };
+      if (r.delayMs) setTimeout(send, r.delayMs);
+      else send();
+    });
   });
 
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));

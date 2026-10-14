@@ -2,22 +2,16 @@ import { Logger, type INestApplication } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test } from '@nestjs/testing';
 import { loadConfig } from '@attn/core';
-import { TEST_DATABASE_URL } from '@attn/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import type { Env } from '../config/env';
+import { testEnv } from '../test/app';
 import { APP_CONFIG, ENV } from '../tokens';
 import { PipelineJob, type PipelineRunResult } from './pipeline.job';
 import { PipelineScheduler } from './pipeline.scheduler';
 import { ScheduleModule } from '@nestjs/schedule';
 
 const config = loadConfig();
-const envWith = (scheduleEnabled: boolean): Env => ({
-  databaseUrl: TEST_DATABASE_URL,
-  port: 0,
-  labelModel: undefined,
-  googleApiKey: undefined,
-  scheduleEnabled,
-});
+const envWith = (scheduleEnabled: boolean): Env => testEnv({ scheduleEnabled });
 
 let errorLog: MockInstance;
 beforeEach(() => {
