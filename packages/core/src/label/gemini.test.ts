@@ -35,6 +35,9 @@ function failingModel(err: unknown) {
 const api = (statusCode: number) =>
   new APICallError({ message: 'boom', url: 'u', requestBodyValues: {}, statusCode, isRetryable: statusCode === 429 });
 
+// The call options the Gemini request carried before the Claude labeler (b64989e), plus maxOutputTokens (fix round 2).
+const GEMINI_CALL_OPTION_KEYS = ['headers', 'maxOutputTokens', 'prompt', 'responseFormat', 'temperature', 'toolChoice'];
+
 const valid = { primary_skill: 'cc-hooks', secondary_skills: ['cc-hooks', 'cc-plugins'], difficulty: 3, type: 'deep_dive', quality: 4 };
 
 describe('createGeminiLabeler', () => {
@@ -58,6 +61,15 @@ describe('createGeminiLabeler', () => {
     expect(prompt).toContain('https://e.com/hooks');
     expect(prompt).toContain('Body about hooks.');
     expect(prompt).toContain(JSON.stringify(buildSystemPrompt(taxonomy)).slice(1, -1));
+  });
+
+  it('caps the output at 1024 tokens, and that cap is the only call option beyond the original ones', async () => {
+    const model = okModel(valid);
+    await createGeminiLabeler({ model: 'm', taxonomy, languageModel: model }).label(article);
+    const call = model.doGenerateCalls[0]! as unknown as Record<string, unknown>;
+    expect(call.maxOutputTokens).toBe(1024);
+    const defined = Object.keys(call).filter((k) => call[k] !== undefined).sort();
+    expect(defined).toEqual(GEMINI_CALL_OPTION_KEYS);
   });
 
   it('rejects a skill outside the taxonomy, not as a rate limit', async () => {

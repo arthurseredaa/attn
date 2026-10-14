@@ -107,6 +107,28 @@ describe('createAnthropicLabeler', () => {
     expect((sent[0]!.body.output_config as { effort?: string }).effort).toBe('low');
   });
 
+  it('caps the output at 1024 tokens', async () => {
+    const { l, sent } = labeler(() => ok());
+    await l.label(article);
+    expect(sent[0]!.body.max_tokens).toBe(1024);
+  });
+
+  it('counts the usage of a call that reached the model but returned an invalid label', async () => {
+    const { l } = labeler(() => ({
+      status: 200,
+      body: message('{"primary_skill":"not-a-skill"}', { input_tokens: 40, output_tokens: 9, cache_read_input_tokens: 30 }),
+    }));
+    const err = await l.label(article).catch((e: unknown) => e);
+    expect((err as Error).name).toBe('AI_NoObjectGeneratedError');
+    expect(l.usage?.()).toEqual({ inputTokens: 70, outputTokens: 9, cacheReadTokens: 30, cacheWriteTokens: 0 });
+  });
+
+  it('counts nothing for an HTTP error response, which carries no usage', async () => {
+    const { l } = labeler(() => apiError(500, 'api_error', 'Internal server error'));
+    await l.label(article).catch(() => undefined);
+    expect(l.usage?.()).toEqual({ inputTokens: 0, outputTokens: 0 });
+  });
+
   it('adds up token usage across calls, including cache reads and writes', async () => {
     const { l } = labeler((i) =>
       ok(
@@ -125,6 +147,7 @@ describe('createAnthropicLabeler', () => {
     [401, 'authentication_error', 'invalid x-api-key'],
     [403, 'permission_error', 'Your API key does not have permission to use the specified resource.'],
     [404, 'not_found_error', 'model: claude-nope'],
+    [402, 'billing_error', 'There is a billing issue with your account.'],
   ])('maps a %i (%s) to FatalLabelerError', async (status, type, msg) => {
     const { l } = labeler(() => apiError(status, type, msg));
     const err = await l.label(article).catch((e: unknown) => e);
