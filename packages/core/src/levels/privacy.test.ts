@@ -31,22 +31,64 @@ function offenders(files: string[], patterns: (string | RegExp)[]): string[] {
   return out;
 }
 
+/** Patterns that must never appear in label/, eval/ or extract/ (non-test sources). */
+const LLM_PATH_FORBIDDEN: (string | RegExp)[] = [
+  'levels/',
+  /['"](\.{1,2}\/)+levels\b/, // ./levels, ../levels, ../../levels, also bare side-effect imports
+  /['"]@attn\/core(\/[^'"]*)?['"]/, // the core barrel re-exports levels and every table
+  // imports of '..', '../..', '../index': the core barrel again (a bare '..' path string is fine)
+  /(\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)['"](\.\.\/)*\.\.(\/index(\.ts)?)?['"]/,
+  'fixtureQuiz',
+  /\b(userSkills|quizAnswers|users|sessions|articleEvents)\b/, // user-bearing tables (drizzle names)
+  /\b(user_skills|quiz_answers|article_events)\b/, // the same tables in raw SQL
+];
+
+const matches = (line: string) =>
+  LLM_PATH_FORBIDDEN.some((p) => (typeof p === 'string' ? line.includes(p) : p.test(line)));
+
 describe('privacy scan: user data never reaches the LLM path', () => {
+  it('the forbidden patterns catch every way in and spare the allowed imports', () => {
+    const caught = [
+      "import { presentQuiz } from '../levels';",
+      "import { presentQuiz } from './levels';",
+      "import { presentQuiz } from '../../levels';",
+      "import '../levels/store';",
+      "import { userSkills } from '@attn/core';",
+      "import { testDb } from '@attn/core/testing';",
+      "import { users } from '..';",
+      "import { users } from '../index';",
+      "import { users } from '../../index';",
+      "import * as core from '../..';",
+      "export * from '..';",
+      "const core = await import('..');",
+      "import '..';",
+      'db.select().from(users)',
+      'db.select().from(sessions)',
+      'db.insert(articleEvents)',
+      'db.select().from(quizAnswers)',
+      'sql`select * from article_events`',
+      'sql`select level from user_skills`',
+      'sql`select * from quiz_answers`',
+    ];
+    const allowed = [
+      "import { labelArticle } from '../label';",
+      "import { loadTaxonomy } from '../data';",
+      "import { fetchText } from '../collect/http';",
+      "import type { Labeler } from './types';",
+      "import { articleHtml } from '../../extract/fixtures/html';",
+      "import { z } from 'zod';",
+      "import type { Taxonomy } from '@attn/shared';",
+      'const skills = taxonomy.domains.flatMap((d) => d.skills);',
+      "return path.resolve(here, '../../../..', '.cache', 'text');",
+    ];
+    expect(caught.filter((l) => !matches(l))).toEqual([]);
+    expect(allowed.filter(matches)).toEqual([]);
+  });
+
   it('label/, eval/, extract/ never reference user or quiz data', () => {
     const files = ['label', 'eval', 'extract'].flatMap((d) => sources(join(srcRoot, d)));
     expect(files.length).toBeGreaterThan(0);
-    expect(
-      offenders(files, [
-        'userSkills',
-        'quizAnswers',
-        'levels/',
-        "from '../levels",
-        /['"]\.\.\/levels/, // also bare side-effect imports
-        'fixtureQuiz',
-        'user_skills',
-        'quiz_answers',
-      ]),
-    ).toEqual([]);
+    expect(offenders(files, LLM_PATH_FORBIDDEN)).toEqual([]);
   });
 
   it('levels/ never reaches into label/ or eval/ or uses the labeler', () => {
