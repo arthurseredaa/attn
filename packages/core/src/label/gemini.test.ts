@@ -119,6 +119,14 @@ describe('createGeminiLabeler', () => {
     }
   });
 
+  it('adds up token usage across calls', async () => {
+    const label = createGeminiLabeler({ model: 'm', taxonomy, languageModel: okModel(valid) });
+    expect(label.usage?.()).toEqual({ inputTokens: 0, outputTokens: 0 });
+    await label.label(article);
+    await label.label(article);
+    expect(label.usage?.()).toEqual({ inputTokens: 2, outputTokens: 2, cacheReadTokens: 0, cacheWriteTokens: 0 });
+  });
+
   it('exposes the model id', () => {
     expect(createGeminiLabeler({ model: 'gemini-x', taxonomy, languageModel: okModel(valid) }).model).toBe('gemini-x');
   });

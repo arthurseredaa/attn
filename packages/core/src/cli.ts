@@ -6,7 +6,7 @@ import { loadConfig, loadSources, loadTaxonomy, dataDir } from './data';
 import { createDb, PIPELINE_LOCK_KEY, runMigrations, withAdvisoryLock } from './db';
 import { collectAll, type SourceReport } from './collect/collect';
 import type { FetchFn } from './collect/http';
-import { createGeminiLabeler, type Labeler } from './label';
+import { createLabeler, labelerConfigError, type Labeler } from './label';
 import { createTextCache, defaultCacheDir, formatEvalReport, loadGolden, runEval } from './eval';
 import { removeDemoArticles, seedDemoArticles } from './demo/seed';
 import { labelPending, type LabelItemReport } from './pipeline';
@@ -28,8 +28,8 @@ const USAGE = `usage: attn <migrate | collect | label | eval | seed-demo>
 commands:
   migrate                                              apply database migrations
   collect [--source <id>]... [--backfill-days <n>]    collect new articles from sources
-  label [--limit <n>]                                  label pending articles with the configured model
-  eval --model <id>                                    measure a model against data/golden/*.yml
+  label [--limit <n>]                                  label pending articles with LABEL_MODEL (claude-* or gemini-*)
+  eval --model <id>                                    measure a model (claude-* or gemini-*) against data/golden/*.yml
   seed-demo [--remove]                                 add (or remove) demo articles for local use without a labeling key
 `;
 
@@ -43,14 +43,16 @@ function formatReport(r: SourceReport): string {
   return r.error ? `${line}  ${r.error}` : line;
 }
 
+/** Checks, before any work, that `model` names a known provider (claude-* or gemini-*) whose API key is set. */
 export function resolveLabelerFactory(
+  model: string,
   env: NodeJS.ProcessEnv,
   deps: Deps,
 ): ((model: string, taxonomy: Taxonomy) => Labeler) | { error: string } {
   if (deps.makeLabeler) return deps.makeLabeler;
-  const apiKey = env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (!apiKey) return { error: 'GOOGLE_GENERATIVE_AI_API_KEY is not set' };
-  return (model, taxonomy) => createGeminiLabeler({ model, taxonomy, apiKey });
+  const error = labelerConfigError(model, env);
+  if (error !== undefined) return { error };
+  return (m, taxonomy) => createLabeler({ model: m, taxonomy, env });
 }
 
 async function withPipelineLock(url: string, io: Io, fn: () => Promise<number>): Promise<number> {
@@ -90,7 +92,7 @@ async function labelCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps
     io.err('LABEL_MODEL is not set');
     return 1;
   }
-  const factory = resolveLabelerFactory(env, deps);
+  const factory = resolveLabelerFactory(model, env, deps);
   if ('error' in factory) {
     io.err(factory.error);
     return 1;
@@ -149,7 +151,7 @@ async function evalCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps:
     io.err(`no golden items found in ${dir}/golden; see README "Evaluation"`);
     return 1;
   }
-  const factory = resolveLabelerFactory(env, deps);
+  const factory = resolveLabelerFactory(model, env, deps);
   if ('error' in factory) {
     io.err(factory.error);
     return 1;

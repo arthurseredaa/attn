@@ -193,9 +193,23 @@ describe('attn label', () => {
     expect(await statuses()).toEqual(['pending']);
   });
 
-  it('fails without an API key when no makeLabeler is injected', async () => {
-    expect(await run(['label'], labelEnv, io, labelDeps)).toBe(1);
-    expect(err.join('\n')).toContain('GOOGLE_GENERATIVE_AI_API_KEY');
+  it('fails without the API key of the chosen provider when no makeLabeler is injected', async () => {
+    await seed(1);
+    expect(await run(['label'], { ...labelEnv, LABEL_MODEL: 'gemini-3.6-flash' }, io, labelDeps)).toBe(1);
+    expect(err.join('\n')).toContain('GOOGLE_GENERATIVE_AI_API_KEY is not set');
+    err = [];
+    const claude = { ...labelEnv, LABEL_MODEL: 'claude-haiku-5-5', GOOGLE_GENERATIVE_AI_API_KEY: 'k' };
+    expect(await run(['label'], claude, io, labelDeps)).toBe(1);
+    expect(err.join('\n')).toContain('ANTHROPIC_API_KEY is not set');
+    expect(await statuses()).toEqual(['pending']);
+  });
+
+  it('fails on an unknown LABEL_MODEL provider before touching anything', async () => {
+    await seed(1);
+    const keys = { ANTHROPIC_API_KEY: 'k', GOOGLE_GENERATIVE_AI_API_KEY: 'k' };
+    expect(await run(['label'], { ...labelEnv, ...keys, LABEL_MODEL: 'gpt-5' }, io, labelDeps)).toBe(1);
+    expect(err.join('\n')).toContain('unknown LABEL_MODEL provider');
+    expect(await statuses()).toEqual(['pending']);
   });
 
   it('fails without DATABASE_URL', async () => {
@@ -342,9 +356,21 @@ describe('attn eval', () => {
     expect(err.join('\n')).toContain(`no golden items found in ${tmp}/golden; see README "Evaluation"`);
   });
 
-  it('fails without an API key when no makeLabeler is injected', async () => {
-    expect(await run(['eval', '--model', 'm'], evalEnv, io, { ...deps, sleep: async () => {} })).toBe(1);
-    expect(err.join('\n')).toContain('GOOGLE_GENERATIVE_AI_API_KEY');
+  it('fails without the API key of the chosen provider when no makeLabeler is injected', async () => {
+    const noFake = { ...deps, sleep: async () => {} };
+    expect(await run(['eval', '--model', 'gemini-3.6-flash'], evalEnv, io, noFake)).toBe(1);
+    expect(err.join('\n')).toContain('GOOGLE_GENERATIVE_AI_API_KEY is not set');
+    err = [];
+    expect(await run(['eval', '--model', 'claude-haiku-5-5'], evalEnv, io, noFake)).toBe(1);
+    expect(err.join('\n')).toContain('ANTHROPIC_API_KEY is not set');
+    expect(server.hits('/g1')).toBe(0);
+  });
+
+  it('fails on an unknown model provider without fetching anything', async () => {
+    const keys = { ...evalEnv, ANTHROPIC_API_KEY: 'k', GOOGLE_GENERATIVE_AI_API_KEY: 'k' };
+    expect(await run(['eval', '--model', 'gpt-5'], keys, io, { ...deps, sleep: async () => {} })).toBe(1);
+    expect(err.join('\n')).toContain('unknown LABEL_MODEL provider');
+    expect(server.hits('/g1')).toBe(0);
   });
 
   it('exits 1 with the partial report on a rate limit', async () => {
@@ -397,23 +423,32 @@ describe('attn eval', () => {
 describe('resolveLabelerFactory', () => {
   const taxonomy = loadTaxonomy();
 
-  it('returns deps.makeLabeler unchanged', () => {
+  it('returns deps.makeLabeler unchanged, whatever the model', () => {
     const makeLabeler = () => createFakeLabeler();
-    expect(resolveLabelerFactory({}, { makeLabeler })).toBe(makeLabeler);
+    expect(resolveLabelerFactory('fake-model', {}, { makeLabeler })).toBe(makeLabeler);
   });
 
-  it('returns an error naming the key when neither is available', () => {
-    for (const e of [{}, { GOOGLE_GENERATIVE_AI_API_KEY: '' }]) {
-      const r = resolveLabelerFactory(e, {});
-      expect(typeof r).toBe('object');
+  it('returns an error naming the key of the chosen provider', () => {
+    for (const e of [{}, { GOOGLE_GENERATIVE_AI_API_KEY: '' }, { ANTHROPIC_API_KEY: 'k' }]) {
+      const r = resolveLabelerFactory('gemini-3.6-flash', e, {});
       expect((r as { error: string }).error).toContain('GOOGLE_GENERATIVE_AI_API_KEY');
     }
+    const r = resolveLabelerFactory('claude-haiku-5-5', { GOOGLE_GENERATIVE_AI_API_KEY: 'k' }, {});
+    expect((r as { error: string }).error).toContain('ANTHROPIC_API_KEY');
   });
 
-  it('builds a gemini labeler from the key without network', () => {
-    const r = resolveLabelerFactory({ GOOGLE_GENERATIVE_AI_API_KEY: 'k' }, {});
-    expect(typeof r).toBe('function');
-    expect((r as (m: string, t: Taxonomy) => Labeler)('gemini-3.6-flash', taxonomy).model).toBe('gemini-3.6-flash');
+  it('returns an error for an unknown provider prefix', () => {
+    const r = resolveLabelerFactory('gpt-5', { ANTHROPIC_API_KEY: 'k', GOOGLE_GENERATIVE_AI_API_KEY: 'k' }, {});
+    expect((r as { error: string }).error).toContain('unknown LABEL_MODEL provider');
+  });
+
+  it('builds a labeler for either provider from its key without network', () => {
+    const env = { GOOGLE_GENERATIVE_AI_API_KEY: 'k', ANTHROPIC_API_KEY: 'k' };
+    for (const model of ['gemini-3.6-flash', 'claude-haiku-5-5']) {
+      const r = resolveLabelerFactory(model, env, {});
+      expect(typeof r).toBe('function');
+      expect((r as (m: string, t: Taxonomy) => Labeler)(model, taxonomy).model).toBe(model);
+    }
   });
 });
 
