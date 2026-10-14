@@ -1,10 +1,9 @@
-import { decodeEntities } from './normalize';
 import type { RawEntry } from './types';
 import { asArray, asObject, parseDate, parseXml, text } from './xml';
 
 function cleanTitle(raw: string | null, stripTags: boolean): string | null {
   if (raw === null) return null;
-  let t = decodeEntities(raw);
+  let t = raw;
   if (stripTags) t = t.replace(/<[^>]*>/g, '');
   t = t.trim();
   return t === '' ? null : t;

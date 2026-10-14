@@ -81,3 +81,16 @@ describe('parsePageTitle', () => {
     expect(parsePageTitle('')).toBeNull();
   });
 });
+
+describe('entities and numeric-looking text', () => {
+  const e = parseFeed(fx('entities.xml'));
+  it('decodes entities exactly once and in urls', () => {
+    expect(e[0]?.title).toBe('Tom &amp; Jerry');
+    expect(e[0]?.url).toBe(`${B}/e/one?a=1&b=2`);
+  });
+  it('keeps numeric-looking guids and titles verbatim', () => {
+    expect(e.map((x) => x.guid)).toEqual(['007', '1e3', '1.10']);
+    expect(e[1]?.title).toBe('0x10');
+    expect(e[2]?.title).toBe('1.10');
+  });
+});

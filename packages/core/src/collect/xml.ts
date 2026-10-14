@@ -1,10 +1,13 @@
+import { decodeEntities } from './normalize';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: '@_',
   textNodeName: '#text',
-  processEntities: true,
+  processEntities: false,
+  parseTagValue: false,
+  parseAttributeValue: false,
   isArray: (name) => ['item', 'entry', 'link', 'url', 'sitemap'].includes(name),
 });
 
@@ -13,7 +16,7 @@ export function parseXml(xml: string): Record<string, unknown> {
   return parser.parse(xml) as Record<string, unknown>;
 }
 
-/** Unwraps arrays (first non-empty), `{#text}` objects, strings and numbers to trimmed text. */
+/** Entities are decoded here, exactly once (parser has processEntities off). Unwraps arrays (first non-empty), `{#text}` objects, strings and numbers to trimmed text. */
 export function text(v: unknown): string | null {
   if (Array.isArray(v)) {
     for (const x of v) {
@@ -24,7 +27,7 @@ export function text(v: unknown): string | null {
   }
   if (v && typeof v === 'object') return text((v as Record<string, unknown>)['#text']);
   if (typeof v === 'string' || typeof v === 'number') {
-    const t = String(v).trim();
+    const t = decodeEntities(String(v)).trim();
     return t === '' ? null : t;
   }
   return null;

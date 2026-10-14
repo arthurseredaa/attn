@@ -3,7 +3,7 @@
   <url><loc>{{BASE}}/news/alpha</loc><lastmod>2026-10-02</lastmod></url>
   <url><loc>{{BASE}}/news/beta</loc><lastmod>2026-09-15T08:30:00Z</lastmod></url>
   <url><loc>{{BASE}}/news/gamma</loc></url>
-  <url><loc>{{BASE}}/news/</loc><lastmod>2026-10-10</lastmod></url>
+  <url><loc>{{BASE}}/news/</loc></url>
   <url><loc>{{BASE}}/news/ancient</loc><lastmod>2024-01-01</lastmod></url>
   <url><loc>{{BASE}}/engineering/x</loc><lastmod>2026-08-01</lastmod></url>
   <url><loc>{{BASE}}/about</loc><lastmod>2026-01-01</lastmod></url>

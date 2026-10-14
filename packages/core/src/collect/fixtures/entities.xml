@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Entities</title>
+    <item>
+      <title>Tom &amp;amp; Jerry</title>
+      <link>{{BASE}}/e/one?a=1&amp;b=2</link>
+      <guid>007</guid>
+    </item>
+    <item>
+      <title>0x10</title>
+      <link>{{BASE}}/e/two</link>
+      <guid>1e3</guid>
+    </item>
+    <item>
+      <title>1.10</title>
+      <link>{{BASE}}/e/three</link>
+      <guid>1.10</guid>
+    </item>
+  </channel>
+</rss>
