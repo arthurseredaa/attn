@@ -114,7 +114,7 @@ not published on the host; the browser reaches it only through the web proxy.
 - `data/taxonomy.yml`: Role, Domain and Skill tree with the 0-4 level scale and a version.
 - `data/sources.yml`: the 13 first-party sources (`rss` or `sitemap`), with optional filters.
 - `data/config.yml`: the single place for tunable numbers (backfill window, label limits, thresholds, feed settings).
-- `data/quiz/`: quiz question bank; planned, empty for now.
+- `data/quiz/dev.yml`: DRAFT question bank for role dev (32 skills x 2 situational questions with hidden option levels); needs owner review.
 - `data/golden/`: hand-labeled articles for `attn eval`. It holds `draft.yml` for now (see Evaluation).
 
 ## Labeling

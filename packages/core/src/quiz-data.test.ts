@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { loadQuiz } from './data';
+import { dataDir, loadQuiz, loadTaxonomy } from './data';
 
 let dir: string;
 beforeEach(() => {
@@ -46,5 +46,68 @@ describe('loadQuiz', () => {
 
   it('throws ENOENT when the role file is missing', () => {
     expect(() => loadQuiz('nope', dir)).toThrow(/ENOENT|no such file/i);
+  });
+});
+
+const DRAFT_HEADER = [
+  '# DRAFT quiz bank: drafted by Claude (2026-10-14), NOT reviewed by the project owner.',
+  '# The owner must review every question and every option level before this bank is trusted:',
+  '# check that the situation is realistic, that each option\'s hidden level (0-4, the shared level scale)',
+  '# matches what the option shows about the person, and that wrong-sounding options are not obviously wrong.',
+  '# Once reviewed, remove this header. Levels are hidden: they never leave the server.',
+];
+const PART_1 = [
+  'context-engineering',
+  'cc-skills-commands',
+  'cc-hooks',
+  'cc-subagents',
+  'cc-plugins',
+  'cc-mcp-usage',
+  'cc-headless-ci',
+  'parallel-agents',
+  'spec-driven-workflow',
+  'agent-verification',
+  'tool-use-loop',
+  'agent-sdk',
+  'mcp-server-build',
+  'multi-agent-orchestration',
+  'human-in-the-loop',
+  'workflow-automation',
+];
+
+describe('real quiz bank', () => {
+  it('loads without schema or bank issues', () => {
+    expect(() => loadQuiz()).not.toThrow();
+  });
+
+  it('keeps the DRAFT header verbatim while it is present', () => {
+    const lines = fs.readFileSync(path.join(dataDir(), 'quiz/dev.yml'), 'utf8').split('\n');
+    if (lines[0]?.startsWith('# DRAFT')) expect(lines.slice(0, 5)).toEqual(DRAFT_HEADER);
+  });
+
+  it('has each part-1 skill exactly twice, in taxonomy order', () => {
+    const ids = loadQuiz().questions.map((q) => q.id);
+    const order = loadTaxonomy().domains.flatMap((d) => d.skills.map((s) => s.id));
+    const part1 = PART_1.slice().sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    expect(PART_1).toEqual(part1);
+    const expected = PART_1.flatMap((s) => [`${s}-1`, `${s}-2`]);
+    expect(ids.filter((id) => expected.includes(id))).toEqual(expected);
+    expect(ids.slice(0, expected.length)).toEqual(expected);
+  });
+
+  it('uses every level 0-4 across the part-1 bank', () => {
+    const levels = new Set(
+      loadQuiz()
+        .questions.filter((q) => PART_1.includes(q.skill_id))
+        .flatMap((q) => q.options.map((o) => o.level)),
+    );
+    expect([...levels].sort()).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it('keeps texts short enough for the UI', () => {
+    for (const q of loadQuiz().questions) {
+      expect(q.situation.length, q.id).toBeLessThanOrEqual(500);
+      for (const o of q.options) expect(o.text.length, `${q.id}: ${o.text}`).toBeLessThanOrEqual(280);
+    }
   });
 });
