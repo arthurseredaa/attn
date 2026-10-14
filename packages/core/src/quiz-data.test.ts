@@ -258,6 +258,36 @@ describe("real quiz bank", () => {
     );
     const count = (re: RegExp, text: string) => text.match(re)?.length ?? 0;
 
+    // Word lists copied verbatim from the reviewer's heuristic scripts (heur3.py, heur2r.py, extra3.py).
+    // They were fixed a priori by the reviewer: do not tune them to the bank text.
+    /** Round-2 fixed 10-word mechanism list (R2b). */
+    const NARROW_10 =
+      /\b(hooks?|CI|scripts?|tests?|validat\w*|schema|sandbox\w*|containers?|fail\w*|block\w*)\b/gi;
+    /** The 10-word list plus check/reject/deny/require (re-review 3, question 2). */
+    const NARROW_CONTROL =
+      /\b(hooks?|CI|scripts?|tests?|validat\w*|schema|sandbox\w*|containers?|fail\w*|block\w*|check\w*|reject\w*|den(y|ies|ying)|require\w*)\b/gi;
+    /** Low-level markers subtracted twice from the 10-word list (R2). */
+    const NARROW_LOW = /(by hand|paste|\bask|docs|example)/gi;
+    /** Round-2 broad mechanism list (R3b). */
+    const BROAD_MECHANISM =
+      /\b(hooks?|CI|scripts?|schema|validat\w*|containers?|sandbox\w*|proxy|tests?|replay|compare|fail|block\w*|outside|own|JSON|OAuth|HTTP|generate|build|wrap\w*|pool|enforce|policy|layer|conformance|baseline|offline|parse|syntax|release|alert\w*|cap|budget|limit)\b/gi;
+    /** Low-level markers subtracted twice from the broad list (R3). */
+    const BROAD_LOW =
+      /(by hand|paste|\bask|docs|example|README|instructions|keep (doing|going|copying)|leave|let it|trust|retry|rerun|skim|quick-start|template|gallery|;|myself|exactly as)/gi;
+    /** Creation-verb opener (N2b), case-sensitive like the script. */
+    const CREATION_OPENER =
+      /^(Build|Wrap|Move|Isolate|Sandbox|Generate|Replay|Split|Enforce|Compute|Put|Publish|Define|Make|Create|Write|Add|Design|Serve|Keep a|Mark|Assign|Cut)\b/;
+    /** Boundary words (N3). */
+    const BOUNDARY =
+      /\b(outside|separate\w*|own|before (merg\w*|commit|release|execution|each)|independent|clean|isolat\w*|per[- ]\w+|only)\b/gi;
+    /** Control / enforcement verbs (N5). */
+    const CONTROL =
+      /\b(fail\w*|block\w*|reject\w*|den(y|ies|ying)|restrict\w*|limit\w*|forbid\w*|require\w*|enforce\w*|validat\w*|check\w*|cap)\b/gi;
+    /** Wide inaction / manual words (N4b). */
+    const INACTION =
+      /\b(skip|leave|ignore|let|accept|stay|keep (working|going|doing)|manually|by hand|paste|ask|watch|scroll|skim|retry|rerun|once)\b/gi;
+    const THAT = /\bthat\b/gi;
+
     const FEATURES: Record<string, (text: string) => number> = {
       pronoun: (t) => count(new RegExp(PRONOUN.source, "gi"), t),
       semicolons: (t) => count(/;/g, t),
@@ -269,6 +299,21 @@ describe("real quiz bank", () => {
       length: (t) => t.length,
       commas: (t) => count(/,/g, t),
       words: (t) => t.split(/\s+/).length,
+      narrow10: (t) => count(NARROW_10, t),
+      narrow10MinusLow: (t) => count(NARROW_10, t) - 2 * count(NARROW_LOW, t),
+      narrowControl: (t) => count(NARROW_CONTROL, t),
+      broadMechanism: (t) => count(BROAD_MECHANISM, t),
+      broadMinusLow: (t) => count(BROAD_MECHANISM, t) - 2 * count(BROAD_LOW, t),
+      creationOpener: (t) => (CREATION_OPENER.test(t) ? 1 : 0),
+      boundary: (t) => count(BOUNDARY, t),
+      control: (t) => count(CONTROL, t),
+      thatClauses: (t) => count(THAT, t),
+      thatControl: (t) => count(THAT, t) + count(CONTROL, t),
+      inaction: (t) => count(INACTION, t),
+      narrowBoundaryMinusInaction: (t) =>
+        count(NARROW_10, t) + count(BOUNDARY, t) - count(INACTION, t),
+      engineeringBoundaryMinusInaction: (t) =>
+        count(ENGINEERING, t) + count(BOUNDARY, t) - count(INACTION, t),
     };
 
     /** Expected hit rate of a blind guess and the rate of a solver that picks by `score`, ties split fractionally. */
@@ -286,6 +331,24 @@ describe("real quiz bank", () => {
           q.options.filter((o) => o.level === top).length / q.options.length;
       }
       return { rate: hits / qs.length, chance: chance / qs.length };
+    };
+
+    /**
+     * Elimination solver: drop the options with the lowest score (unless all tie) and pick uniformly among
+     * the rest. Same chance as `solverRate`.
+     */
+    const eliminationRate = (score: (text: string) => number) => {
+      const qs = questions();
+      let hits = 0;
+      for (const q of qs) {
+        const top = Math.max(...q.options.map((o) => o.level));
+        const scores = q.options.map((o) => score(o.text));
+        const worst = Math.min(...scores);
+        const kept = q.options.filter((_, i) => (scores[i] ?? 0) > worst);
+        const pool = kept.length > 0 ? kept : q.options;
+        hits += pool.filter((o) => o.level === top).length / pool.length;
+      }
+      return hits / qs.length;
     };
 
     it("does not make the shortest option the top level in more than 35% of questions", () => {
@@ -350,6 +413,60 @@ describe("real quiz bank", () => {
           expect(rate).toBeLessThanOrEqual(chance + 0.12);
         },
       );
+      it.each([
+        ["lowest", 1],
+        ["highest", -1],
+      ] as const)(
+        "dropping the options with the %s value and guessing among the rest stays near chance (<= chance + 0.12)",
+        (_dir, sign) => {
+          const f = FEATURES[name] as (t: string) => number;
+          const { chance } = solverRate(() => 0);
+          expect(eliminationRate((t) => sign * f(t))).toBeLessThanOrEqual(
+            chance + 0.12,
+          );
+        },
+      );
+    });
+
+    it.each(["engineering", "control"])(
+      "keeps the per-level mean of the %s word count within 20% of the overall mean",
+      (name) => {
+        const f = FEATURES[name] as (t: string) => number;
+        const all = allOptions();
+        const overall = mean(all.map((o) => f(o.text)));
+        expect(overall).toBeGreaterThan(0);
+        for (const level of [0, 1, 2, 3, 4]) {
+          const m = mean(
+            all.filter((o) => o.level === level).map((o) => f(o.text)),
+          );
+          expect(
+            Math.abs(m - overall) / overall,
+            `level ${level}: ${m.toFixed(2)} vs ${overall.toFixed(2)}`,
+          ).toBeLessThanOrEqual(0.2);
+        }
+      },
+    );
+
+    const levelsWith = (re: RegExp) =>
+      new Set(
+        allOptions()
+          .filter((o) => re.test(o.text))
+          .map((o) => o.level),
+      );
+
+    it("uses 'paste' or 'by hand' at two or more levels above 0", () => {
+      const levels = levelsWith(/\b(past(e|es|ed|ing)|by hand)\b/i);
+      expect([...levels].filter((l) => l > 0).length).toBeGreaterThanOrEqual(2);
+    });
+
+    it.each([
+      ["CI", /\bCI\b/],
+      ["hook", /\bhooks?\b/i],
+    ] as const)("uses %s at two or more of levels 2-4", (_name, re) => {
+      const levels = levelsWith(re);
+      expect(
+        [2, 3, 4].filter((l) => levels.has(l)).length,
+      ).toBeGreaterThanOrEqual(2);
     });
 
     it("is not solvable by combining length, 'Write' opener and engineering vocabulary (<= chance + 0.12)", () => {

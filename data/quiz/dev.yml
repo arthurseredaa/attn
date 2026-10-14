@@ -11,13 +11,13 @@ questions:
       You start using a coding agent on an existing repo, and it keeps running the wrong test command and
       ignoring your folder conventions. You want it to get these right from the first message of every session.
     options:
-      - text: "Write a root CLAUDE.md with the test command and folder conventions, and prune it each month."
+      - text: "Write a root CLAUDE.md with the exact test command and folder conventions, and prune it each month."
         level: 2
-      - text: "Generate the test-command section of CLAUDE.md from the package scripts in a CI job to stop drift."
+      - text: "Keep folder rules in nested CLAUDE.md files and derive the root test command from the package manifest on commit."
         level: 4
-      - text: "Paste the test command and folder conventions into the first prompt of every new session in the repo."
+      - text: "Add the test script name and folder rules to the first prompt of every new session in the repo."
         level: 0
-      - text: "Split rules into a root CLAUDE.md plus nested files per package, and check each in a fresh session."
+      - text: "Split rules into a root CLAUDE.md plus nested files per package, and try each in a fresh session."
         level: 3
       - text: "Run the init command to generate a CLAUDE.md and commit the generated file with minimal edits."
         level: 1
@@ -27,13 +27,13 @@ questions:
       Two hours into a long session the agent starts forgetting decisions made earlier and repeats mistakes
       you already corrected. The context window is nearly full.
     options:
-      - text: "Ask the agent to save decisions to a notes file in the repo, then start a fresh session that reads it first."
+      - text: "Ask the agent to save decisions to a notes file, then start a fresh session that reads it first."
         level: 2
-      - text: "Keep working in the same session and restate each decision whenever the agent drifts off it."
+      - text: "Keep working in the same session and restate each decision in the prompt whenever the agent drifts."
         level: 0
-      - text: "Add a decisions log to CLAUDE.md that the agent appends to and rereads at the start of each session."
+      - text: "Add a decisions log to CLAUDE.md that the agent appends to and rereads at each session start."
         level: 3
-      - text: "Run compact with a note listing what must survive, then continue working in the same session."
+      - text: "Run compact with a note listing what must survive, then continue in the same session."
         level: 2
   - id: cc-skills-commands-1
     skill_id: cc-skills-commands
@@ -41,15 +41,15 @@ questions:
       You paste the same long prompt for reviewing pull requests several times a week. A colleague says
       this should be saved somewhere reusable instead of living in your notes.
     options:
-      - text: "Turn the prompt into a skill with a checklist file and a helper script that fetches the PR diff."
+      - text: "Turn the prompt into a skill with a rubric file and a helper command that fetches the PR diff."
         level: 3
-      - text: "Store the review prompt in a notes app and paste it into the PR comment box for each pull request."
+      - text: "Save the prompt in a shell script that prints it, and paste the output into a clean chat for each review."
         level: 0
-      - text: "Turn the prompt into a slash command file with a PR number argument, and commit it to the repo."
+      - text: "Turn the prompt into a slash command file with a PR number argument and check it into the repo."
         level: 2
       - text: "Install a published review command from a plugin repo and run it with its default settings."
         level: 1
-      - text: "Wrap the review prompt in a slash command that reads the branch diff and the linked ticket."
+      - text: "Give the review command front matter that restricts its tools to read-only git and gh calls."
         level: 3
   - id: cc-skills-commands-2
     skill_id: cc-skills-commands
@@ -57,11 +57,11 @@ questions:
       A skill you wrote is never picked up by the agent, even when you ask for exactly the task it was
       written for. Other skills in the same folder load fine.
     options:
-      - text: "Replay sample prompts against the skills folder and list the skill that loads for each prompt."
+      - text: "Rerun a fixed set of example task prompts headless and record the skill each one actually loads."
         level: 4
-      - text: "Compare the skill front matter with the example in the docs and fix any field that differs."
+      - text: "Compare the skill front matter with the example in the docs and fix any field that fails to match."
         level: 1
-      - text: "Paste the skill instructions into the chat each time the task comes up, then edit the prompt by hand."
+      - text: "Rename the skill folder to match the task wording and test again with the same prompt."
         level: 0
       - text: "Reword the skill description to state when it applies, then retry a few phrasings of the task."
         level: 2
@@ -71,13 +71,13 @@ questions:
       Your team keeps committing code that skips the formatter because the coding agent edits files
       directly. You want formatting to happen every time without relying on the agent remembering.
     options:
-      - text: "Make the PostToolUse hook return formatter errors to the agent and require a fix before it finishes."
+      - text: "Have the PostToolUse hook return formatter errors to the agent and require a fix before it finishes."
         level: 3
       - text: "Copy the documented PostToolUse formatter example into settings.json and keep its default matcher."
         level: 1
-      - text: "Add a pre-commit check that runs the same formatter outside the agent, blocking the commit."
+      - text: "Move formatting into a git pre-commit step that runs no matter what tool made the edit."
         level: 4
-      - text: "Run the formatter manually before each commit and stage the files it changes in the diff."
+      - text: "Run the formatter manually before each commit and check the diff for files it changed."
         level: 0
       - text: "Add a PostToolUse hook that formats the edited file, with the command changed to the team formatter."
         level: 2
@@ -87,13 +87,13 @@ questions:
       The agent must never run destructive shell commands such as forced pushes or deleting outside the
       project, even when it is running unattended and nobody can approve prompts.
     options:
-      - text: "Add a PreToolUse hook on the shell tool that matches risky commands and blocks them with a message."
+      - text: "Register a PreToolUse hook on the shell tool that matches risky commands and blocks them with a message."
         level: 3
-      - text: "Watch the terminal during the run and press stop when a shell command looks risky or destructive."
+      - text: "Skip the permission prompts for the run and check the git reflog for forced pushes afterwards."
         level: 0
-      - text: "Run the agent in a container with a read-only repo mount and no push credentials set in it."
+      - text: "Run the agent in a container whose sole mount is a writable worktree, with no push credentials."
         level: 4
-      - text: "Add deny rules to the project settings for git force push and rm outside the project directory."
+      - text: "List deny rules in the project settings for git force push and rm outside the project directory."
         level: 2
       - text: "Add a line to the agent instructions forbidding force push and deletes outside the project."
         level: 1
@@ -103,11 +103,11 @@ questions:
       You ask the agent to find every place a deprecated function is used across a big monorepo. The main
       conversation fills up with search output before it can start the actual migration.
     options:
-      - text: "Build a search agent that returns JSON matches and a loop that feeds files to a migration subagent."
+      - text: "Make a search subagent return JSON call sites, then hand each file to a migration subagent."
         level: 4
       - text: "Ask the agent to run the search in a subagent that returns only file paths and line numbers."
         level: 2
-      - text: "Stay in the main conversation and scroll through the search results to find each call site."
+      - text: "Write a grep script that prints every match into the main conversation, then check each hit."
         level: 0
       - text: "Define a search agent file with read-only tools and a short output format, then reuse it across repos."
         level: 3
@@ -119,13 +119,13 @@ questions:
       A custom agent you defined keeps wandering outside its job: it edits files when it should only review,
       and its summaries come back too long to be useful.
     options:
-      - text: "Cut the tool list to read-only tools and add a fixed output format with a length limit."
+      - text: "Write a SubagentStop hook that sends summaries over a word count back to the agent for a rewrite."
         level: 3
-      - text: "Set the model and a one-line description in the agent file, then rerun the same review."
+      - text: "Add a line to the agent prompt that says review only and keep every summary under ten lines."
         level: 1
-      - text: "Reword the agent prompt to state its job more clearly, then rerun the same task to compare."
+      - text: "Remove the edit tools from the agent file's tool list and cap the summary length in its prompt."
         level: 2
-      - text: "Add a hook that blocks edit tools for this agent and requires findings in a fixed format."
+      - text: "Split it into a reviewer agent with read tools and a fixer agent, each with a different tool list."
         level: 3
   - id: cc-plugins-1
     skill_id: cc-plugins
@@ -135,9 +135,9 @@ questions:
     options:
       - text: "Publish a team marketplace that lists the plugin, with a pinned version for each release."
         level: 3
-      - text: "Zip the folder and email it with a note listing where each file belongs in the .claude directory."
+      - text: "Write a setup script that copies the files into each colleague's .claude folder and email it."
         level: 0
-      - text: "Generate the plugin from repo folders with a build step and test each release in a clean install."
+      - text: "Derive the plugin and its marketplace entry from the repo folders on every tagged release."
         level: 4
       - text: "Bundle the skills, hook and agent into a plugin with a manifest and install it from the repo."
         level: 2
@@ -147,13 +147,13 @@ questions:
       A plugin you ship to the team updated its hook last week and now some colleagues report broken
       sessions while others see nothing wrong.
     options:
-      - text: "Run a clean-install check of the plugin with its hook enabled before every release candidate."
+      - text: "Hold each version until a CI job that installs it into clean profiles passes on every OS the team uses."
         level: 4
-      - text: "Ask affected colleagues to delete the plugin folder and reinstall it from the marketplace."
+      - text: "Ask affected colleagues to delete the plugin folder, reinstall it and rerun the failing hook."
         level: 0
-      - text: "Compare the plugin version in each config across the team and bump it after each behavior change."
+      - text: "Compare the plugin version per colleague config and roll back the hook for the broken ones."
         level: 2
-      - text: "Follow the update steps in the install docs and check the plugin version in each session log."
+      - text: "Follow the update steps in the install docs and check the hook version that each session log shows."
         level: 1
       - text: "Pin the marketplace entry to tagged releases and keep a changelog that supports rollbacks."
         level: 3
@@ -163,13 +163,13 @@ questions:
       You want the coding agent to read issues from your tracker and look at the production database schema
       without you copying text into the chat.
     options:
-      - text: "Point the database server at a read replica with a restricted user and disable its write tools."
+      - text: "Point the database server at a read replica with a least-privilege user and disable its write tools."
         level: 3
       - text: "Copy the issue text and the table schema into the chat window for each task, one query at a time."
         level: 0
-      - text: "Connect both servers in a shared config file and keep credentials in environment variables."
+      - text: "Connect both servers in a shared .mcp.json file and keep each credential in its own environment variable."
         level: 2
-      - text: "Create a shared allowlist of permitted tools for each server and review it each quarter."
+      - text: "Set per-tool permission rules that allow tracker reads and require approval for each database query."
         level: 3
       - text: "Add the tracker server with the command from its README and sign in when the browser prompts."
         level: 1
@@ -181,11 +181,11 @@ questions:
     options:
       - text: "Move most servers into per-project config files, loading only the ones each repo uses."
         level: 2
-      - text: "Put a small proxy MCP server in front that exposes a few curated tools and forwards the calls."
+      - text: "Front the servers with one small proxy server that exposes a few curated tools and forwards calls."
         level: 4
-      - text: "Check each server troubleshooting page for slow startup and fix any misconfigured entry."
+      - text: "Follow the troubleshooting page for each server and check the entries that start slowly."
         level: 1
-      - text: "Measure the tokens each server tool list adds and remove or replace the heaviest ones."
+      - text: "Measure the tokens each server tool list adds and replace the heaviest ones within a set budget."
         level: 3
       - text: "Disable rarely used servers in settings and keep the two or three needed for the current task."
         level: 2
@@ -197,13 +197,13 @@ questions:
     options:
       - text: "Run it read-only with JSON output and a turn limit, and post the comment only if the result parses."
         level: 3
-      - text: "Run the agent manually on each failing pull request and paste its summary into a comment."
+      - text: "Run the agent by hand on the CI log of each failing pull request and paste its summary into a comment."
         level: 0
-      - text: "Publish a reusable action that wraps the CLI with retries and a cost cap for every repository."
+      - text: "Give the agent no comment token and let a later job check its JSON file before posting it."
         level: 4
       - text: "Add a CI step that runs claude -p with a short prompt and a limited tool list, then posts the output."
         level: 2
-      - text: "Copy the example workflow from the docs, fill in the repository details, and add the API key secret."
+      - text: "Copy the example workflow from the docs, add the API key secret, and limit it to pull request events."
         level: 1
   - id: cc-headless-ci-2
     skill_id: cc-headless-ci
@@ -211,15 +211,15 @@ questions:
       You want a nightly job that triages new issues and opens draft pull requests for the easy ones, running
       on a schedule rather than on someone's laptop.
     options:
-      - text: "Split triage and edits into separate runs with separate tokens, giving the triage run read-only access."
+      - text: "Split triage and edits into two runs with different tokens, giving the triage run read-only access."
         level: 3
-      - text: "Schedule a cron entry on a spare laptop that calls the agent every night with the triage prompt."
+      - text: "Copy the scheduled workflow example from the docs and swap in the triage prompt and API key secret."
         level: 1
-      - text: "Record each run's outcome and cost in a log, and alert on failures or unusually high spend."
+      - text: "Record each run's outcome and cost in a log, and alert on errors or unusually high spend."
         level: 3
-      - text: "Triage new issues manually each morning and open the pull requests for the easy ones."
+      - text: "Triage new issues manually each morning and check the easy ones before opening draft pull requests."
         level: 0
-      - text: "Add a scheduled workflow with a bounded prompt and a cost cap that opens draft pull requests for review."
+      - text: "Add a scheduled workflow with a bounded prompt and a cost cap that opens only draft pull requests."
         level: 2
   - id: parallel-agents-1
     skill_id: parallel-agents
@@ -229,9 +229,9 @@ questions:
     options:
       - text: "Create a git worktree per task, run one session in each, and compare the branches by diff."
         level: 2
-      - text: "Keep a script that creates a worktree with its own ports and database copy per task branch."
+      - text: "Write a worktree setup step that gives each copy its own dev server port and database."
         level: 4
-      - text: "Open several terminal tabs and start an agent in each, all in the same working directory."
+      - text: "Open a terminal tab per task and start an agent in each, all sharing one checkout and test database."
         level: 1
       - text: "Finish each task in the same checkout and commit it before starting the next one on that branch."
         level: 0
@@ -243,13 +243,13 @@ questions:
       Three parallel agent sessions are running. Two of them have started editing the same configuration file,
       and a third is waiting for input you did not notice.
     options:
-      - text: "Assign each session an owned set of files and keep the shared config off-limits to all but one."
+      - text: "Assign each session an owned set of files and give the shared config to exactly one of them."
         level: 3
-      - text: "Stop two of the sessions and rerun them one at a time to avoid collisions on the config file."
+      - text: "Stop two of the sessions and restart them one at a time to avoid collisions on the config file."
         level: 1
-      - text: "Use the multiplexer status view to spot blocked sessions and add an alert for any idle one."
+      - text: "Use the multiplexer status view to spot stalled sessions and add an alert for any idle one."
         level: 3
-      - text: "Check each worktree diff, resolve the shared file manually, and enable notifications for waiting sessions."
+      - text: "Compare each worktree diff, resolve the shared file by hand, and enable alerts for blocked sessions."
         level: 2
   - id: spec-driven-workflow-1
     skill_id: spec-driven-workflow
@@ -259,13 +259,13 @@ questions:
     options:
       - text: "Write a short spec of behavior and constraints, have the agent derive a plan, and review both."
         level: 2
-      - text: "Describe the feature in two sentences in the first prompt and let the agent decide the structure."
+      - text: "Describe the feature in the first prompt and let the agent pick the schema, endpoints and tests."
         level: 0
-      - text: "Add a CI check that fails when any plan task lacks a matching requirement in the spec file of the repo."
+      - text: "Encode each spec requirement in a failing acceptance test before planning and gate every task on it."
         level: 4
-      - text: "Ask the agent for a plan before coding, skim it for obvious gaps, and approve it in the chat."
+      - text: "Ask the agent for a plan before coding and check it for obvious gaps before approving it in the chat."
         level: 1
-      - text: "Split the plan into small tasks with acceptance criteria and run each one in a fresh session."
+      - text: "Break the plan into small tasks with acceptance criteria and run each one in a fresh session."
         level: 3
   - id: spec-driven-workflow-2
     skill_id: spec-driven-workflow
@@ -273,11 +273,11 @@ questions:
       Halfway through executing a plan, the agent discovers that a library does not support what the spec
       assumed. Several tasks depend on that assumption.
     options:
-      - text: "Add a preflight task to the plan template that checks each library assumption before execution."
+      - text: "Insert a preflight task in the plan template that checks each library assumption before execution."
         level: 3
-      - text: "Tell the agent to work around the limit and continue with the remaining tasks listed in the plan file."
+      - text: "Tell the agent to stub out the missing library call and keep the plan's tests from failing."
         level: 0
-      - text: "Add the new constraint to the spec and revise the plan for the dependent tasks after pausing the run."
+      - text: "Add the new constraint to the spec and revise only the dependent tasks after pausing the run."
         level: 2
       - text: "Record the finding in the spec, replan the dependent tasks, and recheck merged work against it."
         level: 3
@@ -288,13 +288,13 @@ questions:
     options:
       - text: "Run the tests, linter and type check on the branch and read the output before merging."
         level: 2
-      - text: "Rerun the checks from a script outside the agent session and compare exit codes with its report."
+      - text: "Ignore the agent's summary and require green exit codes from a CI job the agent cannot edit."
         level: 4
-      - text: "Merge once the agent reports success and the CI badge turns green on the pull request."
+      - text: "Merge once the agent's summary says every test passes and reports no failed checks."
         level: 0
-      - text: "Add a stop hook that runs the same checks and blocks the agent from finishing on a failure."
+      - text: "Wire a Stop hook to run the checks and return any error output to the agent to fix."
         level: 3
-      - text: "Skim the diff and merge if the code looks reasonable and matches the original request in the ticket."
+      - text: "Check that the CI badge on the pull request is green and skim the diff before merging."
         level: 1
   - id: agent-verification-2
     skill_id: agent-verification
@@ -302,11 +302,11 @@ questions:
       You notice the agent made a failing test pass by loosening an assertion and adding a skip. It told
       you everything was green.
     options:
-      - text: "Add a hook that rejects edits to test files during implementation and route test changes to review."
+      - text: "Configure a hook that rejects edits to test files during implementation and route test changes to review."
         level: 3
-      - text: "Accept the change when the suite is green and skip reading the test diff in the pull request."
+      - text: "Accept the change when the suite is green and skip the test diff when checking the pull request."
         level: 0
-      - text: "Rerun the suite in a clean container after the agent finishes and compare counts with its report."
+      - text: "Gate merges on a protected copy of the acceptance tests stored where the agent has no write access."
         level: 4
       - text: "Add a CI check that fails when skipped tests or assertion counts change against the base branch."
         level: 3
@@ -320,13 +320,13 @@ questions:
       You need a small assistant that can call two of your own functions. You are asked not to add an agent
       framework, so you call the model API directly.
     options:
-      - text: "Replay recorded model responses through the loop in tests to check changes without live API calls."
+      - text: "Record real model responses once and replay them through the loop to check changes offline."
         level: 4
-      - text: "Search for a library that wraps tool calling and use its default agent class for the two functions."
+      - text: "Write a prompt asking the model to reply with a JSON function name and parse it with a regex."
         level: 0
       - text: "Write the loop with a maximum turn count and handle several tool calls in one response."
         level: 2
-      - text: "Validate arguments against each function schema and return failures to the model in tool errors."
+      - text: "Validate arguments against each function schema and return the errors to the model in tool results."
         level: 3
       - text: "Follow the docs example to send tool definitions, run each requested function, and return the results."
         level: 1
@@ -354,11 +354,11 @@ questions:
         level: 3
       - text: "Install the SDK, run the quick-start example, and swap in the project prompt and folder."
         level: 1
-      - text: "Build the agent in a no-code workflow tool with a file-reading node and a shell node."
+      - text: "Build the agent in a no-code workflow tool with a separate file-reading node and shell node."
         level: 0
-      - text: "Log every tool call through hooks and stop the run when it passes a turn or cost budget."
+      - text: "Log every tool call through a callback and stop the run past a turn or cost budget."
         level: 3
-      - text: "Create the agent with the SDK, set the allowed tools, and resume sessions by id on later runs."
+      - text: "Build the agent with the SDK, restrict the allowed tools, and resume sessions by id on later runs."
         level: 2
   - id: agent-sdk-2
     skill_id: agent-sdk
@@ -366,13 +366,13 @@ questions:
       Your SDK agent works on your machine, but when you deploy it as a service it should handle several
       users' tasks at once without them seeing each other's files.
     options:
-      - text: "Start a separate container per task with its own working directory and a scoped API token."
+      - text: "Give each user a separate working directory on the same server and a scoped API token."
         level: 2
-      - text: "Build a sandbox pool service that hands out warm containers and stores session state outside them."
+      - text: "Move session state into a shared store and give every task a throwaway sandbox from a warm pool."
         level: 4
-      - text: "Run the agent on a single server with a queue, handling one user's task at a time."
+      - text: "Put the agent in one container behind a queue, handling one user's task at a time."
         level: 1
-      - text: "Give each session a sandbox with a restricted file system and network, and delete it when the run ends."
+      - text: "Give each session its own container with a private file system and delete it when the run ends."
         level: 3
   - id: mcp-server-build-1
     skill_id: mcp-server-build
@@ -380,11 +380,11 @@ questions:
       Your team wants coding agents to query your internal deployment service. There is no ready-made MCP
       server for it.
     options:
-      - text: "Design the tools around tasks agents perform instead of mirroring every endpoint of the API."
+      - text: "Shape the tools around tasks agents perform instead of mirroring every endpoint of the API."
         level: 3
-      - text: "Write a wrapper script around the deployment API and let the agent call it from the shell."
+      - text: "Generate a server from the OpenAPI spec with a template generator and keep its default tools."
         level: 1
-      - text: "Ask the platform team to expose the deployment API through an existing generic HTTP MCP server."
+      - text: "Write a shell script that wraps curl calls to the deployment API and let the agent run it."
         level: 0
       - text: "Serve the server over HTTP with auth, input validation, and error messages the model can act on."
         level: 3
@@ -396,13 +396,13 @@ questions:
       Your MCP server works locally over stdio. Now remote teammates need it, and some of its tools
       must only be available to certain people.
     options:
-      - text: "Compute each user's tool list at session start from identity provider groups, with tests."
+      - text: "Serve it over HTTP with OAuth and derive both the tool list and each call's checks from IdP groups."
         level: 4
-      - text: "Switch to the HTTP transport and protect it with a shared API key distributed to the team."
+      - text: "Switch to the HTTP transport and require a shared API key distributed to the team."
         level: 2
       - text: "Share the repo and have each teammate run the server locally with personal credentials."
         level: 1
-      - text: "Use HTTP with OAuth and map each user to permissions inside the tools, listing only allowed tools."
+      - text: "Serve it over HTTP with OAuth and check the caller's role inside each sensitive tool before it runs."
         level: 3
   - id: multi-agent-orchestration-1
     skill_id: multi-agent-orchestration
@@ -412,9 +412,9 @@ questions:
     options:
       - text: "Build an orchestrator that fans research out to parallel workers, then runs a drafting agent."
         level: 2
-      - text: "Extend the single prompt with detailed instructions and examples for each of the three stages."
+      - text: "Extend the single prompt with detailed instructions and a separate example for each of the three stages."
         level: 0
-      - text: "Compare the pipeline with a single-agent baseline on a set of test topics and keep the better design."
+      - text: "Give the checker agent only the draft and the cited sources, and send failed claims back to research."
         level: 4
       - text: "Chain three prompts manually, pasting each stage's output into the next prompt in a shared doc."
         level: 1
@@ -428,11 +428,11 @@ questions:
     options:
       - text: "Define a schema for each agent handoff and fail the run when a worker output violates it."
         level: 3
-      - text: "Log each agent's input and output, and trace the first step where the wrong claim appears."
+      - text: "Log each agent's input and output in JSON and trace back to the first step that failed."
         level: 2
-      - text: "Rerun the whole pipeline from the start and compare the new answer with the old one in a diff."
+      - text: "Run the pipeline again in a clean environment with a test input and compare the new answer with the old one."
         level: 1
-      - text: "Add an independent verifier agent after the risky worker to check its claims against sources."
+      - text: "Place an independent verifier agent after the risky worker to check its claims against sources."
         level: 3
   - id: human-in-the-loop-1
     skill_id: human-in-the-loop
@@ -440,15 +440,15 @@ questions:
       Your app lets an agent send emails and delete records for users. Leadership wants a person to confirm
       anything that cannot be undone.
     options:
-      - text: "Mark irreversible actions and pause on them with a confirmation dialog before resuming the run."
+      - text: "Mark irreversible actions and require a confirmation dialog on them before resuming the run."
         level: 2
-      - text: "Add a policy layer that decides per user and per tool whether to allow, ask or deny each call."
+      - text: "Put every tool call through one permission check that returns allow, ask or deny per user and tool."
         level: 4
       - text: "Ship it and review the sent emails and deleted records in the audit log every week."
         level: 0
-      - text: "Instruct the model in the system prompt to ask the user before any irreversible action."
+      - text: "Add a rule to the system prompt requiring the model to ask before any irreversible action."
         level: 1
-      - text: "Enforce approval in the tool layer, store pending approvals in the database, and block until resolved."
+      - text: "Enforce approval in the tool layer, store pending approvals in the database, and wait until resolved."
         level: 3
   - id: human-in-the-loop-2
     skill_id: human-in-the-loop
@@ -456,9 +456,9 @@ questions:
       A user starts a long-running agent task in your app, then notices it is heading the wrong way and wants
       to stop it right away.
     options:
-      - text: "Add a cancel flag that the loop checks between steps, and report the steps that already completed."
+      - text: "Check a cancel flag in the loop between steps, and report the steps that already completed."
         level: 2
-      - text: "Let the task run to completion and discard the results if the output turns out wrong."
+      - text: "Let the task run to completion and revert its commits with a script if the output fails review."
         level: 0
       - text: "Abort in-flight requests and running tools on cancel, and mark partial changes for review."
         level: 3
@@ -470,15 +470,15 @@ questions:
       Every day someone copies new support emails into a spreadsheet and tags them by topic. You are asked
       to automate it with a tool that has language model steps.
     options:
-      - text: "Add a review queue for low-confidence tags and store the tagging prompt in a variable."
+      - text: "Route low-confidence tags to a review queue and store the tagging prompt in a variable."
         level: 3
       - text: "Import a template from the tool gallery and connect the mail and spreadsheet accounts."
         level: 1
-      - text: "Export the emails to a spreadsheet by hand each morning and tag them with a dropdown column."
+      - text: "Export the emails to a spreadsheet by hand each morning and check the tags against a dropdown column."
         level: 0
-      - text: "Run the workflow on a copy of the sheet first, and add an error branch that retries then alerts."
+      - text: "Run the workflow on a copy of the sheet with pasted sample emails, and add an error branch that alerts."
         level: 3
-      - text: "Build the workflow with a new-mail trigger, a model prompt that tags the topic, and an append-row step."
+      - text: "Set up the workflow with a new-mail trigger, a model prompt that tags the topic, and an append-row step."
         level: 2
   - id: workflow-automation-2
     skill_id: workflow-automation
@@ -486,11 +486,11 @@ questions:
       An automation you built occasionally sends a customer the wrong template, because the model step sometimes
       returns text in a format the next node does not expect.
     options:
-      - text: "Split drafting and sending into two workflows and let only validated payloads reach the sender."
+      - text: "Have the model step return a template id from a fixed list and map ids to templates in code."
         level: 4
-      - text: "Add a validation step that parses the output and routes any failures to a manual review queue for support."
+      - text: "Add a validation step that parses the output and routes any failures to a manual review queue."
         level: 2
-      - text: "Tighten the prompt to demand strict output and include an example of the exact format."
+      - text: "Tighten the prompt to require only strict output and include an example of the exact format."
         level: 1
-      - text: "Add a structured output schema to the model step and a pre-send check on the template name."
+      - text: "Add a structured output schema to the model step and a check on the template name before sending."
         level: 3
