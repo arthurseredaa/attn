@@ -1,0 +1,20 @@
+# Local development Postgres for ATTN.
+# The api and web services are added in Stage 3 (host-agnostic compose).
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: attn
+      POSTGRES_PASSWORD: attn
+      POSTGRES_DB: attn
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U attn -d attn"]
+      interval: 2s
+      retries: 30
+
+volumes:
+  pgdata:

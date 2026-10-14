@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgres://attn:attn@localhost:5432/attn
+      TEST_DATABASE_URL: postgres://attn:attn@localhost:5432/attn_test
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: attn
+          POSTGRES_PASSWORD: attn
+          POSTGRES_DB: attn
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U attn"
+          --health-interval 2s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
