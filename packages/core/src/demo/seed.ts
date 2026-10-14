@@ -61,24 +61,27 @@ export async function seedDemoArticles(db: Db, opts: SeedDemoOptions): Promise<{
     }
   }
 
-  let inserted = 0;
-  for (let i = 0; i < rows.length; i += 200) {
-    const chunk = rows.slice(i, i + 200);
-    const created = await db
-      .insert(articles)
-      .values(chunk)
-      .onConflictDoNothing({ target: articles.url })
-      .returning({ id: articles.id, url: articles.url });
-    inserted += created.length;
-    const skillRows = created.flatMap((a) => {
-      const s = skillsByUrl.get(a.url)!;
-      return [
-        { articleId: a.id, skillId: s.primary, isPrimary: true },
-        ...(s.secondary && s.secondary !== s.primary ? [{ articleId: a.id, skillId: s.secondary, isPrimary: false }] : []),
-      ];
-    });
-    if (skillRows.length > 0) await db.insert(articleSkills).values(skillRows);
-  }
+  const inserted = await db.transaction(async (tx) => {
+    let inserted = 0;
+    for (let i = 0; i < rows.length; i += 200) {
+      const chunk = rows.slice(i, i + 200);
+      const created = await tx
+        .insert(articles)
+        .values(chunk)
+        .onConflictDoNothing({ target: articles.url })
+        .returning({ id: articles.id, url: articles.url });
+      inserted += created.length;
+      const skillRows = created.flatMap((a) => {
+        const s = skillsByUrl.get(a.url)!;
+        return [
+          { articleId: a.id, skillId: s.primary, isPrimary: true },
+          ...(s.secondary && s.secondary !== s.primary ? [{ articleId: a.id, skillId: s.secondary, isPrimary: false }] : []),
+        ];
+      });
+      if (skillRows.length > 0) await tx.insert(articleSkills).values(skillRows);
+    }
+    return inserted;
+  });
   return { inserted };
 }
 

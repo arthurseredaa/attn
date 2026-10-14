@@ -57,19 +57,59 @@ describe('seedDemoArticles', () => {
     expect(rows.every((r) => r.quality! >= 2)).toBe(true);
   });
 
-  it('wraps the last skill secondary to the first and never repeats the primary', async () => {
+  it('pins the attribute tables exactly', async () => {
+    await seed();
+    const rows = await db.select().from(articles);
+    const QUALITY = [4, 3, 2, 4, 3];
+    const TYPES = ['tutorial', 'release', 'deep_dive', 'news', 'research'];
+    const names = new Map(taxonomy.domains.flatMap((d) => d.skills.map((s) => [s.id, s.name] as const)));
+    for (const i of [0, 1, 2, 7, 30, 31]) {
+      const id = skills[i]!;
+      for (let n = 1; n <= 5; n++) {
+        const r = rows.find((x) => x.url === `https://example.com/demo/${id}/${n}`)!;
+        expect(r, `${id}/${n}`).toBeDefined();
+        expect(r.title).toBe(`Demo: ${names.get(id)} #${n}`);
+        expect(r.wordCount).toBe(400 + 150 * n);
+        expect(r.taxonomyVersion).toBe(taxonomy.version);
+        expect(r.labelStatus).toBe('labeled');
+        expect(r.difficulty).toBe((n + i) % 5);
+        expect(r.quality).toBe(QUALITY[n - 1]);
+        expect(r.type).toBe(TYPES[n - 1]);
+        const fast = r.type === 'release' || r.type === 'news';
+        const days = fast ? (i % 2 === 1 ? 3 + (i % 7) : 30 + i) : 20 * n + i;
+        expect(r.publishedAt.getTime()).toBe(now.getTime() - days * DAY);
+      }
+    }
+  });
+
+  it('cycles source ids', async () => {
+    await seed();
+    const rows = (await db.select().from(articles)).sort((a, b) => a.id - b.id);
+    expect(rows.slice(0, 4).map((r) => r.sourceId)).toEqual(['a', 'b', 'a', 'b']);
+  });
+
+  it('secondary skills: none for n=1, next skill otherwise, wrapping at the end', async () => {
     await seed();
     const rows = await db.select().from(articles);
     const sk = await db.select().from(articleSkills);
-    const last = skills[skills.length - 1]!;
-    const lastIds = sk.filter((s) => s.isPrimary && s.skillId === last).map((s) => s.articleId);
-    for (const r of rows.filter((x) => lastIds.includes(x.id) && /\/([2-5])$/.test(x.url))) {
-      expect(sk.filter((s) => s.articleId === r.id && !s.isPrimary).map((s) => s.skillId)).toEqual([skills[0]]);
+    for (const i of [0, 5, skills.length - 2, skills.length - 1]) {
+      for (let n = 1; n <= 5; n++) {
+        const r = rows.find((x) => x.url === `https://example.com/demo/${skills[i]}/${n}`)!;
+        const mine = sk.filter((s) => s.articleId === r.id);
+        expect(mine.filter((s) => s.isPrimary).map((s) => s.skillId)).toEqual([skills[i]]);
+        expect(mine.filter((s) => !s.isPrimary).map((s) => s.skillId)).toEqual(
+          n === 1 ? [] : [skills[(i + 1) % skills.length]],
+        );
+      }
     }
-    for (const r of rows) {
-      const mine = sk.filter((s) => s.articleId === r.id);
-      expect(new Set(mine.map((s) => s.skillId)).size).toBe(mine.length);
-    }
+  });
+
+  it('never repeats the primary as secondary', async () => {
+    await seed();
+    const sk = await db.select().from(articleSkills);
+    const pairs = sk.map((s) => `${s.articleId}:${s.skillId}`);
+    expect(new Set(pairs).size).toBe(pairs.length);
+    expect(sk).toHaveLength(160 + 128);
   });
 
   it('feeds the ranker for an onboarded user', async () => {
@@ -81,8 +121,18 @@ describe('seedDemoArticles', () => {
     const ranker = createSqlRanker(db, { config: rankConfig, sources: rankSources, taxonomy, now: () => now });
     const cards = await ranker.rank(u, { limit: 20, offset: 0 });
     expect(cards.length).toBeGreaterThan(0);
-    expect(cards.every((c) => c.skills.some((k) => k.isPrimary && skills.includes(k.id)))).toBe(true);
+    const primary = (c: (typeof cards)[number]) => c.skills.find((k) => k.isPrimary)!.id;
+    expect(cards.every((c) => skills.includes(primary(c)))).toBe(true);
     expect(cards.every((c) => c.quality >= 2)).toBe(true);
+    // focus skill 0, level 2 certain: t = 2, band {2, 3}
+    const focus = cards.filter((c) => primary(c) === skills[0]);
+    expect(focus.length).toBeGreaterThan(0);
+    expect(focus.every((c) => c.difficulty === 2 || c.difficulty === 3)).toBe(true);
+    for (const c of cards) {
+      if (c.type === 'release' || c.type === 'news') {
+        expect((now.getTime() - Date.parse(c.publishedAt)) / DAY).toBeLessThanOrEqual(14);
+      }
+    }
   });
 });
 
