@@ -21,11 +21,11 @@ domains:
     skills:
       - id: context-engineering
         name: CLAUDE.md, memory, context structure
-        description: Giving a coding agent the right context through CLAUDE.md files, memory, context compaction, and well-structured instructions.
+        description: Giving a coding agent the right context for one project or session through CLAUDE.md files, memory, context compaction, and well-structured instructions.
         roles: [dev]
       - id: cc-skills-commands
         name: Skills and slash commands
-        description: Writing custom skills and slash commands for Claude Code.
+        description: Writing individual custom skills and slash commands for Claude Code; for bundling and distributing them, see cc-plugins.
         roles: [dev]
       - id: cc-hooks
         name: Hooks
@@ -33,11 +33,11 @@ domains:
         roles: [dev]
       - id: cc-subagents
         name: Subagents
-        description: Delegating tasks to subagents and defining custom agents in Claude Code.
+        description: Delegating tasks to subagents and defining custom agent files inside Claude Code itself; for building your own multi-agent systems in code, see multi-agent-orchestration.
         roles: [dev]
       - id: cc-plugins
         name: Plugins
-        description: Packaging and distributing a Claude Code setup as a plugin.
+        description: Packaging and distributing a Claude Code setup (skills, commands, hooks, agents) as an installable plugin, rather than writing the individual pieces.
         roles: [dev]
       - id: cc-mcp-usage
         name: Using MCP in daily work
@@ -64,11 +64,11 @@ domains:
     skills:
       - id: tool-use-loop
         name: Tool loop on the Messages API
-        description: Implementing the tool-use loop by hand on top of the Messages API.
+        description: Implementing the tool-use loop by hand directly on the raw Messages API, without an agent framework.
         roles: [dev]
       - id: agent-sdk
         name: Claude Agent SDK
-        description: Building agents with the Claude Agent SDK.
+        description: Building agents with the Claude Agent SDK, which provides the agent loop, tools and sessions for you instead of a hand-written loop.
         roles: [dev]
       - id: mcp-server-build
         name: Building your own MCP server
@@ -76,11 +76,11 @@ domains:
         roles: [dev]
       - id: multi-agent-orchestration
         name: Agent orchestration
-        description: Orchestrator-and-worker designs and pipelines made of several cooperating agents.
+        description: Designing and building your own multi-agent systems in code, with orchestrator-and-worker designs and pipelines of cooperating agents; not Claude Code's built-in subagents.
         roles: [dev]
       - id: human-in-the-loop
         name: Approvals and permissions
-        description: Human approval of agent actions, permission models, and interrupting a running agent.
+        description: Runtime control of an agent: human approval of its actions, permission models, and interrupting a running agent in an application.
         roles: [dev]
       - id: workflow-automation
         name: Workflow automation
@@ -91,11 +91,11 @@ domains:
     skills:
       - id: ai-sdk
         name: Vercel AI SDK
-        description: Using the Vercel AI SDK in TypeScript applications.
+        description: Using the Vercel AI SDK in general in TypeScript applications (providers, text generation, tool calls); for schema-validated output see structured-output, for UI streaming see streaming-ui.
         roles: [dev]
       - id: streaming-ui
         name: Streaming in the UI
-        description: Streaming model responses into a React or Vue interface.
+        description: Streaming model responses token by token into a React or Vue interface, with any SDK.
         roles: [dev]
       - id: generative-ui
         name: Generative UI
@@ -103,7 +103,7 @@ domains:
         roles: [dev]
       - id: structured-output
         name: Structured output
-        description: Response schemas, zod, and validation of model output.
+        description: Defining response schemas with zod and validating model output into typed data, with any SDK.
         roles: [dev]
   - id: quality-ops
     name: Quality and production
@@ -144,15 +144,15 @@ domains:
     skills:
       - id: team-adoption
         name: Tooling adoption
-        description: Rolling out AI tooling in a team so that people actually use it.
+        description: Rolling out AI tooling across a team so that people actually use it: adoption strategy, buy-in and habits, rather than teaching sessions.
         roles: [dev]
       - id: shared-config-standards
         name: Shared configs and standards
-        description: Shared configuration and style-guide rules for AI tools, kept consistent across projects without drift.
+        description: Keeping AI tool configuration and style-guide rules shared and consistent across a team's projects without drift; not how to write the context for a single project.
         roles: [dev]
       - id: ai-teaching
         name: Workshops and training
-        description: Teaching a team to work with AI, including running workshops.
+        description: Teaching a team how to work with AI through workshops and training material, as opposed to the rollout of tooling itself.
         roles: [dev]
       - id: codebase-agents
         name: Agent over codebase documentation
@@ -160,5 +160,5 @@ domains:
         roles: [dev]
       - id: ai-code-governance
         name: AI code review and policies
-        description: Review rules for AI-written code, plus team policies and security around AI use.
+        description: Organizational rules for AI-written code: review requirements, team policies and security around AI use; not runtime approval flows inside an agent.
         roles: [dev]

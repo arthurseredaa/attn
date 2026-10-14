@@ -1,32 +1,32 @@
-# How many days back collection reaches (applied on every run, including the first).
+# Collect: entries older than this many days are ignored (seeds the evergreen library on first run).
 backfill_days: 180
-# Articles sent to the labeler per batch.
+# Label: maximum articles labeled per run (oldest pending first).
 label_batch: 20
-# Pause between labeler batches, in milliseconds.
+# Label: delay between sequential labeler calls (between articles), in milliseconds.
 label_delay_ms: 4000
-# Article text is truncated to this many characters before labeling.
+# Label: extracted article text is truncated to this many characters before it is sent to the model.
 label_max_chars: 20000
-# Articles with less extracted text than this are not labeled.
+# Label: extracted text shorter than this many characters (paywall, JS page) marks the article failed.
 label_min_chars: 500
-# Labeling attempts per article before it is marked failed.
+# Label: retry cap. Failed articles are retried on later runs while label_attempts < label_max_attempts.
 label_max_attempts: 3
-# Cron expression for the daily collect + label run.
+# Pipeline: cron expression for the daily collect + label job.
 schedule_cron: "0 6 * * *"
-# Labels whose difficulty estimates spread wider than this are flagged uncertain.
+# Quiz: a skill is uncertain when the mean |first-choice level - second-choice level| over its quiz questions is >= this value.
 uncertain_spread: 1.5
-# Points a user needs per skill level.
+# Progress: points needed for +1 level (a read of an article with difficulty >= level gives 1 point).
 points_per_level: 5
-# Offset constant used when turning skill points into a level (k).
+# Feedback: divisor in difficulty_offset = clamp(round((too_easy - too_hard) / offset_k), -1, +1), computed from that skill's feedback events.
 offset_k: 3
-# Per-day multiplier applied to interest weight (older signals count less).
+# Feedback: multiplier applied to the user's per-skill interest on each "not interested" click on an article of that primary skill (not time-based).
 interest_decay: 0.8
-# Floor for the interest weight after decay.
+# Feedback: floor for the per-skill interest.
 interest_min: 0.2
-# Minimum article quality (0-4) shown in the main feed.
+# Feed: minimum article quality (0-4) to appear in For you.
 quality_min: 2
-# Minimum article quality (0-4) for background (out-of-level) recommendations.
+# Feed: minimum article quality (0-4) for an article whose primary skill is a background skill (not one of the user's focus skills) to appear in For you.
 background_quality_min: 4
-# Articles newer than this many days count as fresh.
+# Feed: age limit in days; applies only to articles of type release or news (tutorials, deep dives and research have no age limit).
 fresh_days: 14
-# Articles per feed page.
+# Feed: articles per page.
 page_size: 20
