@@ -32,7 +32,7 @@ async function pagesEqualFull(): Promise<number[]> {
 }
 
 describe('paging', () => {
-  it('distinct scores: pages concatenate to the full order', async () => {
+  it('six score groups with distinct dates (ties broken by date): pages concatenate to the full order', async () => {
     for (let i = 0; i < 25; i++) {
       await makeArticle(db, { primary: S1, difficulty: 2 + (i % 2), quality: 2 + (i % 3), publishedAt: new Date(SAME.getTime() - i * 3_600_000) });
     }

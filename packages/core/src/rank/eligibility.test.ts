@@ -1,8 +1,8 @@
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { articleCardSchema, type ArticleType, type EventKind } from '@attn/shared';
 import { loadConfig, loadTaxonomy } from '../data';
-import type { Db } from '../db';
+import { articles, type Db } from '../db';
 import { resetDb, testDb } from '../test/db';
 import { addEvent, giveSkill, makeArticle, makeUser, RANK_NOW, rankConfig, rankSources } from './fixtures';
 import { createSqlRanker } from './sql';
@@ -11,6 +11,7 @@ const taxonomy = loadTaxonomy();
 const [S1, S2, S3] = taxonomy.domains.flatMap((d) => d.skills.map((s) => s.id)) as [string, string, string];
 const DAY = 86_400_000;
 const ago = (days: number) => new Date(RANK_NOW.getTime() - days * DAY);
+const byNum = (x: number, y: number) => x - y;
 
 let db: Db;
 let u: string;
@@ -122,7 +123,7 @@ describe('freshness', () => {
     const d13 = await makeArticle(db, { primary: S1, type, publishedAt: ago(13) });
     await makeArticle(db, { primary: S1, type, publishedAt: ago(15) });
     const d14 = await makeArticle(db, { primary: S1, type, publishedAt: ago(14) });
-    expect((await ids()).sort()).toEqual([d13, d14].sort());
+    expect((await ids()).sort(byNum)).toEqual([d13, d14].sort(byNum));
   });
   it('other types have no age limit; future release is fine', async () => {
     await focus();
@@ -131,7 +132,7 @@ describe('freshness', () => {
       want.push(await makeArticle(db, { primary: S1, type, publishedAt: ago(400) }));
     }
     want.push(await makeArticle(db, { primary: S1, type: 'release', publishedAt: ago(-2) }));
-    expect((await ids()).sort()).toEqual(want.sort());
+    expect((await ids()).sort(byNum)).toEqual(want.sort(byNum));
   });
 });
 
@@ -144,7 +145,7 @@ describe('events', () => {
       await addEvent(db, u, id, kind);
       if (!['read', 'not_interested'].includes(kind)) kept.push(id);
     }
-    expect((await ids()).sort()).toEqual(kept.sort());
+    expect((await ids()).sort(byNum)).toEqual(kept.sort(byNum));
   });
   it('other users events do not matter', async () => {
     const v = await makeUser(db);
@@ -164,13 +165,22 @@ describe('labeling and urls', () => {
     await makeArticle(db, { primary: S1, status: 'failed' });
     expect(await ids()).toEqual([]);
   });
+  it('label_status alone excludes: pending/failed rows that still carry difficulty, quality and type', async () => {
+    await focus();
+    const pending = await makeArticle(db, { primary: S1 });
+    const failed = await makeArticle(db, { primary: S1 });
+    const kept = await makeArticle(db, { primary: S1 });
+    await db.update(articles).set({ labelStatus: 'pending' }).where(eq(articles.id, pending));
+    await db.update(articles).set({ labelStatus: 'failed' }).where(eq(articles.id, failed));
+    expect(await ids()).toEqual([kept]);
+  });
   it('only http(s) urls', async () => {
     await focus();
     await makeArticle(db, { primary: S1, url: 'ftp://x.test/a' });
     await makeArticle(db, { primary: S1, url: 'javascript:alert(1)' });
     const a = await makeArticle(db, { primary: S1, url: 'http://x.test/a' });
     const b = await makeArticle(db, { primary: S1, url: 'https://x.test/b' });
-    expect((await ids()).sort()).toEqual([a, b].sort());
+    expect((await ids()).sort(byNum)).toEqual([a, b].sort(byNum));
   });
 });
 

@@ -65,7 +65,8 @@ describe('GET /api/feed', () => {
     const me = await signIn(ctx);
     await onboard(me.user.id);
     const d2 = await seed({ difficulty: 2 });
-    const d3 = await seed({ difficulty: 3 });
+    // older than d2: on equal scores the date tie-break would put d2 first, so only d3's higher fit (1.0 vs 0.8) puts it first
+    const d3 = await seed({ difficulty: 3, publishedAt: new Date('2026-01-01T00:00:00.000Z') });
     await seed({ difficulty: 0 });
     await seed({ quality: 1 });
     await seed({ status: 'pending' });

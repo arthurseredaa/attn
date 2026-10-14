@@ -51,6 +51,11 @@ describe('computeDifficultyOffset errors', () => {
     [1.5, 0, 3],
     [0, 0, 0],
     [0, 0, 2.5],
+    [0, -1, 3],
+    [0, 0.5, 3],
+    [Number.NaN, 0, 3],
+    [0, Number.NaN, 3],
+    [0, 0, Number.NaN],
   ])('(%s, %s, %s) throws RangeError', (easy, hard, k) => {
     expect(() => computeDifficultyOffset(easy, hard, k)).toThrow(RangeError);
   });
@@ -90,6 +95,13 @@ describe('applyNotInterested', () => {
     [1, 0, 0.2],
     [1, 1.2, 0.2],
     [1, 0.8, 0],
+    [1, 0.8, 1.5],
+    [-0.5, 0.8, 0.2],
+    [1, -0.8, 0.2],
+    [1, 0.8, -0.2],
+    [Number.NaN, 0.8, 0.2],
+    [1, Number.NaN, 0.2],
+    [1, 0.8, Number.NaN],
   ])('(%s, %s, %s) throws RangeError', (interest, decay, min) => {
     expect(() => applyNotInterested(interest, decay, min)).toThrow(RangeError);
   });

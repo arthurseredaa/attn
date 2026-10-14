@@ -163,6 +163,30 @@ describe('feed -> events -> profile loop', () => {
     expect(await feedIds()).not.toContain(d1);
   });
 
+  it('a quiz redo via POST /onboarding resets the offset; later too_easy counts only post-redo clicks (Decision 14)', async () => {
+    await send(await seed(), 'too_easy');
+    await send(await seed(), 'too_easy');
+    expect((await dbSkill()).difficultyOffset).toBe(1);
+    const redo = await fetch(`${ctx.base}/api/onboarding`, {
+      method: 'POST',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        focus: [S1],
+        answers: [
+          { questionId: `${S1}-1`, first: 0, second: 1 },
+          { questionId: `${S1}-2`, first: 0, second: 1 },
+        ],
+      }),
+    });
+    expect(redo.status).toBe(200);
+    expect((await dbSkill()).difficultyOffset).toBe(0);
+    // with all history counted this would be round(3 / 3) = +1; post-redo only it is round(1 / 3) = 0
+    await send(await seed(), 'too_easy');
+    expect((await dbSkill()).difficultyOffset).toBe(0);
+    await send(await seed(), 'too_easy');
+    expect((await dbSkill()).difficultyOffset).toBe(1);
+  });
+
   it('applies eight parallel reads of one article once', async () => {
     const id = await seed();
     const res = await Promise.all(Array.from({ length: 8 }, () => post(id, 'read')));

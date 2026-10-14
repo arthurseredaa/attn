@@ -7,8 +7,8 @@ import { createSqlRanker } from './sql';
 import type { RankConfig } from './types';
 
 const taxonomy = loadTaxonomy();
-const [S1, S2, S3, S4, S5, S6] = taxonomy.domains.flatMap((d) => d.skills.map((s) => s.id)) as string[] as [
-  string, string, string, string, string, string,
+const [S1, S2, S3, S4, S5] = taxonomy.domains.flatMap((d) => d.skills.map((s) => s.id)) as string[] as [
+  string, string, string, string, string,
 ];
 const DAY = 86_400_000;
 const ago = (days: number) => new Date(RANK_NOW.getTime() - days * DAY);
@@ -179,4 +179,3 @@ describe('ordering', () => {
     expect(cards).toHaveLength(4);
   });
 });
-void S6;

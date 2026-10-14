@@ -30,6 +30,12 @@ describe('feedQuerySchema', () => {
     expect(feedQuerySchema.parse({ offset: '0' })).toEqual({ offset: 0 });
     expect(feedQuerySchema.parse({ offset: '10000' })).toEqual({ offset: 10000 });
   });
+  it('accepts leading zeros as the same decimal number (never octal)', () => {
+    expect(feedQuerySchema.parse({ offset: '007' })).toEqual({ offset: 7 });
+    expect(feedQuerySchema.parse({ offset: '00' })).toEqual({ offset: 0 });
+    expect(feedQuerySchema.parse({ offset: '010000' })).toEqual({ offset: 10000 });
+    expect(feedQuerySchema.safeParse({ offset: '010001' }).success).toBe(false);
+  });
   it.each(['-1', '1.5', 'abc', '', '10001', '1e3', ' 5', ['1', '2']])('rejects %j', (offset) => {
     expect(feedQuerySchema.safeParse({ offset }).success).toBe(false);
   });
@@ -58,6 +64,10 @@ describe('event schemas', () => {
   it('parses a response and requires recorded', () => {
     expect(eventResponseSchema.parse({ kind: 'read', recorded: false })).toEqual({ kind: 'read', recorded: false });
     expect(eventResponseSchema.safeParse({ kind: 'read' }).success).toBe(false);
+  });
+  it('rejects a response with extra keys (no hidden state may ride along)', () => {
+    expect(eventResponseSchema.safeParse({ kind: 'read', recorded: true, level: 3 }).success).toBe(false);
+    expect(eventResponseSchema.safeParse({ kind: 'share', recorded: true }).success).toBe(false);
   });
 });
 
