@@ -48,6 +48,7 @@ describe('createGeminiLabeler', () => {
     await createGeminiLabeler({ model: 'm', taxonomy, languageModel: model }).label(article);
     const call = model.doGenerateCalls[0]!;
     expect(call.temperature).toBe(0);
+    expect(call.reasoning).toBeUndefined();
     expect(call.responseFormat?.type).toBe('json');
     const schema = JSON.stringify((call.responseFormat as { schema?: unknown }).schema);
     expect(schema).toContain('cc-hooks');

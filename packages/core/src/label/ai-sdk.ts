@@ -40,15 +40,32 @@ export function isOverloadedError(err: unknown): boolean {
 
 const FATAL_STATUSES = new Set([401, 403, 404]);
 
+/** Anthropic's answer when the account has no credit: a 400 `invalid_request_error` saying "credit balance is too low". */
+function isCreditExhausted(e: APICallError): boolean {
+  if (e.statusCode !== 400 || e.responseBody === undefined) return false;
+  try {
+    const body = JSON.parse(e.responseBody) as { error?: { type?: unknown; message?: unknown } } | null;
+    return (
+      body?.error?.type === 'invalid_request_error' &&
+      typeof body.error.message === 'string' &&
+      /credit balance is too low/i.test(body.error.message)
+    );
+  } catch {
+    return false;
+  }
+}
+
 function fatalReason(e: unknown): string | undefined {
   if (LoadAPIKeyError.isInstance(e)) return 'missing API key';
-  if (APICallError.isInstance(e) && e.statusCode !== undefined && FATAL_STATUSES.has(e.statusCode)) {
+  if (!APICallError.isInstance(e)) return undefined;
+  if (e.statusCode !== undefined && FATAL_STATUSES.has(e.statusCode)) {
     return `provider rejected the request (${e.statusCode}): check the API key and the model id`;
   }
+  if (isCreditExhausted(e)) return 'provider rejected the request (400): credit balance is too low';
   return undefined;
 }
 
-/** True for a bad or missing API key and for an unknown model id, also when wrapped in a RetryError. */
+/** True for a bad or missing API key, an unknown model id or an exhausted credit balance, also inside a RetryError. */
 export function isFatalProviderError(err: unknown): boolean {
   if (fatalReason(err) !== undefined) return true;
   return RetryError.isInstance(err) && fatalReason(err.lastError) !== undefined;
@@ -68,6 +85,8 @@ export interface AiSdkLabelerOptions {
   taxonomy: Taxonomy;
   /** The system prompt, as a string or as a system message carrying provider options (e.g. Anthropic cache control). */
   system: Instructions;
+  /** Reasoning level for providers that think by default; omitted from the call when unset. */
+  reasoning?: 'none';
   maxRetries?: number;
 }
 
@@ -92,6 +111,7 @@ export function createAiSdkLabeler(opts: AiSdkLabelerOptions): Labeler {
           prompt: buildUserPrompt(article),
           temperature: 0,
           maxRetries,
+          ...(opts.reasoning !== undefined ? { reasoning: opts.reasoning } : {}),
         });
         addUsage(usage, result.usage);
         return normalizeLabel(result.output);

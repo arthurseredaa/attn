@@ -18,7 +18,7 @@ export interface AnthropicLabelerOptions {
 /**
  * A Claude labeler. Same prompt, schema, temperature and error mapping as the Gemini one; the system prompt
  * (taxonomy and rubrics, identical on every call) carries an ephemeral cache-control mark, so after the first
- * call it is billed as a cache read while the 5-minute cache lives.
+ * call it is billed as a cache read while the 5-minute cache lives. Extended thinking is turned off (or minimized).
  */
 export function createAnthropicLabeler(opts: AnthropicLabelerOptions): Labeler {
   const languageModel =
@@ -33,6 +33,9 @@ export function createAnthropicLabeler(opts: AnthropicLabelerOptions): Labeler {
       content: buildSystemPrompt(opts.taxonomy),
       providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
     },
+    // A classification needs no extended thinking (billed as output). @ai-sdk/anthropic maps 'none' per model:
+    // thinking disabled where the model allows it (Haiku 5.5), else the lowest thinking setting or effort 'low'.
+    reasoning: 'none',
     ...(opts.maxRetries !== undefined ? { maxRetries: opts.maxRetries } : {}),
   });
 }

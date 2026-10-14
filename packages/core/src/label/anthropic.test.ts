@@ -94,6 +94,19 @@ describe('createAnthropicLabeler', () => {
     expect(sent[0]!.body.temperature).toBe(0);
   });
 
+  it('asks Haiku 5.5 for no extended thinking', async () => {
+    const { l, sent } = labeler(() => ok());
+    await l.label(article);
+    expect(sent[0]!.body.thinking).toEqual({ type: 'disabled' });
+  });
+
+  it('asks a model that cannot disable thinking for the lowest effort instead', async () => {
+    const { l, sent } = labeler(() => ok(), 'claude-opus-5-5');
+    await l.label(article);
+    expect(sent[0]!.body.thinking).toBeUndefined();
+    expect((sent[0]!.body.output_config as { effort?: string }).effort).toBe('low');
+  });
+
   it('adds up token usage across calls, including cache reads and writes', async () => {
     const { l } = labeler((i) =>
       ok(
@@ -140,6 +153,33 @@ describe('createAnthropicLabeler', () => {
     expect(err).toBeInstanceOf(OverloadedError);
     expect(err).not.toBeInstanceOf(RateLimitError);
     expect(err).not.toBeInstanceOf(FatalLabelerError);
+  });
+
+  it('maps a 400 whose body says the credit balance is too low to FatalLabelerError', async () => {
+    const { l } = labeler(() =>
+      apiError(
+        400,
+        'invalid_request_error',
+        'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.',
+      ),
+    );
+    const err = await l.label(article).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(FatalLabelerError);
+    expect((err as Error).message).toContain('credit balance is too low');
+  });
+
+  it('does not treat other 400s, or the credit text under another error type, as fatal', async () => {
+    for (const body of [
+      apiError(400, 'invalid_request_error', 'messages: field required'),
+      apiError(400, 'api_error', 'Your credit balance is too low'),
+    ]) {
+      const { l } = labeler(() => body);
+      const err = await l.label(article).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(Error);
+      expect(err).not.toBeInstanceOf(FatalLabelerError);
+      expect(err).not.toBeInstanceOf(RateLimitError);
+      expect(err).not.toBeInstanceOf(OverloadedError);
+    }
   });
 
   it('constructs with an api key and no network', () => {
