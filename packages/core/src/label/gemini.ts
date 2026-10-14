@@ -2,7 +2,7 @@
 import { APICallError, LoadAPIKeyError, Output, RetryError, generateText, type LanguageModel } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { buildLabelOutputSchema, normalizeLabel, taxonomySkillIds, type Taxonomy } from '@attn/shared';
-import { FatalLabelerError, RateLimitError } from './errors';
+import { FatalLabelerError, OverloadedError, RateLimitError } from './errors';
 import { buildSystemPrompt, buildUserPrompt } from './prompt';
 import type { Labeler, PublicArticle } from './types';
 
@@ -21,6 +21,21 @@ function is429(e: unknown): boolean {
 export function isRateLimitError(err: unknown): boolean {
   if (is429(err)) return true;
   return RetryError.isInstance(err) && is429(err.lastError);
+}
+
+const OVERLOAD_STATUSES = new Set([503, 529]);
+const OVERLOAD_TEXT = /overloaded|high demand/i;
+
+function isOverload(e: unknown): boolean {
+  if (!APICallError.isInstance(e) || e.statusCode === 429) return false;
+  if (e.statusCode !== undefined && OVERLOAD_STATUSES.has(e.statusCode)) return true;
+  return OVERLOAD_TEXT.test(e.message);
+}
+
+/** A transient provider overload (503/529 first, the provider's "overloaded"/"high demand" text second), also inside a RetryError. Never a 429. */
+export function isOverloadedError(err: unknown): boolean {
+  if (isOverload(err)) return true;
+  return RetryError.isInstance(err) && isOverload(err.lastError);
 }
 
 const FATAL_STATUSES = new Set([401, 403, 404]);
@@ -63,6 +78,7 @@ export function createGeminiLabeler(opts: GeminiLabelerOptions): Labeler {
           const inner = RetryError.isInstance(e) ? e.lastError : e;
           throw new FatalLabelerError(fatalReason(inner) ?? 'provider error', { cause: e });
         }
+        if (isOverloadedError(e)) throw new OverloadedError('provider overloaded (503)', { cause: e });
         throw e;
       }
     },

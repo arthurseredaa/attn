@@ -1,7 +1,7 @@
 import type { Config, LabelOutput } from '@attn/shared';
 import type { FetchFn } from '../collect/http';
 import { fetchArticleText, limitText } from '../extract';
-import { makePublicArticle, FatalLabelerError, RateLimitError, type Labeler } from '../label';
+import { labelWithOverloadRetry, makePublicArticle, FatalLabelerError, RateLimitError, type Labeler } from '../label';
 import type { TextCache } from './cache';
 import type { GoldenEntry } from './golden';
 import { buildReport, type EvalFailure, type EvalReport } from './score';
@@ -10,7 +10,7 @@ export interface EvalOptions {
   labeler: Labeler;
   golden: GoldenEntry[];
   cache: TextCache;
-  config: Pick<Config, 'label_max_chars' | 'label_min_chars' | 'label_delay_ms'>;
+  config: Pick<Config, 'label_max_chars' | 'label_min_chars' | 'label_delay_ms' | 'label_overload_backoff_ms'>;
   fetchFn?: FetchFn;
   timeoutMs?: number;
   sleep?: (ms: number) => Promise<void>;
@@ -46,7 +46,8 @@ export async function runEval(opts: EvalOptions): Promise<EvalReport> {
       const text = limitText(cached.text, { minChars: config.label_min_chars, maxChars: config.label_max_chars });
       if (labelCalls > 0) await sleep(config.label_delay_ms);
       labelCalls++;
-      const actual = await labeler.label(makePublicArticle({ title: cached.title, url, text }));
+      const article = makePublicArticle({ title: cached.title, url, text });
+      const actual = await labelWithOverloadRetry(labeler, article, config.label_overload_backoff_ms, sleep);
       scored.push({ url, expected: entry, actual });
     } catch (e) {
       if (e instanceof FatalLabelerError) {

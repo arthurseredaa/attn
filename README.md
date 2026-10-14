@@ -159,7 +159,10 @@ It takes pending articles oldest first (at most `label_batch`, or `--limit` if s
 `label_delay_ms` between model calls. For each article it fetches the page, extracts the readable text and
 keeps it in memory only; just `word_count` is stored. A page that cannot be fetched or yields fewer than
 `label_min_chars` characters (paywall, JS-only page, PDF) becomes `failed` and is retried on later runs until
-`label_max_attempts`. If the provider answers 429, the run ends and the remaining articles stay `pending`.
+`label_max_attempts`. A provider overload (HTTP 503/529 or "high demand") is transient: the same article is
+retried after each pause in `label_overload_backoff_ms` (default 2 s, 5 s, 10 s, so three retries); if it is
+still overloaded the article becomes `failed` (one attempt used) and the run goes on. A 429 is a quota limit, not
+retried: the run ends and the remaining articles stay `pending`.
 A bad or missing API key (401/403) or an unknown model id (404) is fatal: the run stops at once without
 changing that article's status or attempts, `attn label` prints the provider error and exits 1, and the API job
 logs it at error level. `attn eval` stops the same way and exits 1 with the partial report; it also exits 1 when
@@ -210,7 +213,9 @@ pnpm attn eval --model gemini-3.6-flash
 
 The first run fetches each article once and caches the extracted text in `.cache/text/` (gitignored), so later
 runs, and other models, see identical input. Delete a cache file (or the folder) to force a refetch. The run
-sleeps `label_delay_ms` between calls; on a provider 429 it stops, prints the partial report and exits 1.
+sleeps `label_delay_ms` between calls. A provider overload (503/529, "high demand") is retried with the
+`label_overload_backoff_ms` pauses, then that article is reported as a failure and the run continues; on a
+provider 429 it stops, prints the partial report and exits 1.
 
 ### Read the report
 

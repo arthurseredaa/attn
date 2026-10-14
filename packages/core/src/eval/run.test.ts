@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { LabelOutput } from '@attn/shared';
 import { articleHtml } from '../extract/fixtures/html';
 import { loadTaxonomy } from '../data';
-import { createFakeLabeler, FatalLabelerError, RateLimitError } from '../label';
+import { createFakeLabeler, FatalLabelerError, OverloadedError, RateLimitError } from '../label';
 import { startServer, type TestServer } from '../test/server';
 import { createTextCache } from './cache';
 import { readEvalFixture } from './fixtures/load';
@@ -14,7 +14,7 @@ import { loadGolden } from './golden';
 import { formatEvalReport } from './score';
 import { runEval } from './run';
 
-const config = { label_max_chars: 1000, label_min_chars: 200, label_delay_ms: 10 };
+const config = { label_max_chars: 1000, label_min_chars: 200, label_delay_ms: 10, label_overload_backoff_ms: [2000, 5000] };
 const ANY: LabelOutput = { primary_skill: 'cc-hooks', secondary_skills: [], difficulty: 1, type: 'news', quality: 1 };
 const html = { headers: { 'Content-Type': 'text/html' } };
 let server: TestServer;
@@ -97,6 +97,30 @@ describe('runEval', () => {
     expect(r.evaluated).toBe(1);
     expect(server.hits('/g3')).toBe(0);
     expect(formatEvalReport(r)).toContain('rate limited');
+  });
+
+  it('retries a provider overload with the configured backoff', async () => {
+    const labeler = createFakeLabeler((_a, i) => {
+      if (i === 0) throw new OverloadedError('provider overloaded (503)');
+      return ANY;
+    });
+    const r = await runEval({ labeler, golden: golden(), cache: cache(), config, sleep });
+    expect(r.evaluated).toBe(3);
+    expect(r.failures.map((f) => f.url)).toEqual([`${server.baseUrl}/g4`]); // g4 is the fixture's 404
+    expect(sleeps).toEqual([2000, 10, 10]);
+  });
+
+  it('records an article as failed after the overload retries and continues', async () => {
+    const labeler = createFakeLabeler((a) => {
+      if (a.url.endsWith('/g1')) throw new OverloadedError('provider overloaded (503)');
+      return ANY;
+    });
+    const r = await runEval({ labeler, golden: golden(), cache: cache(), config, sleep });
+    expect(labeler.calls.filter((c) => c.url.endsWith('/g1'))).toHaveLength(3);
+    expect(r.failures.find((f) => f.url === `${server.baseUrl}/g1`)!.error).toMatch(/overloaded.*2 retries/);
+    expect(r.evaluated).toBe(2);
+    expect(r.rateLimited).toBe(false);
+    expect(sleeps).toEqual([2000, 5000, 10, 10]);
   });
 
   it('stops on a fatal provider error and reports it', async () => {

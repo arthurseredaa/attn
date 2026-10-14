@@ -3,12 +3,15 @@ import { normalizeLabel, type Config } from '@attn/shared';
 import type { FetchFn } from '../collect/http';
 import { articleSkills, articles, type Db } from '../db';
 import { fetchArticleText, limitText } from '../extract';
-import { makePublicArticle, FatalLabelerError, RateLimitError, type Labeler } from '../label';
+import { labelWithOverloadRetry, makePublicArticle, FatalLabelerError, RateLimitError, type Labeler } from '../label';
 
 export interface LabelOptions {
   db: Db;
   labeler: Labeler;
-  config: Pick<Config, 'label_batch' | 'label_delay_ms' | 'label_max_chars' | 'label_min_chars' | 'label_max_attempts'>;
+  config: Pick<
+    Config,
+    'label_batch' | 'label_delay_ms' | 'label_max_chars' | 'label_min_chars' | 'label_max_attempts' | 'label_overload_backoff_ms'
+  >;
   taxonomyVersion: number;
   fetchFn?: FetchFn;
   timeoutMs?: number;
@@ -83,7 +86,8 @@ export async function labelPending(opts: LabelOptions): Promise<LabelReport> {
     try {
       if (calledLabeler) await sleep(config.label_delay_ms);
       calledLabeler = true;
-      label = normalizeLabel(await labeler.label(makePublicArticle({ title: row.title, url: row.url, text })));
+      const article = makePublicArticle({ title: row.title, url: row.url, text });
+      label = normalizeLabel(await labelWithOverloadRetry(labeler, article, config.label_overload_backoff_ms, sleep));
     } catch (e) {
       if (e instanceof FatalLabelerError) {
         report.fatal = e.message;

@@ -25,6 +25,7 @@ const config = {
   label_max_chars: 8000,
   label_min_chars: 200,
   label_max_attempts: 3,
+  label_overload_backoff_ms: [2000, 5000, 10000],
   schedule_cron: '0 * * * *',
   uncertain_spread: 1.5,
   points_per_level: 5,
@@ -123,6 +124,12 @@ describe('configSchema', () => {
     expect(configSchema.safeParse({ ...config, page_size: 0 }).success).toBe(false);
     expect(configSchema.safeParse({ ...config, fit_same: 0 }).success).toBe(false);
     expect(configSchema.safeParse({ ...config, fit_stretch: 1.5 }).success).toBe(false);
+    expect(configSchema.safeParse({ ...config, label_overload_backoff_ms: 2000 }).success).toBe(false);
+    expect(configSchema.safeParse({ ...config, label_overload_backoff_ms: [2000, 0] }).success).toBe(false);
+    expect(configSchema.safeParse({ ...config, label_overload_backoff_ms: [1.5] }).success).toBe(false);
+  });
+  it('allows an empty overload backoff (no retries)', () => {
+    expect(configSchema.safeParse({ ...config, label_overload_backoff_ms: [] }).success).toBe(true);
   });
 });
 

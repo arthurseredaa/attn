@@ -10,6 +10,10 @@ label_max_chars: 20000
 label_min_chars: 500
 # Label: retry cap. Failed articles are retried on later runs while label_attempts < label_max_attempts.
 label_max_attempts: 3
+# Label/eval: on a provider overload (HTTP 503/529, "high demand") the same article is retried after each of these
+# pauses in milliseconds, so the list length is the retry count; then that article fails and the run continues.
+# A 429 quota error is not retried: it stops the run.
+label_overload_backoff_ms: [2000, 5000, 10000]
 # Pipeline: cron expression for the daily collect + label job.
 schedule_cron: "0 6 * * *"
 # Quiz: a skill is uncertain when the mean |first-choice level - second-choice level| over its quiz questions is >= this value.

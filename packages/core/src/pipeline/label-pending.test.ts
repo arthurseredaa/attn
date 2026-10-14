@@ -2,12 +2,19 @@ import { eq, getTableColumns, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { articleSkills, articles, type Db } from '../db';
 import { articleHtml } from '../extract/fixtures/html';
-import { createFakeLabeler, FatalLabelerError, RateLimitError } from '../label';
+import { createFakeLabeler, FatalLabelerError, OverloadedError, RateLimitError } from '../label';
 import { resetDb, testDb } from '../test/db';
 import { startServer, type TestServer } from '../test/server';
 import { labelPending, type LabelOptions } from './label-pending';
 
-const config = { label_batch: 2, label_delay_ms: 25, label_max_chars: 1000, label_min_chars: 200, label_max_attempts: 3 };
+const config = {
+  label_batch: 2,
+  label_delay_ms: 25,
+  label_max_chars: 1000,
+  label_min_chars: 200,
+  label_max_attempts: 3,
+  label_overload_backoff_ms: [2000, 5000, 10000],
+};
 const now = new Date('2026-10-14T12:00:00Z');
 const html = { headers: { 'content-type': 'text/html' } };
 
@@ -210,6 +217,51 @@ describe('labelPending', () => {
     expect(server.hits('/pC')).toBe(0);
     expect(report.rateLimited).toBe(true);
     expect(report.items.find((i) => i.id === b.id)!.outcome).toBe('rate_limited');
+  });
+
+  it('retries a provider overload with the configured backoff, then labels', async () => {
+    const a = await insertArticle('A');
+    const labeler = createFakeLabeler((_, i) => {
+      if (i < 2) throw new OverloadedError('provider overloaded (503)');
+      return { primary_skill: 'cc-hooks', secondary_skills: [], difficulty: 1, type: 'news', quality: 1 };
+    });
+    const report = await run(labeler);
+    expect(labeler.calls).toHaveLength(3);
+    expect(sleeps).toEqual([2000, 5000]);
+    const ra = await getRow(a.id);
+    expect([ra.labelStatus, ra.labelAttempts]).toEqual(['labeled', 0]);
+    expect([report.labeled, report.failed, report.rateLimited]).toEqual([1, 0, false]);
+  });
+
+  it('gives up on an article after the overload retries and continues with the next', async () => {
+    const a = await insertArticle('A', { publishedAt: new Date('2026-01-01T00:00:00Z') });
+    const b = await insertArticle('B', { publishedAt: new Date('2026-01-02T00:00:00Z') });
+    const labeler = createFakeLabeler((_, i) => {
+      if (i < 4) throw new OverloadedError('provider overloaded (503)');
+      return { primary_skill: 'cc-hooks', secondary_skills: [], difficulty: 1, type: 'news', quality: 1 };
+    });
+    const report = await run(labeler);
+    expect(labeler.calls.map((c) => c.title)).toEqual(['Title A', 'Title A', 'Title A', 'Title A', 'Title B']);
+    expect(sleeps).toEqual([2000, 5000, 10000, 25]);
+    const ra = await getRow(a.id);
+    expect([ra.labelStatus, ra.labelAttempts]).toEqual(['failed', 1]);
+    expect(report.items[0]).toMatchObject({ id: a.id, outcome: 'failed' });
+    expect(report.items[0]!.error).toMatch(/overloaded.*3 retries/);
+    expect((await getRow(b.id)).labelStatus).toBe('labeled');
+    expect(report.rateLimited).toBe(false);
+  });
+
+  it('a 429 during overload retries still stops the run', async () => {
+    const a = await insertArticle('A');
+    const labeler = createFakeLabeler((_, i) => {
+      if (i === 0) throw new OverloadedError('provider overloaded (503)');
+      throw new RateLimitError('429');
+    });
+    const report = await run(labeler);
+    expect(report.rateLimited).toBe(true);
+    expect(sleeps).toEqual([2000]);
+    const ra = await getRow(a.id);
+    expect([ra.labelStatus, ra.labelAttempts]).toEqual(['pending', 0]);
   });
 
   it('stops the run on a fatal provider error without touching the article', async () => {

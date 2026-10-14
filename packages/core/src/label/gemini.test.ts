@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { APICallError, LoadAPIKeyError, RetryError } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 import { loadTaxonomy } from '../data';
-import { createGeminiLabeler, isFatalProviderError, isRateLimitError } from './gemini';
+import { createGeminiLabeler, isFatalProviderError, isOverloadedError, isRateLimitError } from './gemini';
 import { buildSystemPrompt } from './prompt';
-import { FatalLabelerError, RateLimitError } from './errors';
+import { FatalLabelerError, OverloadedError, RateLimitError } from './errors';
 import { makePublicArticle } from './types';
 
 const taxonomy = loadTaxonomy();
@@ -108,6 +108,17 @@ describe('createGeminiLabeler', () => {
     expect(await label.label(article).catch((x: unknown) => x)).toBeInstanceOf(FatalLabelerError);
   });
 
+  it('maps a 503 overload, also inside a RetryError, to OverloadedError with the original cause', async () => {
+    const e = api(503);
+    for (const thrown of [e, new RetryError({ message: 'm', reason: 'maxRetriesExceeded', errors: [e] })]) {
+      const label = createGeminiLabeler({ model: 'm', taxonomy, maxRetries: 0, languageModel: failingModel(thrown) });
+      const err = await label.label(article).catch((x: unknown) => x);
+      expect(err).toBeInstanceOf(OverloadedError);
+      expect(err).not.toBeInstanceOf(RateLimitError);
+      expect((err as OverloadedError).cause).toBe(thrown);
+    }
+  });
+
   it('exposes the model id', () => {
     expect(createGeminiLabeler({ model: 'gemini-x', taxonomy, languageModel: okModel(valid) }).model).toBe('gemini-x');
   });
@@ -128,6 +139,27 @@ describe('isRateLimitError', () => {
     expect(isRateLimitError(new Error('429'))).toBe(false);
     expect(isRateLimitError(api(500))).toBe(false);
     expect(isRateLimitError(undefined)).toBe(false);
+  });
+});
+
+const overloadText = (statusCode: number | undefined, message: string) =>
+  new APICallError({ message, url: 'u', requestBodyValues: {}, statusCode, isRetryable: true });
+
+describe('isOverloadedError', () => {
+  it('detects 503 and 529 by status, and the provider overload text second', () => {
+    expect(isOverloadedError(api(503))).toBe(true);
+    expect(isOverloadedError(api(529))).toBe(true);
+    expect(isOverloadedError(overloadText(500, 'This model is currently experiencing high demand.'))).toBe(true);
+    expect(isOverloadedError(overloadText(undefined, 'The model is overloaded. Please try again later.'))).toBe(true);
+    expect(isOverloadedError(new RetryError({ message: 'm', reason: 'maxRetriesExceeded', errors: [api(503)] }))).toBe(true);
+  });
+  it('rejects 429 quota, fatal and other errors', () => {
+    expect(isOverloadedError(api(429))).toBe(false);
+    expect(isOverloadedError(overloadText(429, 'high demand'))).toBe(false);
+    expect(isOverloadedError(api(500))).toBe(false);
+    expect(isOverloadedError(api(401))).toBe(false);
+    expect(isOverloadedError(new Error('503 overloaded'))).toBe(false);
+    expect(isOverloadedError(undefined)).toBe(false);
   });
 });
 

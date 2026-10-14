@@ -11,6 +11,7 @@ export const configSchema = z.strictObject({
   label_max_chars: posInt,
   label_min_chars: posInt,
   label_max_attempts: posInt,
+  label_overload_backoff_ms: z.array(posInt),
   schedule_cron: z.string().min(1),
   uncertain_spread: z.number().positive(),
   points_per_level: posInt,
