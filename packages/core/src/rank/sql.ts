@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import type { ArticleCard, ArticleType } from '@attn/shared';
+import { MAX_FOCUS, type ArticleCard, type ArticleType } from '@attn/shared';
 import type { Db } from '../db/client';
 import type { RankDeps, RankParams, Ranker, ScoredCard } from './types';
 
@@ -16,6 +16,8 @@ interface Row {
   score_f: number;
   skills: { id: string; isPrimary: boolean }[];
 }
+
+const MAX_FOCUS_SQL = sql.raw(String(MAX_FOCUS));
 
 function assertPaging(limit: number, offset: number): void {
   if (!Number.isInteger(limit) || limit < 1 || limit > 1000) throw new RangeError(`limit must be an integer 1..1000, got ${limit}`);
@@ -61,16 +63,28 @@ export class SqlRanker implements Ranker {
             select 1 from article_events e
             where e.user_id = ${userId}::uuid and e.article_id = a.id and e.kind in ('read', 'not_interested'))
       )
-      select cand.id, cand.source_id, cand.url, cand.title, cand.published_at, cand.word_count,
-             cand.difficulty, cand.type, cand.quality,
-             0::float8 as score_f,
+      , scored as (
+        select cand.*,
+          (case when cand.focus_rank is not null
+                then (${MAX_FOCUS_SQL}::numeric + 1 - cand.focus_rank) / ${MAX_FOCUS_SQL}::numeric
+                else ${c.background_priority}::numeric end)
+          * cand.interest
+          * (case when cand.difficulty = cand.t + 1 then ${c.fit_next}::numeric
+                  when cand.difficulty = cand.t then ${c.fit_same}::numeric
+                  else ${c.fit_stretch}::numeric end)
+          * cand.quality / 4 as score
+        from cand
+        where cand.difficulty between (case when cand.unc then cand.t - 1 else cand.t end)
+                                  and (case when cand.unc then cand.t + 2 else cand.t + 1 end)
+      )
+      select s.id, s.source_id, s.url, s.title, s.published_at, s.word_count,
+             s.difficulty, s.type, s.quality,
+             s.score::float8 as score_f,
              (select coalesce(json_agg(json_build_object('id', k.skill_id, 'isPrimary', k.is_primary)
                                        order by k.is_primary desc, k.skill_id), '[]'::json)
-              from article_skills k where k.article_id = cand.id) as skills
-      from cand
-      where cand.difficulty between (case when cand.unc then cand.t - 1 else cand.t end)
-                                and (case when cand.unc then cand.t + 2 else cand.t + 1 end)
-      order by cand.published_at desc, cand.id desc
+              from article_skills k where k.article_id = s.id) as skills
+      from scored s
+      order by s.score desc, s.published_at desc, s.id desc
       limit ${limit}::int offset ${offset}::int`)) as unknown as Row[];
     return rows.map((r) => ({ card: this.toCard(r), score: r.score_f }));
   }
