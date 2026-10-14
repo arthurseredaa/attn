@@ -182,6 +182,33 @@ describe('GET /api/auth/github/callback', () => {
     expect(await ctx.db.select().from(sessions)).toHaveLength(2);
   });
 
+  it('drops a non-http(s) avatar on first login and on a later login', async () => {
+    for (const avatar of ['javascript:alert(1)', 'data:image/png;base64,AAAA', 'not a url']) {
+      await resetDb(ctx.db);
+      fake.setRoute('/user', {
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...PROFILE, avatar_url: avatar }),
+      });
+      const { state } = await begin();
+      const res = await callback(`code=good-code&state=${state}`, `attn_oauth_state=${state}`);
+      expect(res.headers.get('location')).toBe(`${LANDING}/profile`);
+      const rows = await ctx.db.select().from(users);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ login: 'octocat', avatarUrl: null });
+    }
+    // a stored http(s) avatar is replaced by null when GitHub later sends a bad one
+    await resetDb(ctx.db);
+    for (const avatar of [PROFILE.avatar_url, 'javascript:alert(1)']) {
+      fake.setRoute('/user', {
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...PROFILE, avatar_url: avatar }),
+      });
+      const { state } = await begin();
+      await callback(`code=good-code&state=${state}`, `attn_oauth_state=${state}`);
+    }
+    expect((await ctx.db.select().from(users))[0]).toMatchObject({ avatarUrl: null });
+  });
+
   it('state mismatch -> state_mismatch, no rows, token endpoint untouched', async () => {
     const { state } = await begin();
     const res = await callback(`code=good-code&state=${state}`, 'attn_oauth_state=something-else');

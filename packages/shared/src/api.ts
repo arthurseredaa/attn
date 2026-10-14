@@ -5,12 +5,20 @@ import { articleTypeSchema, levelSchema } from './enums';
 export const errorBodySchema = z.looseObject({ error: z.string(), message: z.string() });
 export type ErrorBody = z.infer<typeof errorBodySchema>;
 
+/** Absolute http(s) URL: anything the web renders as a link or image source (no javascript:/data: URLs). */
+export const httpUrlSchema = z.url({ protocol: /^https?$/ });
+
+/** The URL when it is an absolute http(s) URL, else null. */
+export function httpUrlOrNull(url: string | null | undefined): string | null {
+  return typeof url === 'string' && httpUrlSchema.safeParse(url).success ? url : null;
+}
+
 // ---- auth -----------------------------------------------------------------
 export const meSchema = z.object({
   id: z.uuid(),
   login: z.string(),
   name: z.string().nullable(),
-  avatarUrl: z.string().nullable(),
+  avatarUrl: httpUrlSchema.nullable(),
   role: z.string(),
 });
 export type Me = z.infer<typeof meSchema>;
@@ -44,7 +52,7 @@ export const articleCardSchema = z.object({
   id: z.number().int(),
   title: z.string(),
   // Rendered as a link by the web: allow http(s) only (defence in depth against javascript: URLs).
-  url: z.url({ protocol: /^https?$/ }),
+  url: httpUrlSchema,
   sourceId: z.string(),
   sourceName: z.string(),
   publishedAt: z.iso.datetime(),
