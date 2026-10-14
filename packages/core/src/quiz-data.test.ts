@@ -1,24 +1,24 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { quizCoverageIssues } from "@attn/shared";
-import { dataDir, loadQuiz, loadTaxonomy } from "./data";
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { quizCoverageIssues } from '@attn/shared';
+import { dataDir, loadQuiz, loadTaxonomy } from './data';
 
 let dir: string;
 beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), "attn-quiz-"));
-  fs.mkdirSync(path.join(dir, "quiz"));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'attn-quiz-'));
+  fs.mkdirSync(path.join(dir, 'quiz'));
   const levels = [0, 1, 2, 3, 4]
     .map((l) => `  - {level: ${l}, label: L${l}, description: d}`)
-    .join("\n");
-  const skills = ["a", "b"]
+    .join('\n');
+  const skills = ['a', 'b']
     .map(
       (id) => `      - {id: ${id}, name: ${id}, description: x, roles: [dev]}`,
     )
-    .join("\n");
+    .join('\n');
   fs.writeFileSync(
-    path.join(dir, "taxonomy.yml"),
+    path.join(dir, 'taxonomy.yml'),
     `version: 1\nlevels:\n${levels}\ndomains:\n  - id: d\n    name: D\n    skills:\n${skills}\n`,
   );
 });
@@ -28,89 +28,93 @@ const question = (id: string, skill: string, levels: number[]) =>
   `  - id: ${id}\n    skill_id: ${skill}\n    situation: s\n    options:\n` +
   levels
     .map((l, i) => `      - {text: "${id} opt ${i}", level: ${l}}`)
-    .join("\n") +
-  "\n";
+    .join('\n') +
+  '\n';
 const writeQuiz = (body: string) =>
-  fs.writeFileSync(path.join(dir, "quiz/dev.yml"), body);
+  fs.writeFileSync(path.join(dir, 'quiz/dev.yml'), body);
 
-describe("loadQuiz", () => {
-  it("returns the parsed bank", () => {
+describe('loadQuiz', () => {
+  it('returns the parsed bank', () => {
     writeQuiz(
-      `version: 3\nquestions:\n${question("a-1", "a", [2, 0, 4, 1])}${question("a-2", "a", [3, 1, 0, 4])}`,
+      `version: 3\nquestions:\n${question('a-1', 'a', [2, 0, 4, 1])}${question('a-2', 'a', [3, 1, 0, 4])}`,
     );
-    const quiz = loadQuiz("dev", dir);
+    const quiz = loadQuiz('dev', dir);
     expect(quiz.version).toBe(3);
-    expect(quiz.questions.map((x) => x.id)).toEqual(["a-1", "a-2"]);
+    expect(quiz.questions.map((x) => x.id)).toEqual(['a-1', 'a-2']);
   });
 
-  it("names the file and the issue for an unknown skill", () => {
+  it('names the file and the issue for an unknown skill', () => {
     writeQuiz(
-      `version: 1\nquestions:\n${question("z-1", "z", [2, 0, 4, 1])}${question("z-2", "z", [3, 1, 0, 4])}`,
+      `version: 1\nquestions:\n${question('z-1', 'z', [2, 0, 4, 1])}${question('z-2', 'z', [3, 1, 0, 4])}`,
     );
-    expect(() => loadQuiz("dev", dir)).toThrow(/quiz\/dev\.yml/);
-    expect(() => loadQuiz("dev", dir)).toThrow(/unknown skill_id z/);
+    expect(() => loadQuiz('dev', dir)).toThrow(/quiz\/dev\.yml/);
+    expect(() => loadQuiz('dev', dir)).toThrow(/unknown skill_id z/);
   });
 
-  it("names the file for malformed YAML or a missing version", () => {
-    writeQuiz("version: [\n");
-    expect(() => loadQuiz("dev", dir)).toThrow(/quiz\/dev\.yml/);
-    writeQuiz(`questions:\n${question("a-1", "a", [2, 0, 4, 1])}`);
-    expect(() => loadQuiz("dev", dir)).toThrow(/quiz\/dev\.yml/);
+  it('names the file for malformed YAML or a missing version', () => {
+    writeQuiz('version: [\n');
+    expect(() => loadQuiz('dev', dir)).toThrow(/quiz\/dev\.yml/);
+    writeQuiz(`questions:\n${question('a-1', 'a', [2, 0, 4, 1])}`);
+    expect(() => loadQuiz('dev', dir)).toThrow(/quiz\/dev\.yml/);
   });
 
-  it("throws ENOENT when the role file is missing", () => {
-    expect(() => loadQuiz("nope", dir)).toThrow(/ENOENT|no such file/i);
+  it('throws ENOENT when the role file is missing', () => {
+    expect(() => loadQuiz('nope', dir)).toThrow(/ENOENT|no such file/i);
   });
 });
 
 const DRAFT_HEADER = [
-  "# DRAFT quiz bank: drafted by Claude (2026-10-14), NOT reviewed by the project owner.",
-  "# The owner must review every question and every option level before this bank is trusted:",
+  '# DRAFT quiz bank: drafted by Claude (2026-10-14), NOT reviewed by the project owner.',
+  '# The owner must review every question and every option level before this bank is trusted:',
   "# check that the situation is realistic, that each option's hidden level (0-4, the shared level scale)",
-  "# matches what the option shows about the person, and that wrong-sounding options are not obviously wrong.",
-  "# Once reviewed, remove this header. Levels are hidden: they never leave the server.",
+  '# matches what the option shows about the person, and that wrong-sounding options are not obviously wrong.',
+  '# Once reviewed, remove this header. Levels are hidden: they never leave the server.',
 ];
 const PART_1 = [
-  "context-engineering",
-  "cc-skills-commands",
-  "cc-hooks",
-  "cc-subagents",
-  "cc-plugins",
-  "cc-mcp-usage",
-  "cc-headless-ci",
-  "parallel-agents",
-  "spec-driven-workflow",
-  "agent-verification",
-  "tool-use-loop",
-  "agent-sdk",
-  "mcp-server-build",
-  "multi-agent-orchestration",
-  "human-in-the-loop",
-  "workflow-automation",
+  'context-engineering',
+  'cc-skills-commands',
+  'cc-hooks',
+  'cc-subagents',
+  'cc-plugins',
+  'cc-mcp-usage',
+  'cc-headless-ci',
+  'parallel-agents',
+  'spec-driven-workflow',
+  'agent-verification',
+  'tool-use-loop',
+  'agent-sdk',
+  'mcp-server-build',
+  'multi-agent-orchestration',
+  'human-in-the-loop',
+  'workflow-automation',
 ];
 
-describe("real quiz bank", () => {
-  it("loads without schema or bank issues", () => {
+describe('real quiz bank', () => {
+  // loaded once: every test below only reads the bank
+  const bank = loadQuiz();
+  const taxonomy = loadTaxonomy();
+
+  it('loads without schema or bank issues', () => {
     expect(() => loadQuiz()).not.toThrow();
   });
 
-  it("keeps the DRAFT header verbatim while it is present", () => {
+  it('keeps the DRAFT header verbatim while it is present', () => {
     const lines = fs
-      .readFileSync(path.join(dataDir(), "quiz/dev.yml"), "utf8")
-      .split("\n");
-    if (lines[0]?.startsWith("# DRAFT"))
+      .readFileSync(path.join(dataDir(), 'quiz/dev.yml'), 'utf8')
+      .split('\n');
+    if (lines[0]?.startsWith('# DRAFT'))
       expect(lines.slice(0, 5)).toEqual(DRAFT_HEADER);
   });
 
   const skillOrder = () =>
-    loadTaxonomy().domains.flatMap((d) => d.skills.map((s) => s.id));
+    taxonomy.domains.flatMap((d) => d.skills.map((s) => s.id));
 
-  it("covers every dev skill of the taxonomy", () => {
-    expect(quizCoverageIssues(loadQuiz(), loadTaxonomy(), "dev")).toEqual([]);
+  it('covers every dev skill of the taxonomy', () => {
+    expect(quizCoverageIssues(bank, taxonomy, 'dev')).toEqual([]);
   });
 
-  it("has 64 questions, exactly <skill>-1 and <skill>-2 for every taxonomy skill", () => {
-    const qs = loadQuiz().questions;
+  it('has 64 questions, exactly <skill>-1 and <skill>-2 for every taxonomy skill', () => {
+    const qs = bank.questions;
     expect(qs).toHaveLength(64);
     for (const skill of skillOrder()) {
       expect(
@@ -124,12 +128,12 @@ describe("real quiz bank", () => {
   });
 
   it("orders the whole bank by taxonomy, each skill's -1 before its -2", () => {
-    const ids = loadQuiz().questions.map((q) => q.id);
+    const ids = bank.questions.map((q) => q.id);
     expect(ids).toEqual(skillOrder().flatMap((s) => [`${s}-1`, `${s}-2`]));
   });
 
-  it("does not copy one question of a skill into the other (situation and option texts differ)", () => {
-    const qs = loadQuiz().questions;
+  it('does not copy one question of a skill into the other (situation and option texts differ)', () => {
+    const qs = bank.questions;
     for (const skill of skillOrder()) {
       const [a, b] = qs.filter((q) => q.skill_id === skill);
       if (!a || !b) throw new Error(`${skill}: missing questions`);
@@ -142,8 +146,8 @@ describe("real quiz bank", () => {
     }
   });
 
-  it("uses every level 0-4 for at least 5% of the options in the whole bank", () => {
-    const levels = loadQuiz().questions.flatMap((q) =>
+  it('uses every level 0-4 for at least 5% of the options in the whole bank', () => {
+    const levels = bank.questions.flatMap((q) =>
       q.options.map((o) => o.level),
     );
     for (const level of [0, 1, 2, 3, 4]) {
@@ -154,25 +158,25 @@ describe("real quiz bank", () => {
     }
   });
 
-  it("uses every level 0-4 across the part-1 bank", () => {
+  it('uses every level 0-4 across the part-1 bank', () => {
     const levels = new Set(
-      loadQuiz()
-        .questions.filter((q) => PART_1.includes(q.skill_id))
+      bank.questions
+        .filter((q) => PART_1.includes(q.skill_id))
         .flatMap((q) => q.options.map((o) => o.level)),
     );
     expect([...levels].sort()).toEqual([0, 1, 2, 3, 4]);
   });
 
-  it("keeps texts short enough for the UI", () => {
-    for (const q of loadQuiz().questions) {
+  it('keeps texts short enough for the UI', () => {
+    for (const q of bank.questions) {
       expect(q.situation.length, q.id).toBeLessThanOrEqual(500);
       for (const o of q.options)
         expect(o.text.length, `${q.id}: ${o.text}`).toBeLessThanOrEqual(280);
     }
   });
 
-  describe("length and wording guards", () => {
-    const questions = () => loadQuiz().questions;
+  describe('length and wording guards', () => {
+    const questions = () => bank.questions;
     const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
     const pearson = (xs: number[], ys: number[]) => {
       const mx = mean(xs);
@@ -189,7 +193,7 @@ describe("real quiz bank", () => {
       return dx === 0 || dy === 0 ? 0 : num / Math.sqrt(dx * dy);
     };
 
-    it("does not make the longest option the top level in more than 35% of questions", () => {
+    it('does not make the longest option the top level in more than 35% of questions', () => {
       const qs = questions();
       const hits = qs.filter((q) => {
         const lengths = q.options.map((o) => o.text.length);
@@ -199,7 +203,7 @@ describe("real quiz bank", () => {
       expect(hits.length / qs.length).toBeLessThanOrEqual(0.35);
     });
 
-    it("keeps option length uncorrelated with level (mean Pearson r within +-0.3)", () => {
+    it('keeps option length uncorrelated with level (mean Pearson r within +-0.3)', () => {
       const rs = questions().map((q) =>
         pearson(
           q.options.map((o) => o.text.length),
@@ -209,7 +213,7 @@ describe("real quiz bank", () => {
       expect(Math.abs(mean(rs))).toBeLessThanOrEqual(0.3);
     });
 
-    it("keeps the mean option length of every level within 10% of the overall mean", () => {
+    it('keeps the mean option length of every level within 10% of the overall mean', () => {
       const all = questions().flatMap((q) => q.options);
       const overall = mean(all.map((o) => o.text.length));
       for (const level of [0, 1, 2, 3, 4]) {
@@ -223,7 +227,7 @@ describe("real quiz bank", () => {
       }
     });
 
-    it("keeps options within 15% of their question mean length", () => {
+    it('keeps options within 15% of their question mean length', () => {
       for (const q of questions()) {
         const m = mean(q.options.map((o) => o.text.length));
         for (const o of q.options) {
@@ -251,49 +255,49 @@ describe("real quiz bank", () => {
     const FILLER =
       /\b(then done|anyway|figure|maybe|probably|just|simply|hope|hopefully|somehow|whatever|for now|see how|at all|and move on)\b/i;
     const ENGINEERING = new RegExp(
-      "\\b(" +
+      '\\b(' +
         [
-          "ci",
-          "hooks?",
-          "scripts?",
-          "tests?",
-          "lint\\w*",
-          "schemas?",
-          "sandbox\\w*",
-          "tokens?",
-          "prs?",
-          "diffs?",
-          "logs?",
-          "configs?",
-          "flags?",
-          "prompts?",
-          "branch\\w*",
-          "commits?",
-          "evals?",
-          "fixtures?",
-          "mocks?",
-          "pipelines?",
-          "deploy\\w*",
-          "permissions?",
-          "allowlists?",
-          "mcp",
-          "sdk",
-          "containers?",
-          "worktrees?",
-          "tools?",
-          "workflows?",
-          "repos?",
-          "plugins?",
-          "subagents?",
-          "cron",
-          "json",
-          "api",
-          "oauth",
-          "servers?",
-          "settings",
-        ].join("|") +
-        ")\\b",
-      "gi",
+          'ci',
+          'hooks?',
+          'scripts?',
+          'tests?',
+          'lint\\w*',
+          'schemas?',
+          'sandbox\\w*',
+          'tokens?',
+          'prs?',
+          'diffs?',
+          'logs?',
+          'configs?',
+          'flags?',
+          'prompts?',
+          'branch\\w*',
+          'commits?',
+          'evals?',
+          'fixtures?',
+          'mocks?',
+          'pipelines?',
+          'deploy\\w*',
+          'permissions?',
+          'allowlists?',
+          'mcp',
+          'sdk',
+          'containers?',
+          'worktrees?',
+          'tools?',
+          'workflows?',
+          'repos?',
+          'plugins?',
+          'subagents?',
+          'cron',
+          'json',
+          'api',
+          'oauth',
+          'servers?',
+          'settings',
+        ].join('|') +
+        ')\\b',
+      'gi',
     );
     const count = (re: RegExp, text: string) => text.match(re)?.length ?? 0;
 
@@ -329,11 +333,11 @@ describe("real quiz bank", () => {
     /** Fixed list of 79 English function words (rule 28). Chosen a priori: do not tune it to the bank text. */
     const FUNCTION_WORDS = new Set(
       (
-        "a an the and or but nor if then than to of in on at by for with from into onto over under " +
-        "about after before until while as that this these those it its each every all any some no not both " +
-        "either one there their they them be is are was were can will would should must do does so up out off " +
-        "per via through between against without within when where whose which who what"
-      ).split(" "),
+        'a an the and or but nor if then than to of in on at by for with from into onto over under ' +
+        'about after before until while as that this these those it its each every all any some no not both ' +
+        'either one there their they them be is are was were can will would should must do does so up out off ' +
+        'per via through between against without within when where whose which who what'
+      ).split(' '),
     );
     /** Operator-verb opener (rule 28): verbs that run, check or copy something rather than build it. */
     const OPERATOR_OPENER =
@@ -341,12 +345,12 @@ describe("real quiz bank", () => {
     const wordTokens = (t: string) => t.match(/[A-Za-z][A-Za-z'-]*/g) ?? [];
 
     const FEATURES: Record<string, (text: string) => number> = {
-      pronoun: (t) => count(new RegExp(PRONOUN.source, "gi"), t),
+      pronoun: (t) => count(new RegExp(PRONOUN.source, 'gi'), t),
       semicolons: (t) => count(/;/g, t),
       sentences: (t) => count(/[.!?](\s|$)/g, t),
-      pastTenseOpener: (t) => (/ed$/i.test(t.split(" ")[0] ?? "") ? 1 : 0),
-      filler: (t) => count(new RegExp(FILLER.source, "gi"), t),
-      reason: (t) => count(new RegExp(REASON.source, "gi"), t),
+      pastTenseOpener: (t) => (/ed$/i.test(t.split(' ')[0] ?? '') ? 1 : 0),
+      filler: (t) => count(new RegExp(FILLER.source, 'gi'), t),
+      reason: (t) => count(new RegExp(REASON.source, 'gi'), t),
       engineering: (t) => count(ENGINEERING, t),
       length: (t) => t.length,
       commas: (t) => count(/,/g, t),
@@ -413,16 +417,16 @@ describe("real quiz bank", () => {
       return hits / qs.length;
     };
 
-    type Mode = "max" | "min" | "dropLowest" | "dropHighest";
+    type Mode = 'max' | 'min' | 'dropLowest' | 'dropHighest';
     /** Probability that a solver picks each option: best score (ties split) or uniform after dropping the worst. */
     const pickWeights = (scores: number[], mode: Mode) => {
-      if (mode === "max" || mode === "min") {
-        const best = mode === "max" ? Math.max(...scores) : Math.min(...scores);
+      if (mode === 'max' || mode === 'min') {
+        const best = mode === 'max' ? Math.max(...scores) : Math.min(...scores);
         const n = scores.filter((s) => s === best).length;
         return scores.map((s) => (s === best ? 1 / n : 0));
       }
       const worst =
-        mode === "dropLowest" ? Math.min(...scores) : Math.max(...scores);
+        mode === 'dropLowest' ? Math.min(...scores) : Math.max(...scores);
       const keep = scores.map((s) => s !== worst);
       const pool = keep.some(Boolean) ? keep : scores.map(() => true);
       const n = pool.filter(Boolean).length;
@@ -444,7 +448,7 @@ describe("real quiz bank", () => {
       return { picked: picked / qs.length, random: random / qs.length };
     };
 
-    it("does not make the shortest option the top level in more than 35% of questions", () => {
+    it('does not make the shortest option the top level in more than 35% of questions', () => {
       const qs = questions();
       const hits = qs.filter((q) => {
         const lengths = q.options.map((o) => o.text.length);
@@ -454,7 +458,7 @@ describe("real quiz bank", () => {
       expect(hits.length / qs.length).toBeLessThanOrEqual(0.35);
     });
 
-    it("keeps the mean length rank of the top option near the middle (0.5 +- 0.15)", () => {
+    it('keeps the mean length rank of the top option near the middle (0.5 +- 0.15)', () => {
       const ranks = questions().map((q) => {
         const top = Math.max(...q.options.map((o) => o.level));
         return lengthRank(
@@ -465,7 +469,7 @@ describe("real quiz bank", () => {
       expect(Math.abs(mean(ranks) - 0.5)).toBeLessThanOrEqual(0.15);
     });
 
-    it("writes every option as one plain imperative sentence", () => {
+    it('writes every option as one plain imperative sentence', () => {
       for (const o of allOptions()) {
         expect(o.text, o.text).toMatch(/^[A-Z][a-z]+ /);
         expect(FEATURES.pronoun?.(o.text), o.text).toBe(0);
@@ -478,13 +482,13 @@ describe("real quiz bank", () => {
       }
     });
 
-    it("does not let one opening word dominate a level (<= 40%)", () => {
+    it('does not let one opening word dominate a level (<= 40%)', () => {
       const all = allOptions();
       for (const level of [0, 1, 2, 3, 4]) {
         const opts = all.filter((o) => o.level === level);
         const counts = new Map<string, number>();
         for (const o of opts) {
-          const word = o.text.split(" ")[0] ?? "";
+          const word = o.text.split(' ')[0] ?? '';
           counts.set(word, (counts.get(word) ?? 0) + 1);
         }
         expect(
@@ -494,12 +498,12 @@ describe("real quiz bank", () => {
       }
     });
 
-    describe.each(Object.keys(FEATURES))("feature solver: %s", (name) => {
+    describe.each(Object.keys(FEATURES))('feature solver: %s', (name) => {
       it.each([
-        ["highest", 1],
-        ["lowest", -1],
+        ['highest', 1],
+        ['lowest', -1],
       ] as const)(
-        "picking the option with the %s value stays near chance (<= chance + 0.12)",
+        'picking the option with the %s value stays near chance (<= chance + 0.12)',
         (_dir, sign) => {
           const f = FEATURES[name] as (t: string) => number;
           const { rate, chance } = solverRate((o) => sign * f(o.text));
@@ -507,10 +511,10 @@ describe("real quiz bank", () => {
         },
       );
       it.each([
-        ["lowest", 1],
-        ["highest", -1],
+        ['lowest', 1],
+        ['highest', -1],
       ] as const)(
-        "dropping the options with the %s value and guessing among the rest stays near chance (<= chance + 0.12)",
+        'dropping the options with the %s value and guessing among the rest stays near chance (<= chance + 0.12)',
         (_dir, sign) => {
           const f = FEATURES[name] as (t: string) => number;
           const { chance } = solverRate(() => 0);
@@ -519,8 +523,8 @@ describe("real quiz bank", () => {
           );
         },
       );
-      it.each(["max", "min", "dropLowest", "dropHighest"] as const)(
-        "the %s solver does not inflate the expected chosen level (<= random + 0.30)",
+      it.each(['max', 'min', 'dropLowest', 'dropHighest'] as const)(
+        'the %s solver does not inflate the expected chosen level (<= random + 0.30)',
         (mode) => {
           const f = FEATURES[name] as (t: string) => number;
           const { picked, random } = expectedLevel(f, mode);
@@ -530,14 +534,14 @@ describe("real quiz bank", () => {
     });
 
     it.each([
-      "engineering",
-      "control",
-      "definiteArticles",
-      "articles",
-      "functionWordRatio",
-      "operatorOpener",
+      'engineering',
+      'control',
+      'definiteArticles',
+      'articles',
+      'functionWordRatio',
+      'operatorOpener',
     ])(
-      "keeps the per-level mean of the %s feature within 20% of the overall mean",
+      'keeps the per-level mean of the %s feature within 20% of the overall mean',
       (name) => {
         const f = FEATURES[name] as (t: string) => number;
         const all = allOptions();
@@ -568,9 +572,9 @@ describe("real quiz bank", () => {
     });
 
     it.each([
-      ["CI", /\bCI\b/],
-      ["hook", /\bhooks?\b/i],
-    ] as const)("uses %s at two or more of levels 2-4", (_name, re) => {
+      ['CI', /\bCI\b/],
+      ['hook', /\bhooks?\b/i],
+    ] as const)('uses %s at two or more of levels 2-4', (_name, re) => {
       const levels = levelsWith(re);
       expect(
         [2, 3, 4].filter((l) => levels.has(l)).length,
@@ -581,7 +585,7 @@ describe("real quiz bank", () => {
       const { rate, chance } = solverRate(
         (o, i, q) =>
           lengthRank(q, i) +
-          (o.text.startsWith("Write") ? 1 : 0) +
+          (o.text.startsWith('Write') ? 1 : 0) +
           Math.min(count(ENGINEERING, o.text), 3) / 3,
       );
       expect(rate).toBeLessThanOrEqual(chance + 0.12);
@@ -592,9 +596,9 @@ describe("real quiz bank", () => {
     const halves = (): [string, BankQ[]][] => {
       const qs = questions();
       return [
-        ["whole bank", qs],
-        ["questions 1-32", qs.slice(0, 32)],
-        ["questions 33-64", qs.slice(32)],
+        ['whole bank', qs],
+        ['questions 1-32', qs.slice(0, 32)],
+        ['questions 33-64', qs.slice(32)],
       ];
     };
     /** Top-level hit rate, chance, and expected chosen vs random level of a solver over `qs`. */
@@ -630,20 +634,20 @@ describe("real quiz bank", () => {
 
     /** Rule 29 marker families, fixed a priori by the rule text. */
     const FAMILIES: Record<string, RegExp> = {
-      "lazy/docs":
+      'lazy/docs':
         /\b(manually|by hand|past(e|es|ed|ing)|rerun\w*|let the agent|docs?|documented|examples?|defaults?|templates?)\b/i,
-      "rigor adjectives":
+      'rigor adjectives':
         /\b(fixed|strict|single|verified|versioned|central|required|dedicated|signed|pinned)\b/i,
-      "compound tokens":
+      'compound tokens':
         /(\b\w+-\w+\b|\b[a-z]+[A-Z]\w*\b|\b[A-Z][a-z]+[A-Z]\w*\b|\b[A-Z]{2,}s?\b)/,
     };
 
-    describe.each(Object.keys(FAMILIES))("word family: %s", (family) => {
+    describe.each(Object.keys(FAMILIES))('word family: %s', (family) => {
       const re = FAMILIES[family] as RegExp;
       const marked = (t: string) => (re.test(t) ? 1 : 0);
 
       it.each(halves().map(([name]) => name))(
-        "spreads the family over levels (per-level share within 50% of the overall share) on the %s",
+        'spreads the family over levels (per-level share within 50% of the overall share) on the %s',
         (name) => {
           const qs = halves().find(([n]) => n === name)?.[1] ?? [];
           const all = qs.flatMap((q) => q.options);
@@ -662,10 +666,10 @@ describe("real quiz bank", () => {
       );
 
       it.each(halves().map(([name]) => name))(
-        "does not raise the chosen level by dropping marked options, or by keeping only them (<= random + 0.20), on the %s",
+        'does not raise the chosen level by dropping marked options, or by keeping only them (<= random + 0.20), on the %s',
         (name) => {
           const qs = halves().find(([n]) => n === name)?.[1] ?? [];
-          for (const mode of ["dropHighest", "dropLowest"] as const) {
+          for (const mode of ['dropHighest', 'dropLowest'] as const) {
             const { picked, random } = solve(qs, marked, mode);
             expect(picked, mode).toBeLessThanOrEqual(random + 0.2);
           }
@@ -707,18 +711,18 @@ describe("real quiz bank", () => {
         : option.filter((s) => situation.has(s)).length / option.length;
     };
 
-    describe.each(["meanIdf", "situationEcho"])("solver: %s", (feature) => {
+    describe.each(['meanIdf', 'situationEcho'])('solver: %s', (feature) => {
       const score = (): ((t: string, q: BankQ) => number) => {
-        if (feature === "situationEcho") return situationEcho;
+        if (feature === 'situationEcho') return situationEcho;
         const idf = meanIdf();
         return (t) => idf(t);
       };
       it.each(halves().map(([name]) => name))(
-        "stays near chance (<= chance + 0.12) and does not inflate the level (<= random + 0.30) on the %s",
+        'stays near chance (<= chance + 0.12) and does not inflate the level (<= random + 0.30) on the %s',
         (name) => {
           const qs = halves().find(([n]) => n === name)?.[1] ?? [];
           const f = score();
-          for (const mode of ["max", "min", "dropLowest", "dropHighest"] as const) {
+          for (const mode of ['max', 'min', 'dropLowest', 'dropHighest'] as const) {
             const { hit, chance, picked, random } = solve(qs, f, mode);
             expect(hit, `${mode} hit`).toBeLessThanOrEqual(chance + 0.12);
             expect(picked, `${mode} level`).toBeLessThanOrEqual(random + 0.3);
