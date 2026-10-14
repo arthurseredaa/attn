@@ -16,11 +16,14 @@ export function QuizRunner({
   focus,
   skillNames,
   onSubmitted,
+  onExit,
 }: {
   questions: QuizQuestionDto[];
   focus?: string[];
   skillNames: Record<string, string>;
   onSubmitted: () => void;
+  /** Called by Back on the very first step (e.g. return to the focus step); without it Back is disabled there. */
+  onExit?: () => void;
 }) {
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>({ kind: 'first' });
@@ -61,6 +64,8 @@ export function QuizRunner({
     }
   }
 
+  const atStart = phase.kind === 'first' && index === 0;
+
   function back() {
     if (busy) return;
     if (phase.kind === 'second') setPhase({ kind: 'first' });
@@ -68,11 +73,11 @@ export function QuizRunner({
       setAnswers(answers.slice(0, -1));
       setIndex(index - 1);
       setPhase({ kind: 'first' });
-    }
+    } else onExit?.();
   }
 
   const options = phase.kind === 'first' ? question.options : question.options.filter((o) => o.id !== phase.first);
-  const canBack = phase.kind === 'second' || index > 0;
+  const canBack = !atStart || onExit !== undefined;
 
   return (
     <div className="space-y-5">
@@ -102,7 +107,7 @@ export function QuizRunner({
         </div>
       ) : null}
       <button type="button" className={ghostBtn} disabled={busy || !canBack} onClick={back}>
-        Back
+        {atStart && onExit ? 'Back to focus' : 'Back'}
       </button>
     </div>
   );

@@ -7,16 +7,17 @@ import { SortableList } from './sortable-list';
 export function FocusPicker({
   taxonomy,
   role,
+  names,
   value,
   onChange,
 }: {
   taxonomy: Taxonomy;
   role: string;
+  /** skill id -> name (skillNameMap). */
+  names: Record<string, string>;
   value: string[];
   onChange: (next: string[]) => void;
 }) {
-  const names: Record<string, string> = {};
-  for (const d of taxonomy.domains) for (const s of d.skills) names[s.id] = s.name;
   const full = value.length >= MAX_FOCUS;
 
   return (
@@ -53,16 +54,13 @@ export function FocusPicker({
       })}
       <section className="space-y-2">
         <h2 className="text-sm font-semibold">Your focus, in priority order</h2>
-        {value.length === 0 ? (
-          <p className="text-sm text-muted">Nothing picked yet.</p>
-        ) : (
-          <SortableList
-            items={value}
-            labels={names}
-            renderLabel={(id) => names[id] ?? id}
-            onChange={onChange}
-          />
-        )}
+        <SortableList
+          items={value}
+          labels={names}
+          renderLabel={(id) => names[id] ?? id}
+          onChange={onChange}
+          emptyText="Nothing picked yet."
+        />
       </section>
     </div>
   );

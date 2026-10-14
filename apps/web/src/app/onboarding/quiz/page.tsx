@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { quizQuerySchema } from '@attn/shared';
+import { quizQuerySchema, skillNameMap } from '@attn/shared';
 import { QuizRetake } from '@/components/onboarding/quiz-runner';
 import { ApiError, getQuiz, getTaxonomy } from '@/lib/api';
-import { requireProfile } from '@/lib/guards';
+import { requireProfile, signedIn } from '@/lib/guards';
 
 export const metadata = { title: 'Quiz | ATTN' };
 
@@ -15,15 +15,13 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
 
   let quiz;
   try {
-    quiz = await getQuiz(parsed.data.skills);
+    quiz = await signedIn(getQuiz(parsed.data.skills));
   } catch (e) {
     if (e instanceof ApiError && e.status === 400) redirect('/profile');
     throw e;
   }
 
-  const taxonomy = await getTaxonomy();
-  const skillNames: Record<string, string> = {};
-  for (const d of taxonomy.domains) for (const s of d.skills) skillNames[s.id] = s.name;
+  const skillNames = skillNameMap(await getTaxonomy());
 
   return (
     <div className="space-y-6">

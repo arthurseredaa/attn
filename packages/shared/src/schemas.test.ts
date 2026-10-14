@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  skillNameMap,
   taxonomySchema,
   sourcesSchema,
   sourceSchema,
@@ -53,6 +54,14 @@ describe('taxonomySchema', () => {
   });
   it('requires exactly five levels 0..4', () => {
     expect(taxonomySchema.safeParse({ ...taxonomy(), levels: levels.slice(0, 4) }).success).toBe(false);
+  });
+});
+
+describe('skillNameMap', () => {
+  it('maps every skill id to its name, for a taxonomy or a profile', () => {
+    const t = { domains: [{ skills: [{ id: 'a', name: 'Alpha' }] }, { skills: [{ id: 'b', name: 'Beta' }] }] };
+    expect(skillNameMap(t)).toEqual({ a: 'Alpha', b: 'Beta' });
+    expect(skillNameMap({ domains: [] })).toEqual({});
   });
 });
 

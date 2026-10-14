@@ -1,8 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { profileSchema, quizResponseSchema, type QuizAnswerInput, type QuizQuestionDto, type Taxonomy } from '@attn/shared';
+import {
+  MAX_FOCUS,
+  profileSchema,
+  quizResponseSchema,
+  skillNameMap,
+  type QuizAnswerInput,
+  type QuizQuestionDto,
+  type Taxonomy,
+} from '@attn/shared';
 import { BrowserApiError, browserJson } from '@/lib/browser-api';
 import { FocusPicker } from './focus-picker';
 import { QuizRunner } from './quiz-runner';
@@ -26,8 +34,7 @@ export function OnboardingFlow({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const skillNames: Record<string, string> = {};
-  for (const d of taxonomy.domains) for (const s of d.skills) skillNames[s.id] = s.name;
+  const skillNames = useMemo(() => skillNameMap(taxonomy), [taxonomy]);
 
   function done() {
     router.push('/profile');
@@ -68,19 +75,27 @@ export function OnboardingFlow({
     });
 
   if (questions) {
-    return <QuizRunner questions={questions} focus={focus} skillNames={skillNames} onSubmitted={done} />;
+    return (
+      <QuizRunner
+        questions={questions}
+        focus={focus}
+        skillNames={skillNames}
+        onSubmitted={done}
+        onExit={() => setQuestions(null)}
+      />
+    );
   }
 
   return (
     <div className="space-y-6">
-      <FocusPicker taxonomy={taxonomy} role={role} value={focus} onChange={setFocus} />
+      <FocusPicker taxonomy={taxonomy} role={role} names={skillNames} value={focus} onChange={setFocus} />
       {error ? (
         <p role="alert" className="rounded-lg border border-line bg-accent-soft px-4 py-3 text-sm">
           {error}
         </p>
       ) : null}
       <div className="flex gap-3">
-        <button type="button" className={primary} disabled={busy || focus.length < 1 || focus.length > 5} onClick={() => void cont()}>
+        <button type="button" className={primary} disabled={busy || focus.length < 1 || focus.length > MAX_FOCUS} onClick={() => void cont()}>
           Continue
         </button>
         <button type="button" className={secondary} disabled={busy || focus.length < 1} onClick={() => void skip()}>

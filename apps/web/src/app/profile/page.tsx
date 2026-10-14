@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { skillNameMap } from '@attn/shared';
 import { getTaxonomy } from '@/lib/api';
 import { requireProfile } from '@/lib/guards';
 import { FocusEditor } from '@/components/profile/focus-editor';
@@ -8,6 +9,12 @@ export const metadata = { title: 'Profile | ATTN' };
 
 const QUIZ_LINK_CAP = 12;
 const quizHref = (ids: string[]) => `/onboarding/quiz?skills=${ids.map(encodeURIComponent).join(',')}`;
+
+/** Names the count the link really covers (at most QUIZ_LINK_CAP skills). */
+function quizAllLabel(left: number): string {
+  if (left > QUIZ_LINK_CAP) return `Take the quiz for ${QUIZ_LINK_CAP} of ${left} skills`;
+  return `Take the quiz for ${left} ${left === 1 ? 'skill' : 'skills'}`;
+}
 
 export default async function ProfilePage() {
   const profile = await requireProfile();
@@ -27,12 +34,17 @@ export default async function ProfilePage() {
         </Link>
       </header>
 
-      <FocusEditor key={profile.focus.map((f) => f.skillId).join(',')} focus={profile.focus} skills={allSkills} />
+      <FocusEditor
+        key={profile.focus.map((f) => f.skillId).join(',')}
+        focus={profile.focus}
+        skills={allSkills}
+        names={skillNameMap(profile)}
+      />
 
       {unquizzed.length > 0 && (
         <div className="rounded-lg border border-line bg-card p-3 text-sm">
           <Link href={quizHref(unquizzed.slice(0, QUIZ_LINK_CAP).map((s) => s.id))} className="font-medium underline">
-            Take the quiz for {unquizzed.length} skills
+            {quizAllLabel(unquizzed.length)}
           </Link>
         </div>
       )}

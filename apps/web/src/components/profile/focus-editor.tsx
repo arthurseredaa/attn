@@ -10,19 +10,18 @@ import { SortableList } from '@/components/onboarding/sortable-list';
 export function FocusEditor({
   focus,
   skills,
+  names,
 }: {
   focus: FocusEntry[];
   skills: { id: string; name: string; domain: string }[];
+  /** skill id -> name (skillNameMap). */
+  names: Record<string, string>;
 }) {
   const router = useRouter();
   const server = focus.map((f) => f.skillId);
   const [value, setValue] = useState<string[]>(server);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const names: Record<string, string> = {};
-  for (const s of skills) names[s.id] = s.name;
-  for (const f of focus) names[f.skillId] ??= f.name;
 
   const changed = value.length !== server.length || value.some((id, i) => id !== server[i]);
   const valid = value.length >= 1 && value.length <= MAX_FOCUS;
@@ -45,11 +44,13 @@ export function FocusEditor({
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-semibold">Focus</h2>
-      {value.length === 0 ? (
-        <p className="text-sm text-muted">Pick at least one focus skill.</p>
-      ) : (
-        <SortableList items={value} labels={names} renderLabel={(id) => names[id] ?? id} onChange={setValue} />
-      )}
+      <SortableList
+        items={value}
+        labels={names}
+        renderLabel={(id) => names[id] ?? id}
+        onChange={setValue}
+        emptyText="Pick at least one focus skill."
+      />
       <div className="flex flex-wrap items-center gap-2">
         <label className="sr-only" htmlFor="add-focus-skill">
           Add a skill

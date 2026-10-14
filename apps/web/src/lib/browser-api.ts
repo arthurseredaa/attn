@@ -26,5 +26,10 @@ export async function browserJson<T>(
     const err = errorBodySchema.safeParse(json);
     throw new BrowserApiError(res.status, err.success ? err.data.message : `Request failed (${res.status})`);
   }
-  return schema.parse(json);
+  try {
+    return schema.parse(json);
+  } catch {
+    // a ZodError (response shape drifted from @attn/shared): show a plain message, not zod's issue dump
+    throw new BrowserApiError(res.status, 'The server sent an unexpected response. Please reload the page.');
+  }
 }
