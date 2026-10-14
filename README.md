@@ -53,13 +53,19 @@ apps/api, apps/web   planned
 ## Data files
 
 - `data/taxonomy.yml`: Role, Domain and Skill tree with the 0-4 level scale and a version.
-- `data/sources.yml`: the 14 first-party sources (`rss` or `sitemap`), with optional filters.
+- `data/sources.yml`: the 13 first-party sources (`rss` or `sitemap`), with optional filters.
 - `data/config.yml`: the single place for tunable numbers (backfill window, label limits, thresholds, feed settings).
 - `data/quiz/` and `data/golden/`: quiz question bank and hand-labeled articles; planned, empty for now.
 
 ## Evaluation
 
 Coming in Stage 2: how to run `attn eval`, read the report, add golden items, compare models.
+
+## Known limitations
+
+- OpenAI News is not a source. openai.com article pages sit behind a Cloudflare managed challenge (HTTP 403) for
+  the honest `attn-collector` User-Agent, and spoofing a browser is not an option. Its RSS blurbs (median 149
+  characters) are also below `label_min_chars` (500), so they could not be labeled.
 
 ## License
 

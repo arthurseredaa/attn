@@ -33,10 +33,8 @@
   name: GitHub Blog - AI & ML
   type: rss
   url: https://github.blog/ai-and-ml/feed/
-- id: openai-news
-  name: OpenAI News
-  type: rss
-  url: https://openai.com/news/rss.xml
+# openai-news is intentionally absent: openai.com article pages are behind a Cloudflare managed challenge
+# (HTTP 403) for our honest attn-collector User-Agent, and its RSS blurbs are shorter than label_min_chars.
 - id: simon-willison
   name: Simon Willison
   type: rss

@@ -12,11 +12,11 @@ describe('real data files', () => {
     const text = JSON.stringify(t);
     expect(text).not.toMatch(/[Ѐ-ӿ]/); // no Cyrillic left
   });
-  it('sources: exactly the 14 first-party ids', () => {
+  it('sources: exactly the 13 first-party ids', () => {
     const ids = loadSources().map((s) => s.id).sort();
     expect(ids).toEqual([
       'addy-osmani','ai-hero','anthropic-engineering','anthropic-news','claude-dev','cloudflare-ai',
-      'github-blog-ai','hamel-evals','latent-space','mcp-blog','mozilla-ai-blog','openai-news',
+      'github-blog-ai','hamel-evals','latent-space','mcp-blog','mozilla-ai-blog',
       'simon-willison','vercel',
     ]);
   });
