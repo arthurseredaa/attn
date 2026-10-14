@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse } from 'yaml';
-import { goldenSchema, type GoldenItem, type Taxonomy } from '@attn/shared';
+import { goldenSchema, taxonomySkillIds, type GoldenItem, type Taxonomy } from '@attn/shared';
 import { normalizeUrl } from '../collect/normalize';
 import { dataDir, loadTaxonomy } from '../data';
 
@@ -14,7 +14,7 @@ export function loadGolden(dir: string = dataDir(), taxonomy: Taxonomy = loadTax
     .readdirSync(goldenDir)
     .filter((f) => f.endsWith('.yml'))
     .sort();
-  const skillIds = new Set(taxonomy.domains.flatMap((d) => d.skills.map((s) => s.id)));
+  const skillIds = new Set(taxonomySkillIds(taxonomy));
   const seen = new Map<string, string>();
   const entries: GoldenEntry[] = [];
 

@@ -60,6 +60,22 @@ describe('text cache', () => {
   });
 });
 
+describe('text cache validation', () => {
+  it.each([
+    ['missing wordCount', { wordCount: undefined }],
+    ['wrong-typed title', { title: 5 }],
+    ['missing fetchedAt', { fetchedAt: undefined }],
+    ['different url', { url: 'http://x.test/other' }],
+  ])('treats %s as a miss', async (_name, over) => {
+    const dir = tmp();
+    const cache = createTextCache(dir);
+    await cache.set(entry('http://x.test/a'));
+    const [file] = fs.readdirSync(dir);
+    fs.writeFileSync(path.join(dir, file!), JSON.stringify({ ...entry('http://x.test/a'), ...over }));
+    expect(await cache.get('http://x.test/a')).toBeNull();
+  });
+});
+
 describe('defaultCacheDir', () => {
   it('is <repo root>/.cache/text', () => {
     const dir = defaultCacheDir({});

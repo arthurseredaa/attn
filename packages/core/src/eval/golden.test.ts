@@ -81,6 +81,11 @@ describe('loadGolden', () => {
     expect(() => loadGolden(dir, taxonomy)).toThrow(/b\.yml/);
   });
 
+  it('rejects a duplicate URL within a single file', () => {
+    const dir = setup({ 'a.yml': stringify([item(), item({ url: 'http://x.test/a/' })]) });
+    expect(() => loadGolden(dir, taxonomy)).toThrow(/duplicate.*a\.yml/s);
+  });
+
   it('ignores non-.yml files', () => {
     const dir = setup({ 'notes.txt': 'not yaml: [', 'a.yml': stringify([item()]) });
     expect(loadGolden(dir, taxonomy)).toHaveLength(1);

@@ -23,9 +23,17 @@ export function createTextCache(dir: string): TextCache {
   return {
     async get(url) {
       try {
-        const parsed = JSON.parse(await fs.promises.readFile(fileFor(dir, url), 'utf8')) as CachedText;
-        if (typeof parsed?.text !== 'string' || typeof parsed.url !== 'string') return null;
-        return parsed;
+        const parsed = JSON.parse(await fs.promises.readFile(fileFor(dir, url), 'utf8')) as Partial<CachedText> | null;
+        if (
+          parsed?.url !== url ||
+          typeof parsed.title !== 'string' ||
+          typeof parsed.text !== 'string' ||
+          typeof parsed.wordCount !== 'number' ||
+          typeof parsed.fetchedAt !== 'string'
+        ) {
+          return null;
+        }
+        return parsed as CachedText;
       } catch {
         return null;
       }
