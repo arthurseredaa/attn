@@ -7,3 +7,4 @@ export const DB = Symbol('DB');
 export const LABELER = Symbol('LABELER');
 export const PIPELINE_STEPS = Symbol('PIPELINE_STEPS');
 export const QUIZ = Symbol('QUIZ');
+export const RANKER = Symbol('RANKER');
