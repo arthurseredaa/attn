@@ -106,8 +106,8 @@
   type: research
   quality: 3
 - url: https://blog.mozilla.ai/introducing-agent-skills-in-octonous
-  primary_skill: cc-skills-commands
-  secondary_skills: [shared-config-standards]
+  primary_skill: shared-config-standards
+  secondary_skills: [cc-skills-commands]
   difficulty: 1
   type: release
   quality: 1
@@ -120,9 +120,9 @@
 - url: https://blog.modelcontextprotocol.io/posts/mcp-roadmap
   primary_skill: mcp-server-build
   secondary_skills: []
-  difficulty: 3
+  difficulty: 4
   type: news
-  quality: 2
+  quality: 3
 - url: https://blog.modelcontextprotocol.io/posts/2026-07-28
   primary_skill: mcp-server-build
   secondary_skills: []
@@ -212,7 +212,7 @@
   secondary_skills: []
   difficulty: 1
   type: news
-  quality: 2
+  quality: 1
 - url: https://simonwillison.net/2026/Oct/6/datasette-parseable-opentelemetry
   primary_skill: llm-observability
   secondary_skills: []
@@ -330,9 +330,9 @@
 - url: https://blog.cloudflare.com/ai-search-ga
   primary_skill: rag
   secondary_skills: [embeddings]
-  difficulty: 1
+  difficulty: 2
   type: release
-  quality: 2
+  quality: 3
 - url: https://blog.cloudflare.com/auto-router
   primary_skill: model-selection
   secondary_skills: [cost-caching]
