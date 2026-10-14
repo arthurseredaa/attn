@@ -7,3 +7,4 @@ export * from './golden';
 export * from './label';
 export * from './api';
 export * from './reading';
+export * from './onboarding';
