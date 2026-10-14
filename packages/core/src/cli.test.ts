@@ -416,3 +416,34 @@ describe('resolveLabelerFactory', () => {
     expect((r as (m: string, t: Taxonomy) => Labeler)('gemini-3.6-flash', taxonomy).model).toBe('gemini-3.6-flash');
   });
 });
+
+describe('attn seed-demo', () => {
+  beforeEach(() => {
+    fs.copyFileSync(path.resolve(import.meta.dirname, '../../../data/taxonomy.yml'), path.join(tmp, 'taxonomy.yml'));
+  });
+
+  it('inserts, is idempotent, and removes', async () => {
+    expect(await run(['seed-demo'], env, io, deps)).toBe(0);
+    expect(out).toContain('demo articles: inserted=160');
+    expect(await run(['seed-demo'], env, io, deps)).toBe(0);
+    expect(out).toContain('demo articles: inserted=0');
+    expect(await run(['seed-demo', '--remove'], env, io, deps)).toBe(0);
+    expect(out).toContain('demo articles: removed=160');
+    expect(await db.select().from(articles)).toHaveLength(0);
+  });
+
+  it('takes no pipeline lock', async () => {
+    const r = await withAdvisoryLock(TEST_DATABASE_URL, PIPELINE_LOCK_KEY, () => run(['seed-demo'], env, io, deps));
+    expect(r.acquired && r.value).toBe(0);
+  });
+
+  it('fails without DATABASE_URL', async () => {
+    expect(await run(['seed-demo'], { ATTN_DATA_DIR: tmp }, io, deps)).toBe(1);
+    expect(err.join('\n')).toContain('DATABASE_URL is not set');
+  });
+
+  it('is listed in the usage', async () => {
+    await run([], env, io);
+    expect(err.join('\n')).toContain('seed-demo');
+  });
+});

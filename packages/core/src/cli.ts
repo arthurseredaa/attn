@@ -8,6 +8,7 @@ import { collectAll, type SourceReport } from './collect/collect';
 import type { FetchFn } from './collect/http';
 import { createGeminiLabeler, type Labeler } from './label';
 import { createTextCache, defaultCacheDir, formatEvalReport, loadGolden, runEval } from './eval';
+import { removeDemoArticles, seedDemoArticles } from './demo/seed';
 import { labelPending, type LabelItemReport } from './pipeline';
 
 export interface Io {
@@ -22,13 +23,14 @@ export interface Deps {
   sleep?: (ms: number) => Promise<void>;
 }
 
-const USAGE = `usage: attn <migrate | collect | label | eval>
+const USAGE = `usage: attn <migrate | collect | label | eval | seed-demo>
 
 commands:
   migrate                                              apply database migrations
   collect [--source <id>]... [--backfill-days <n>]    collect new articles from sources
   label [--limit <n>]                                  label pending articles with the configured model
   eval --model <id>                                    measure a model against data/golden/*.yml
+  seed-demo [--remove]                                 add (or remove) demo articles for local use without a labeling key
 `;
 
 const defaultIo: Io = {
@@ -178,6 +180,32 @@ async function evalCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps:
   return 0;
 }
 
+async function seedDemoCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps: Deps): Promise<number> {
+  const { values } = parseArgs({ args, options: { remove: { type: 'boolean' } }, strict: true });
+  const url = env.DATABASE_URL;
+  if (!url) {
+    io.err('DATABASE_URL is not set');
+    return 1;
+  }
+  const dir = env.ATTN_DATA_DIR ?? dataDir();
+  const { db, close } = createDb(url);
+  try {
+    if (values.remove) {
+      io.out(`demo articles: removed=${(await removeDemoArticles(db)).removed}`);
+      return 0;
+    }
+    const { inserted } = await seedDemoArticles(db, {
+      taxonomy: loadTaxonomy(dir),
+      sourceIds: loadSources(dir).map((s) => s.id),
+      now: deps.now ?? new Date(),
+    });
+    io.out(`demo articles: inserted=${inserted}`);
+    return 0;
+  } finally {
+    await close();
+  }
+}
+
 async function collect(args: string[], env: NodeJS.ProcessEnv, io: Io, deps: Deps): Promise<number> {
   const { values } = parseArgs({
     args,
@@ -250,6 +278,8 @@ export async function run(argv: string[], env: NodeJS.ProcessEnv, io: Io = defau
         return await labelCommand(rest, env, io, deps);
       case 'eval':
         return await evalCommand(rest, env, io, deps);
+      case 'seed-demo':
+        return await seedDemoCommand(rest, env, io, deps);
       default:
         io.err(command ? `unknown command: ${command}\n${USAGE}` : USAGE);
         return 1;
