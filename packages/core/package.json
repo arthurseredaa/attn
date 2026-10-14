@@ -11,13 +11,16 @@
   },
   "dependencies": {
     "@attn/shared": "workspace:*",
+    "@mozilla/readability": "^0.6.0",
     "cheerio": "^1.2.0",
     "drizzle-orm": "^0.45.4",
     "fast-xml-parser": "^5.11.2",
+    "jsdom": "^30.1.2",
     "postgres": "^3.4.9",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
+    "@types/jsdom": "^30.0.0",
     "drizzle-kit": "^0.31.11"
   }
 }
