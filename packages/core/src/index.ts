@@ -6,3 +6,5 @@ export { isDuplicate, urlExists } from './collect/dedup';
 export type { Candidate } from './collect/dedup';
 export * from './extract';
 export * from './label';
+export * from './pipeline';
+export type { FetchFn } from './collect/http';
