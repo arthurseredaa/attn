@@ -148,3 +148,20 @@ skills, and ATTN ranks existing articles by their priorities and level.
 - **State-changing routes require JSON** (`POST /onboarding`, `PUT /focus`, `POST /articles/:id/events`): any
   other content type, or none, gets 415 `unsupported_media_type`, as defense in depth against cross-site form
   posts. The session check runs first, so anonymous requests still get 401.
+
+## Claude labeler (2026-10-14)
+
+- **Claude Haiku is evaluated as the labeler alongside Gemini.** The owner chose to try `claude-haiku-5-5`. Spec
+  §4.2 named a free-tier Gemini model; this widens it to a provider choice by the `LABEL_MODEL` prefix: `claude-*`
+  goes to Anthropic (`@ai-sdk/anthropic`, `ANTHROPIC_API_KEY`), `gemini-*` to Google
+  (`GOOGLE_GENERATIVE_AI_API_KEY`), any other prefix is a startup error ("unknown LABEL_MODEL provider"). Same
+  prompt, output schema, temperature 0 (ignored by models that reject sampling parameters, such as Haiku 5.5) and
+  error handling (401/403/404 fatal, 429 stops the run, 503/529 retried with `label_overload_backoff_ms`). The system
+  prompt is sent with Anthropic prompt caching. Claude has no free tier: it is paid per token, and
+  `label_max_chars` drives the cost. The model is still chosen only by eval results; `attn eval` now prints the
+  run's token totals so the cost can be compared. The privacy invariant is unchanged: only public article text is
+  sent, to either provider.
+- **The golden set is the Claude-drafted reference.** The owner accepted Claude's draft (`data/golden/draft.yml`)
+  as the reference instead of hand-labeling ~50 articles (an earlier section says "the user hand-labels").
+  Eval therefore measures agreement with that reference, not with a human judgement; a Claude labeler may score
+  higher partly because Claude drafted the reference.

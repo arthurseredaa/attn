@@ -52,7 +52,7 @@ Over plain http, set `COOKIE_SECURE=false` in `.env` or sign-in cookies will not
 | `pnpm attn collect [--source <id>]... [--backfill-days <n>]` | Collect new articles from all sources, or only the given ones |
 | `pnpm attn label [--limit <n>]` | Label pending articles with `LABEL_MODEL` (see Labeling) |
 | `pnpm attn eval --model <id>` | Measure a model against the golden set; writes nothing to the DB (see Evaluation) |
-| `pnpm attn seed-demo [--remove]` | Insert deterministic labeled demo articles so For you works without a Gemini key; `--remove` deletes them |
+| `pnpm attn seed-demo [--remove]` | Insert deterministic labeled demo articles so For you works without a labeling API key; `--remove` deletes them |
 | `pnpm api` | Start the API on `PORT` (default 3001); `GET /api/health`; runs the daily job |
 | `pnpm web` | Start the Next.js site in dev mode on port 3000; rewrites `/api/*` to `API_URL` (default `http://localhost:3001`) |
 
@@ -153,8 +153,23 @@ second choice levels reaches it) and `points_per_level` (reading points needed f
 
 ## Labeling
 
-`attn label` needs `LABEL_MODEL` and `GOOGLE_GENERATIVE_AI_API_KEY` in `.env`. Without them it exits 1 and names
-the missing variable.
+`attn label` needs `LABEL_MODEL` and the API key of that model's provider in `.env`. The provider is chosen by the
+model id prefix:
+
+| `LABEL_MODEL` | Provider | Key |
+| --- | --- | --- |
+| `gemini-*` (e.g. `gemini-3.6-flash`) | Google AI Studio, has a free tier | `GOOGLE_GENERATIVE_AI_API_KEY` |
+| `claude-*` (e.g. `claude-haiku-5-5`) | Anthropic, paid per token, no free tier | `ANTHROPIC_API_KEY` |
+
+Without the model or its key, or with any other prefix (`unknown LABEL_MODEL provider`), it exits 1 before touching
+anything and names the problem.
+
+To label with Claude, set `LABEL_MODEL=claude-haiku-5-5` and `ANTHROPIC_API_KEY` (from
+https://console.anthropic.com). Every call is billed per input and output token. Input is dominated by the article
+text, which is cut to `label_max_chars` (`data/config.yml`, default 20000 characters), so that setting is the main
+cost knob. The system prompt (taxonomy and rubrics) is the same on every call and is sent with Anthropic prompt
+caching, so within the cache lifetime (5 minutes) repeated calls bill it at the cheaper cache-read rate. Claude Haiku
+5.5 does not accept a temperature: the SDK drops the `temperature: 0` setting for it and prints a warning per call.
 
 It takes pending articles oldest first (at most `label_batch`, or `--limit` if smaller), one at a time with
 `label_delay_ms` between model calls. For each article it fetches the page, extracts the readable text and
@@ -183,33 +198,40 @@ type has no place for user data (quiz answers, levels, user ids). This is enforc
 
 The API (`pnpm api`) runs collect and then label at `schedule_cron` (UTC, from `data/config.yml`) under a
 Postgres advisory lock, so two instances never run it at once, and neither does a manual `attn collect` / `attn label` alongside it. `SCHEDULE_ENABLED=false` disables it. Without
-`LABEL_MODEL` or the API key the label step is reported as skipped.
+`LABEL_MODEL` or the key of its provider the label step is reported as skipped; a `LABEL_MODEL` with an unknown
+prefix stops the API at startup.
 
 ## Evaluation
 
 `LABEL_MODEL` has no default on purpose and is left empty in `.env.example`: the model is chosen only by eval
 results, and an empty value never silently selects an unevaluated model.
 
-**The golden set is a draft.** `data/golden/draft.yml` was drafted by Claude, not by the project owner. Review
-it (fix or delete wrong items, then remove the header comment) before trusting any score or making a model
-choice.
+**The golden set is Claude's draft, accepted as the reference.** `data/golden/draft.yml` was drafted by Claude, not
+hand-labeled; the owner accepted it as the reference instead of hand-labeling (docs/decisions.md). Eval scores
+therefore measure agreement with that reference, not with a human judgement, and a Claude labeler may agree with it
+partly because Claude drafted it. Fix or delete items you disagree with; the scores follow.
 
 ### What it is
 
-`attn eval` measures a model against the hand-labeled golden set in `data/golden/*.yml`. It writes nothing to
+`attn eval` measures a model against the golden set in `data/golden/*.yml`. It writes nothing to
 the DB, needs the API key, and never runs in CI. Automated tests never call an LLM; eval is the only place
 label quality is measured.
 
 ### Get a key and run it
 
-1. Create a free API key in Google AI Studio (https://aistudio.google.com/apikey) and put it in `.env` as
-   `GOOGLE_GENERATIVE_AI_API_KEY`. The free tier is enough; limits are shown per project in AI Studio, and the
-   free tier may use submitted content to improve Google products, which is fine here because only public
-   article text is sent.
-2. Run:
+1. Put the key of the provider you want to measure in `.env`:
+   - Gemini: create a free API key in Google AI Studio (https://aistudio.google.com/apikey) and set
+     `GOOGLE_GENERATIVE_AI_API_KEY`. The free tier is enough; limits are shown per project in AI Studio, and the
+     free tier may use submitted content to improve Google products, which is fine here because only public
+     article text is sent.
+   - Claude: create a key in the Anthropic Console (https://console.anthropic.com) and set `ANTHROPIC_API_KEY`.
+     There is no free tier: an eval run is one paid call per golden article, and `label_max_chars` caps the
+     article text that makes up most of each call's input.
+2. Run (the `--model` prefix picks the provider, as in "Labeling"):
 
 ```sh
 pnpm attn eval --model gemini-3.6-flash
+pnpm attn eval --model claude-haiku-5-5
 ```
 
 The first run fetches each article once and caches the extracted text in `.cache/text/` (gitignored), so later
@@ -235,6 +257,7 @@ disagreements:
 failed:
   https://example.com/paywalled  text too short: 120 < 500 chars
   https://example.com/pdf        HTTP 404
+tokens: input=231400 output=9800 cache_read=52800 cache_write=1100
 ```
 
 The numbers are illustrative.
@@ -246,6 +269,9 @@ The numbers are illustrative.
 - `quality_within1`: quality within +-1.
 - `evaluated=n of total` and `failed:`: articles whose text could not be fetched or was too short are listed
   and excluded from the percentages.
+- `tokens:` the provider's token totals over the run, the last line: `input` counts every input token, cached ones
+  included; `cache_read` and `cache_write` (only when the provider reports them) are the cached part. Multiply by
+  the provider's current per-token prices to get the run's cost; ATTN does not store prices.
 - `disagreements:` names, per article, each field that did not match. Difficulty off by one is listed; quality
   off by one is not. Empty skill sets print as `-`.
 
@@ -279,6 +305,8 @@ https://ai.google.dev/gemini-api/docs/pricing: `gemini-3.6-flash`, `gemini-3.5-f
 pnpm attn eval --model gemini-3.6-flash
 pnpm attn eval --model gemini-3.5-flash-lite
 ```
+
+Claude Haiku (`claude-haiku-5-5`, paid) is also a candidate (docs/decisions.md); compare its `tokens:` line too.
 
 Compare the six lines and the disagreement lists, then set the winner as `LABEL_MODEL` in `.env`. Because the
 text cache is shared, the comparison is on identical text. Prompt or taxonomy changes also move the scores, so
@@ -324,7 +352,7 @@ Every click is idempotent per user, article and kind: repeating it changes nothi
 
 ## Local demo without API keys
 
-Labeling needs a Gemini key; the demo does not.
+Labeling needs a Gemini or Anthropic API key; the demo does not.
 
 1. Start Postgres: `docker compose up -d --wait`, or any local Postgres 17 at `DATABASE_URL`.
 2. `pnpm attn migrate`, then `pnpm attn seed-demo` (labeled demo articles under `https://example.com/demo/...`).
