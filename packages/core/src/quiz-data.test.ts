@@ -287,6 +287,19 @@ describe("real quiz bank", () => {
     const INACTION =
       /\b(skip|leave|ignore|let|accept|stay|keep (working|going|doing)|manually|by hand|paste|ask|watch|scroll|skim|retry|rerun|once)\b/gi;
     const THAT = /\bthat\b/gi;
+    /** Fixed list of 79 English function words (rule 28). Chosen a priori: do not tune it to the bank text. */
+    const FUNCTION_WORDS = new Set(
+      (
+        "a an the and or but nor if then than to of in on at by for with from into onto over under " +
+        "about after before until while as that this these those it its each every all any some no not both " +
+        "either one there their they them be is are was were can will would should must do does so up out off " +
+        "per via through between against without within when where whose which who what"
+      ).split(" "),
+    );
+    /** Operator-verb opener (rule 28): verbs that run, check or copy something rather than build it. */
+    const OPERATOR_OPENER =
+      /^(Run|Check|Ask|Copy|Follow|Accept|Merge|Keep|Triage|Export|Share|Tell|Retry|Restore|Review|Print|Compare|Stop|Open|Finish|Install|Clear|Ignore|Skip|Let|Ship|Chain|Extend|Describe|Import|Rename|Rerun|Reword|Tighten|Use|Disable|Read)\b/;
+    const wordTokens = (t: string) => t.match(/[A-Za-z][A-Za-z'-]*/g) ?? [];
 
     const FEATURES: Record<string, (text: string) => number> = {
       pronoun: (t) => count(new RegExp(PRONOUN.source, "gi"), t),
@@ -314,6 +327,16 @@ describe("real quiz bank", () => {
         count(NARROW_10, t) + count(BOUNDARY, t) - count(INACTION, t),
       engineeringBoundaryMinusInaction: (t) =>
         count(ENGINEERING, t) + count(BOUNDARY, t) - count(INACTION, t),
+      definiteArticles: (t) => count(/\bthe\b/gi, t),
+      articles: (t) => count(/\b(a|an|the)\b/gi, t),
+      functionWordRatio: (t) => {
+        const words = wordTokens(t);
+        return (
+          words.filter((w) => FUNCTION_WORDS.has(w.toLowerCase())).length /
+          words.length
+        );
+      },
+      operatorOpener: (t) => (OPERATOR_OPENER.test(t) ? 1 : 0),
     };
 
     /** Expected hit rate of a blind guess and the rate of a solver that picks by `score`, ties split fractionally. */
@@ -349,6 +372,37 @@ describe("real quiz bank", () => {
         hits += pool.filter((o) => o.level === top).length / pool.length;
       }
       return hits / qs.length;
+    };
+
+    type Mode = "max" | "min" | "dropLowest" | "dropHighest";
+    /** Probability that a solver picks each option: best score (ties split) or uniform after dropping the worst. */
+    const pickWeights = (scores: number[], mode: Mode) => {
+      if (mode === "max" || mode === "min") {
+        const best = mode === "max" ? Math.max(...scores) : Math.min(...scores);
+        const n = scores.filter((s) => s === best).length;
+        return scores.map((s) => (s === best ? 1 / n : 0));
+      }
+      const worst =
+        mode === "dropLowest" ? Math.min(...scores) : Math.max(...scores);
+      const keep = scores.map((s) => s !== worst);
+      const pool = keep.some(Boolean) ? keep : scores.map(() => true);
+      const n = pool.filter(Boolean).length;
+      return pool.map((k) => (k ? 1 / n : 0));
+    };
+    /** Expected level of the option a solver picks, averaged over questions, and the same for a blind guess. */
+    const expectedLevel = (score: (text: string) => number, mode: Mode) => {
+      const qs = questions();
+      let picked = 0;
+      let random = 0;
+      for (const q of qs) {
+        const w = pickWeights(
+          q.options.map((o) => score(o.text)),
+          mode,
+        );
+        picked += q.options.reduce((s, o, i) => s + (w[i] ?? 0) * o.level, 0);
+        random += mean(q.options.map((o) => o.level));
+      }
+      return { picked: picked / qs.length, random: random / qs.length };
     };
 
     it("does not make the shortest option the top level in more than 35% of questions", () => {
@@ -426,10 +480,25 @@ describe("real quiz bank", () => {
           );
         },
       );
+      it.each(["max", "min", "dropLowest", "dropHighest"] as const)(
+        "the %s solver does not inflate the expected chosen level (<= random + 0.30)",
+        (mode) => {
+          const f = FEATURES[name] as (t: string) => number;
+          const { picked, random } = expectedLevel(f, mode);
+          expect(picked).toBeLessThanOrEqual(random + 0.3);
+        },
+      );
     });
 
-    it.each(["engineering", "control"])(
-      "keeps the per-level mean of the %s word count within 20% of the overall mean",
+    it.each([
+      "engineering",
+      "control",
+      "definiteArticles",
+      "articles",
+      "functionWordRatio",
+      "operatorOpener",
+    ])(
+      "keeps the per-level mean of the %s feature within 20% of the overall mean",
       (name) => {
         const f = FEATURES[name] as (t: string) => number;
         const all = allOptions();
