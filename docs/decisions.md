@@ -34,6 +34,10 @@ skills, and ATTN ranks existing articles by their priorities and level.
   skill if the article's difficulty ≥ the user's level. 5 points = +1 level. Numbers live in config.
 - The user can redo onboarding at any time; the new result replaces levels. Focus and order can be
   changed at any time.
+- Focus ranks when a focus skill leaves the taxonomy: the Profile renumbers ranks 1..n at read time, but the
+  Stage 5 ranker reads the stored `focus_rank`, where the removed skill only leaves a gap until the next focus
+  save (rare: only the owner edits the taxonomy). Cost if wrong: later focus skills get a slightly lower
+  priority until the user edits their focus.
 
 ## Matching
 

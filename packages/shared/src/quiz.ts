@@ -10,12 +10,19 @@ export const quizQuestionSchema = z.object({
 });
 
 export const quizSchema = z.object({
-  version: z.number(),
+  /** Stored in quiz_answers.quiz_version (an integer column). */
+  version: z.number().int().nonnegative(),
   questions: z.array(quizQuestionSchema),
 });
 export type Quiz = z.infer<typeof quizSchema>;
 
 const SELF_RATING = /\b(beginner|intermediate|expert|novice)\b/i;
+
+/** Question ids are `<skill_id>-<n>`; returns the skill id, or null when the id has no numeric suffix. */
+export function skillIdOfQuestionId(questionId: string): string | null {
+  const m = /^(.+)-\d+$/.exec(questionId);
+  return m ? m[1]! : null;
+}
 
 /** Structural problems of a question bank against the taxonomy. Empty array = valid. */
 export function quizBankIssues(quiz: Quiz, taxonomy: Taxonomy): string[] {
@@ -27,7 +34,7 @@ export function quizBankIssues(quiz: Quiz, taxonomy: Taxonomy): string[] {
     if (seen.has(q.id)) issues.push(`${q.id}: duplicate question id`);
     seen.add(q.id);
     if (!skills.has(q.skill_id)) issues.push(`${q.id}: unknown skill_id ${q.skill_id}`);
-    if (!new RegExp(`^${q.skill_id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+$`).test(q.id)) {
+    if (skillIdOfQuestionId(q.id) !== q.skill_id) {
       issues.push(`${q.id}: id must be <skill_id>-<n> (skill_id ${q.skill_id})`);
     }
     perSkill.set(q.skill_id, (perSkill.get(q.skill_id) ?? 0) + 1);

@@ -1,5 +1,6 @@
 import { and, count, desc, eq, exists, sql } from 'drizzle-orm';
-import type { Level, Profile, ProfileSkill, Source, Taxonomy } from '@attn/shared';
+import { alias } from 'drizzle-orm/pg-core';
+import { skillIdOfQuestionId, type Level, type Profile, type ProfileSkill, type Source, type Taxonomy } from '@attn/shared';
 import { articleEvents, articles, quizAnswers, userSkills, type Db } from '../db';
 import { progressToNext } from './points';
 import { roleSkillIds } from './role';
@@ -26,9 +27,14 @@ export async function buildProfile(db: Db, userId: string, ctx: ProfileContext):
   const byId = new Map(rows.map((r) => [r.skillId, r]));
 
   const answered = await db.select({ questionId: quizAnswers.questionId }).from(quizAnswers).where(eq(quizAnswers.userId, userId));
-  const quizzedSkills = new Set(
-    answered.filter((a) => /-\d+$/.test(a.questionId)).map((a) => a.questionId.replace(/-\d+$/, '')),
-  );
+  const quizzedSkills = new Set(answered.map((a) => skillIdOfQuestionId(a.questionId)).filter((id) => id !== null));
+
+  // Ranks are renumbered 1..n at read time: a focus skill that left the taxonomy leaves no gap in what the
+  // user sees. The stored focus_rank keeps the gap until the next focus save (see docs/decisions.md).
+  const focusRows = rows
+    .filter((r): r is typeof r & { focusRank: number } => r.focusRank !== null && roleIds.has(r.skillId))
+    .sort((a, b) => a.focusRank - b.focusRank);
+  const rankOf = new Map(focusRows.map((r, i) => [r.skillId, i + 1]));
 
   const names = new Map<string, string>();
   const domains = ctx.taxonomy.domains
@@ -53,16 +59,13 @@ export async function buildProfile(db: Db, userId: string, ctx: ProfileContext):
             uncertain: effectiveUncertain(level, row?.uncertain ?? true),
             points,
             pointsNeeded: progressToNext(level, points, ctx.pointsPerLevel)?.needed ?? null,
-            focusRank: row?.focusRank ?? null,
+            focusRank: rankOf.get(s.id) ?? null,
           };
         }),
     }))
     .filter((d) => d.skills.length > 0);
 
-  const focus = rows
-    .filter((r): r is typeof r & { focusRank: number } => r.focusRank !== null && roleIds.has(r.skillId))
-    .sort((a, b) => a.focusRank - b.focusRank)
-    .map((r) => ({ rank: r.focusRank, skillId: r.skillId, name: names.get(r.skillId)! }));
+  const focus = focusRows.map((r, i) => ({ rank: i + 1, skillId: r.skillId, name: names.get(r.skillId)! }));
 
   const isRead = and(eq(articleEvents.userId, userId), eq(articleEvents.kind, 'read'));
   const items = await db
@@ -80,14 +83,15 @@ export async function buildProfile(db: Db, userId: string, ctx: ProfileContext):
     .limit(HISTORY_LIMIT);
   const [{ read }] = await db.select({ read: count() }).from(articleEvents).where(isRead) as [{ read: number }];
 
+  const likes = alias(articleEvents, 'liked');
   const readByUser = db
     .select({ one: sql`1` })
     .from(articleEvents)
-    .where(and(eq(articleEvents.userId, userId), eq(articleEvents.kind, 'read'), eq(articleEvents.articleId, sql`liked.article_id`)));
+    .where(and(eq(articleEvents.userId, userId), eq(articleEvents.kind, 'read'), eq(articleEvents.articleId, likes.articleId)));
   const [{ liked }] = await db
     .select({ liked: count() })
-    .from(sql`article_events as liked`)
-    .where(and(sql`liked.user_id = ${userId}`, sql`liked.kind = 'like'`, exists(readByUser))) as [{ liked: number }];
+    .from(likes)
+    .where(and(eq(likes.userId, userId), eq(likes.kind, 'like'), exists(readByUser))) as [{ liked: number }];
 
   const sourceNames = new Map(ctx.sources.map((s) => [s.id, s.name]));
   return {

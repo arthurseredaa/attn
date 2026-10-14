@@ -125,13 +125,44 @@ describe('buildProfile', () => {
     expect(skillOf(p, 's3').quizzed).toBe(false);
   });
 
+  it('maps question ids of hyphenated skill ids to their skill', async () => {
+    const tax: Taxonomy = {
+      version: 1,
+      levels,
+      domains: [{ id: 'd1', name: 'D1', skills: [skill('cc-hooks'), skill('cc-hooks-advanced'), skill('multi-agent-orchestration')] }],
+    };
+    const ids = ['cc-hooks', 'cc-hooks-advanced', 'multi-agent-orchestration'];
+    await saveOnboarding(db, { userId: u, roleSkillIds: ids, focus: ['cc-hooks'], results: [], answers: [], quizVersion: 1 });
+    const ans = (questionId: string) => ({ userId: u, questionId, firstOption: 0, secondOption: 1, quizVersion: 1 });
+    await db.insert(quizAnswers).values([ans('cc-hooks-advanced-2'), ans('multi-agent-orchestration-10')]);
+    const p = await buildProfile(db, u, { ...ctx, taxonomy: tax });
+    expect(skillOf(p, 'cc-hooks').quizzed).toBe(false);
+    expect(skillOf(p, 'cc-hooks-advanced').quizzed).toBe(true);
+    expect(skillOf(p, 'multi-agent-orchestration').quizzed).toBe(true);
+  });
+
   it('copes with taxonomy drift', async () => {
     await onboard({ roleSkillIds: [...roleSkillIds, 'ghost'], focus: ['ghost', 's1'] });
     await db.delete(userSkills).where(and(eq(userSkills.userId, u), eq(userSkills.skillId, 's3')));
     const p = await buildProfile(db, u, ctx);
     expect(skillOf(p, 's3')).toMatchObject({ level: null, assessed: false, focusRank: null });
     expect(p.domains.flatMap((d) => d.skills.map((s) => s.id))).toEqual(['s1', 's2', 's3']);
-    expect(p.focus).toEqual([{ rank: 2, skillId: 's1', name: 'Name s1' }]);
+    // ranks are renumbered densely at read time: 'ghost' (rank 1) left the taxonomy, so s1 moves up to 1
+    expect(p.focus).toEqual([{ rank: 1, skillId: 's1', name: 'Name s1' }]);
+    expect(skillOf(p, 's1').focusRank).toBe(1);
+  });
+
+  it('renumbers focus densely when a middle focus skill left the taxonomy', async () => {
+    await onboard({ roleSkillIds: [...roleSkillIds, 'ghost'], focus: ['s2', 'ghost', 's3', 's1'] });
+    const p = await buildProfile(db, u, ctx);
+    expect(p.focus.map((f) => [f.rank, f.skillId])).toEqual([
+      [1, 's2'],
+      [2, 's3'],
+      [3, 's1'],
+    ]);
+    expect([skillOf(p, 's2'), skillOf(p, 's3'), skillOf(p, 's1')].map((s) => s.focusRank)).toEqual([1, 2, 3]);
+    const stored = await db.select().from(userSkills).where(and(eq(userSkills.userId, u), eq(userSkills.skillId, 's1')));
+    expect(stored[0]!.focusRank).toBe(4); // read-only: the stored rank is untouched
   });
 
   it('builds history and like share from events', async () => {

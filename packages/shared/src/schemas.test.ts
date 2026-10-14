@@ -139,6 +139,12 @@ describe('quizSchema', () => {
   it('rejects 3 options', () => {
     expect(quizSchema.safeParse({ version: 1, questions: [q(3)] }).success).toBe(false);
   });
+  it('requires a non-negative integer version (stored in an integer column)', () => {
+    for (const version of [1.1, -1, '1']) {
+      expect(quizSchema.safeParse({ version, questions: [q(4)] }).success).toBe(false);
+    }
+    expect(quizSchema.safeParse({ version: 0, questions: [q(4)] }).success).toBe(true);
+  });
 });
 
 describe('articleTypeSchema', () => {

@@ -6,6 +6,7 @@ import {
   quizCoverageIssues,
   quizQuerySchema,
   quizResponseSchema,
+  skillIdOfQuestionId,
   type Quiz,
   type Taxonomy,
 } from './index';
@@ -59,6 +60,24 @@ describe('quizBankIssues', () => {
     const hit = issues.filter((i) => i.includes(fragment));
     expect(hit.length).toBeGreaterThan(0);
     expect(hit.every((i) => i.includes(id))).toBe(true);
+  });
+});
+
+describe('skillIdOfQuestionId', () => {
+  it('strips the trailing -<n>, keeping hyphens inside the skill id', () => {
+    expect(skillIdOfQuestionId('a-1')).toBe('a');
+    expect(skillIdOfQuestionId('cc-hooks-2')).toBe('cc-hooks');
+    expect(skillIdOfQuestionId('multi-agent-orchestration-10')).toBe('multi-agent-orchestration');
+    expect(skillIdOfQuestionId('a-1-2')).toBe('a-1');
+  });
+  it('is null without a numeric suffix', () => {
+    for (const id of ['cc-hooks', 'cc-hooks-x', 'cc-hooks-', '-1', '1', '']) expect(skillIdOfQuestionId(id)).toBeNull();
+  });
+  it('is the rule quizBankIssues enforces', () => {
+    expect(quizBankIssues(bank(q('a-b-1', 'a-b', [2, 0, 4, 1]), q('a-b-2', 'a-b', [3, 1, 0, 4])), taxonomy([skill('a-b')]))).toEqual([]);
+    expect(quizBankIssues(bank(q('a-b-1', 'a', [2, 0, 4, 1]), q('a-2', 'a', [3, 1, 0, 4])), taxonomy())).toEqual([
+      'a-b-1: id must be <skill_id>-<n> (skill_id a)',
+    ]);
   });
 });
 
