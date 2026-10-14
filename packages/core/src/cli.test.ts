@@ -11,6 +11,8 @@ import type { Db } from './db/client';
 import { readFixture } from './collect/fixtures/load';
 import { startServer, type TestServer } from './test/server';
 import { resetDb, TEST_DATABASE_URL, testDb } from './test/db';
+import { readEvalFixture } from './eval/fixtures/load';
+import { registerScenarioRoutes, scenarioLabeler } from './eval/fixtures/scenario';
 import { resolveLabelerFactory, run } from './cli';
 
 const deps = { now: new Date('2026-10-14T12:00:00Z') };
@@ -195,6 +197,125 @@ describe('attn label', () => {
 
   it('rejects an unknown flag', async () => {
     expect(await run(['label', '--bogus'], labelEnv, io, withFake)).toBe(1);
+  });
+});
+
+describe('attn eval', () => {
+  const dataSrc = path.resolve(import.meta.dirname, '../../../data');
+  const evalDeps = { ...deps, sleep: async () => {}, makeLabeler: (model: string) => scenarioLabeler(model) };
+  let evalEnv: NodeJS.ProcessEnv;
+
+  beforeEach(() => {
+    fs.copyFileSync(path.join(dataSrc, 'taxonomy.yml'), path.join(tmp, 'taxonomy.yml'));
+    const cfg = fs
+      .readFileSync(path.join(dataSrc, 'config.yml'), 'utf8')
+      .replace(/^label_min_chars:.*$/m, 'label_min_chars: 200')
+      .replace(/^label_max_chars:.*$/m, 'label_max_chars: 1000')
+      .replace(/^label_delay_ms:.*$/m, 'label_delay_ms: 1');
+    fs.writeFileSync(path.join(tmp, 'config.yml'), cfg);
+    fs.mkdirSync(path.join(tmp, 'golden'));
+    fs.writeFileSync(path.join(tmp, 'golden', 'g.yml'), readEvalFixture('golden.yml', server.baseUrl));
+    registerScenarioRoutes(server);
+    evalEnv = { ATTN_DATA_DIR: tmp, ATTN_CACHE_DIR: path.join(tmp, 'cache') };
+  });
+
+  function expectFullReport(model = 'fake-model') {
+    const text = out.join('\n');
+    expect(text).toContain(`model: ${model}`);
+    expect(text).toContain('articles: evaluated=3 of 4 failed=1');
+    expect(text).toContain('primary_skill'.padEnd(20) + '66.7%');
+    expect(text).toContain('failed:');
+  }
+
+  it('prints the report and exits 0', async () => {
+    expect(await run(['eval', '--model', 'fake-model'], evalEnv, io, evalDeps)).toBe(0);
+    expectFullReport();
+  });
+
+  it('passes the model and taxonomy to makeLabeler', async () => {
+    let got: { model: string; taxonomy: Taxonomy } | undefined;
+    const makeLabeler = (model: string, taxonomy: Taxonomy) => {
+      got = { model, taxonomy };
+      return scenarioLabeler(model);
+    };
+    expect(await run(['eval', '--model', 'fake-model'], evalEnv, io, { ...evalDeps, makeLabeler })).toBe(0);
+    expect(got?.model).toBe('fake-model');
+    expect(got?.taxonomy.domains.length).toBeGreaterThan(0);
+  });
+
+  it('never touches the database, even when DATABASE_URL is unreachable', async () => {
+    await db.insert(articles).values({
+      sourceId: 's',
+      url: 'https://example.com/seed',
+      guid: 'seed',
+      title: 'Seed',
+      titleHash: 'hseed',
+      publishedAt: new Date('2026-01-01T00:00:00Z'),
+    });
+    const before = await db.select().from(articles);
+
+    expect(await run(['eval', '--model', 'fake-model'], evalEnv, io, evalDeps)).toBe(0);
+    expectFullReport();
+
+    out.length = 0;
+    fs.rmSync(path.join(tmp, 'cache'), { recursive: true, force: true });
+    const unreachable = { ...evalEnv, DATABASE_URL: 'postgres://x:x@127.0.0.1:1/none' };
+    expect(await run(['eval', '--model', 'fake-model'], unreachable, io, evalDeps)).toBe(0);
+    expectFullReport();
+
+    expect(await db.select().from(articles)).toEqual(before);
+  });
+
+  it('reuses cached text for a second model', async () => {
+    expect(await run(['eval', '--model', 'fake-model'], evalEnv, io, evalDeps)).toBe(0);
+    out.length = 0;
+    const makeLabeler = (model: string) => scenarioLabeler(model);
+    expect(await run(['eval', '--model', 'other-model'], evalEnv, io, { ...evalDeps, makeLabeler })).toBe(0);
+    expectFullReport('other-model');
+    expect(server.hits('/g1')).toBe(1);
+  });
+
+  it('requires --model', async () => {
+    expect(await run(['eval'], evalEnv, io, evalDeps)).toBe(1);
+    expect(err.join('\n')).toContain('--model');
+    expect(server.hits('/g1')).toBe(0);
+  });
+
+  it('fails on an empty golden set', async () => {
+    fs.rmSync(path.join(tmp, 'golden'), { recursive: true });
+    expect(await run(['eval', '--model', 'm'], evalEnv, io, evalDeps)).toBe(1);
+    expect(err.join('\n')).toContain(`no golden items found in ${tmp}/golden; see README "Evaluation"`);
+  });
+
+  it('fails without an API key when no makeLabeler is injected', async () => {
+    expect(await run(['eval', '--model', 'm'], evalEnv, io, { ...deps, sleep: async () => {} })).toBe(1);
+    expect(err.join('\n')).toContain('GOOGLE_GENERATIVE_AI_API_KEY');
+  });
+
+  it('exits 1 with the partial report on a rate limit', async () => {
+    const makeLabeler = () =>
+      createFakeLabeler(() => {
+        throw new RateLimitError('429');
+      });
+    expect(await run(['eval', '--model', 'm'], evalEnv, io, { ...evalDeps, makeLabeler })).toBe(1);
+    expect(out.join('\n')).toContain('model:');
+    expect(err.join('\n')).toContain('rate limited by the provider; evaluation is incomplete');
+  });
+
+  it('rejects a repeated --model and unknown flags', async () => {
+    expect(await run(['eval', '--model', 'a', '--model', 'b'], evalEnv, io, evalDeps)).toBe(1);
+    expect(await run(['eval', '--model', 'a', '--bogus'], evalEnv, io, evalDeps)).toBe(1);
+  });
+
+  it('evalCommand source has no database access', () => {
+    const src = fs.readFileSync(path.join(import.meta.dirname, 'cli.ts'), 'utf8');
+    const start = src.indexOf('async function evalCommand');
+    expect(start).toBeGreaterThan(-1);
+    const rest = src.slice(start + 1);
+    const next = rest.search(/\n(export )?async function /);
+    const body = src.slice(start, next === -1 ? undefined : start + 1 + next);
+    expect(body).not.toContain('createDb');
+    expect(body).not.toContain('DATABASE_URL');
   });
 });
 

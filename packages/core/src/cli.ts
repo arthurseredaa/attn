@@ -7,6 +7,7 @@ import { createDb, runMigrations } from './db';
 import { collectAll, type SourceReport } from './collect/collect';
 import type { FetchFn } from './collect/http';
 import { createGeminiLabeler, type Labeler } from './label';
+import { createTextCache, defaultCacheDir, formatEvalReport, loadGolden, runEval } from './eval';
 import { labelPending, type LabelItemReport } from './pipeline';
 
 export interface Io {
@@ -21,12 +22,13 @@ export interface Deps {
   sleep?: (ms: number) => Promise<void>;
 }
 
-const USAGE = `usage: attn <migrate | collect | label>
+const USAGE = `usage: attn <migrate | collect | label | eval>
 
 commands:
   migrate                                              apply database migrations
   collect [--source <id>]... [--backfill-days <n>]    collect new articles from sources
   label [--limit <n>]                                  label pending articles with the configured model
+  eval --model <id>                                    measure a model against data/golden/*.yml
 `;
 
 const defaultIo: Io = {
@@ -111,6 +113,48 @@ async function labelCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps
   }
 }
 
+async function evalCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps: Deps): Promise<number> {
+  const { values } = parseArgs({ args, options: { model: { type: 'string', multiple: true } }, strict: true });
+  if ((values.model?.length ?? 0) > 1) {
+    io.err('--model may be given only once');
+    return 1;
+  }
+  const model = values.model?.[0];
+  if (!model) {
+    io.err('--model <id> is required');
+    return 1;
+  }
+
+  const dir = env.ATTN_DATA_DIR ?? dataDir();
+  const taxonomy = loadTaxonomy(dir);
+  const golden = loadGolden(dir, taxonomy);
+  if (golden.length === 0) {
+    io.err(`no golden items found in ${dir}/golden; see README "Evaluation"`);
+    return 1;
+  }
+  const factory = resolveLabelerFactory(env, deps);
+  if ('error' in factory) {
+    io.err(factory.error);
+    return 1;
+  }
+
+  const report = await runEval({
+    labeler: factory(model, taxonomy),
+    golden,
+    cache: createTextCache(defaultCacheDir(env)),
+    config: loadConfig(dir),
+    ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
+    ...(deps.sleep ? { sleep: deps.sleep } : {}),
+    ...(deps.now ? { now: deps.now } : {}),
+  });
+  io.out(formatEvalReport(report));
+  if (report.rateLimited) {
+    io.err('rate limited by the provider; evaluation is incomplete');
+    return 1;
+  }
+  return 0;
+}
+
 async function collect(args: string[], env: NodeJS.ProcessEnv, io: Io, deps: Deps): Promise<number> {
   const { values } = parseArgs({
     args,
@@ -179,6 +223,8 @@ export async function run(argv: string[], env: NodeJS.ProcessEnv, io: Io = defau
         return await collect(rest, env, io, deps);
       case 'label':
         return await labelCommand(rest, env, io, deps);
+      case 'eval':
+        return await evalCommand(rest, env, io, deps);
       default:
         io.err(command ? `unknown command: ${command}\n${USAGE}` : USAGE);
         return 1;
