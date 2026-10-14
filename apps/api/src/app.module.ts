@@ -6,7 +6,8 @@ import { DbModule } from './db/db.module';
 import { HealthModule } from './health/health.module';
 import { JobsModule } from './jobs/jobs.module';
 import { MetaModule } from './meta/meta.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 import { ProfileModule } from './profile/profile.module';
 
-@Module({ imports: [AppConfigModule, DbModule, HealthModule, JobsModule, AuthModule, ArticlesModule, MetaModule, ProfileModule] })
+@Module({ imports: [AppConfigModule, DbModule, HealthModule, JobsModule, AuthModule, ArticlesModule, MetaModule, ProfileModule, OnboardingModule] })
 export class AppModule {}
