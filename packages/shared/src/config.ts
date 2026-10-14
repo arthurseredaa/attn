@@ -21,5 +21,9 @@ export const configSchema = z.strictObject({
   background_quality_min: level,
   fresh_days: posInt,
   page_size: posInt,
+  background_priority: unitInterval,
+  fit_next: unitInterval,
+  fit_same: unitInterval,
+  fit_stretch: unitInterval,
 });
 export type Config = z.infer<typeof configSchema>;

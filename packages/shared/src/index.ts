@@ -8,3 +8,4 @@ export * from './label';
 export * from './api';
 export * from './reading';
 export * from './onboarding';
+export * from './feed';

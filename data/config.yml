@@ -30,3 +30,11 @@ background_quality_min: 4
 fresh_days: 14
 # Feed: articles per page.
 page_size: 20
+# Feed: priority of an article whose primary skill is a background skill. Focus skill rank r has priority (6 - r) / 5.
+background_priority: 0.1
+# Feed: fit multiplier when the article difficulty is t + 1 (t = level + difficulty_offset).
+fit_next: 1.0
+# Feed: fit multiplier when the article difficulty is t.
+fit_same: 0.8
+# Feed: fit multiplier for any other difficulty inside the uncertain range (t - 1 and t + 2).
+fit_stretch: 0.5

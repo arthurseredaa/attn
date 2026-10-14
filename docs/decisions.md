@@ -112,3 +112,23 @@ skills, and ATTN ranks existing articles by their priorities and level.
   None ranks by skill level.
 - Telegram framework, if needed later: grammY (telegraf is stalled since 2024).
 - ai-news volume: ~150–250 new items a week after the initial backfill.
+
+## Stage 5 ranking and feedback (2026-10-14)
+
+- **Four ranking constants in `data/config.yml`.** Spec §7's key list does not name them and the spec is
+  not edited; they keep every number of the §6.1 formula out of the code:
+  - `background_priority` 0.1: priority of an article whose primary skill is a background skill (a focus
+    skill of rank `r` has priority `(6 - r) / 5`).
+  - `fit_next` 1.0: fit when the article difficulty is `t + 1`.
+  - `fit_same` 0.8: fit when the difficulty is `t`.
+  - `fit_stretch` 0.5: fit for any other difficulty inside the uncertain range (`t - 1`, `t + 2`).
+- **`t` is clamped at the top only:** `t = least(level + difficulty_offset, 4)`, no lower clamp (a literal
+  deviation from spec §6.1). Without it a level-4 skill with offset +1 matches difficulty 5 and 6, which
+  never exist, so the skill vanishes from For you and the user can never click "too hard" to undo the
+  offset. Level 0 with offset -1 keeps `t = -1` (difficulty 0 still shows), which correctly narrows.
+  Revert: drop the `least(..., 4)`.
+- **Offset reset on quiz redo:** the difficulty offset is recomputed only from `too_easy`/`too_hard` events
+  created after the user's latest quiz answer for that skill (none: all events). Spec §5.1 says redoing
+  the quiz resets `difficulty_offset`; §5.3 says it is recomputed from events, and recomputing from all
+  history would bring the old offset back on the next click. Revert (use full history): delete one
+  `WHERE` clause in `levels/events.ts`.

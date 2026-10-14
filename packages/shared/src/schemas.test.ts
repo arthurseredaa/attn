@@ -35,6 +35,10 @@ const config = {
   background_quality_min: 4,
   fresh_days: 14,
   page_size: 20,
+  background_priority: 0.1,
+  fit_next: 1,
+  fit_same: 0.8,
+  fit_stretch: 0.5,
 };
 
 describe('taxonomySchema', () => {
@@ -105,6 +109,11 @@ describe('configSchema', () => {
     delete rest.page_size;
     expect(configSchema.safeParse(rest).success).toBe(false);
   });
+  it('rejects a missing ranking constant', () => {
+    const rest: Partial<typeof config> = { ...config };
+    delete rest.fit_next;
+    expect(configSchema.safeParse(rest).success).toBe(false);
+  });
   it('rejects an extra key', () => {
     expect(configSchema.safeParse({ ...config, extra: 1 }).success).toBe(false);
   });
@@ -112,6 +121,8 @@ describe('configSchema', () => {
     expect(configSchema.safeParse({ ...config, interest_decay: 0 }).success).toBe(false);
     expect(configSchema.safeParse({ ...config, quality_min: 5 }).success).toBe(false);
     expect(configSchema.safeParse({ ...config, page_size: 0 }).success).toBe(false);
+    expect(configSchema.safeParse({ ...config, fit_same: 0 }).success).toBe(false);
+    expect(configSchema.safeParse({ ...config, fit_stretch: 1.5 }).success).toBe(false);
   });
 });
 
