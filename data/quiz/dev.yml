@@ -494,3 +494,490 @@ questions:
         level: 1
       - text: "Add a structured output schema to the model step and a check on the template name before sending."
         level: 3
+  - id: ai-sdk-1
+    skill_id: ai-sdk
+    situation: >-
+      Your TypeScript app calls one model vendor through that vendor's own client library. The product team wants to
+      send some requests to a second vendor without rewriting every call site.
+    options:
+      - text: "Adapt the provider example from the SDK docs and read the provider and model for each feature from config."
+        level: 2
+      - text: "Add the second vendor's client next to the first and route a few call sites to it with an env flag check."
+        level: 0
+      - text: "Set up a provider registry with the named aliases and have each call site ask for the alias it needs."
+        level: 3
+      - text: "Install the second provider package and change the model string at each call site that should move."
+        level: 1
+      - text: "Replace the vendor client with the SDK core functions and pass the model in from one shared module."
+        level: 2
+  - id: ai-sdk-2
+    skill_id: ai-sdk
+    situation: >-
+      A support chat built on the SDK gives the model a tool that looks up an order. The model calls the tool, but
+      the reply ends right there instead of an answer that uses the order details.
+    options:
+      - text: "Copy the weather tool example from the SDK docs and swap in the order lookup with its own zod input schema."
+        level: 1
+      - text: "Write a prepareStep function that drops the order tool after the first call and forces a text answer next."
+        level: 3
+      - text: "Fetch the order before the call and paste the order JSON into the system prompt that each turn sends."
+        level: 0
+      - text: "Adapt the multi-step example from the docs and set a stop condition that lets the model answer after the tool."
+        level: 2
+  - id: streaming-ui-1
+    skill_id: streaming-ui
+    situation: >-
+      Your React chat page sends a question and shows nothing for ten seconds, then the whole answer appears at
+      once. Users assume the page has frozen and reload it.
+    options:
+      - text: "Buffer the incoming chunks and flush them to the state once per animation frame to keep long replies smooth."
+        level: 3
+      - text: "Render the message parts from the chat hook quick-start on the page and keep the hook's default transport."
+        level: 1
+      - text: "Stream the reply over server-sent events with ids and resume from the last id after the page reloads."
+        level: 4
+      - text: "Show a spinner over the chat that covers the input until the full answer returns from the API route."
+        level: 0
+      - text: "Return a text stream from the API route and append each chunk to the message state while it arrives."
+        level: 2
+  - id: streaming-ui-2
+    skill_id: streaming-ui
+    situation: >-
+      Streamed answers in your chat look fine, but long replies make the page stutter, and when a user leaves the
+      page the server keeps generating tokens that nobody reads.
+    options:
+      - text: "Pass the request abort signal to the model call and abort the fetch in the chat hook's cleanup on unmount."
+        level: 2
+      - text: "Cap the max output tokens on each request to keep every streamed reply short enough to render quickly."
+        level: 0
+      - text: "Set the throttle option from the chat hook docs for long replies and memoize the old messages."
+        level: 3
+      - text: "Add the stop button from the chat hook example and wire it to the stop function that the hook returns."
+        level: 1
+      - text: "Render the reply in plain text while it streams and switch to the markdown renderer once it ends."
+        level: 2
+  - id: generative-ui-1
+    skill_id: generative-ui
+    situation: >-
+      Your assistant should show a flight card with a booking button when the user asks about flights, instead of a
+      paragraph of text that describes the options.
+    options:
+      - text: "Render the flight tool result in a generic card from the UI library with its default booking button."
+        level: 1
+      - text: "Have the model pick a flight card id from a fixed registry and validate the props before the render."
+        level: 4
+      - text: "Ask the model to reply in markdown tables and add a CSS rule that styles each table like a flight card."
+        level: 0
+      - text: "Adapt the weather card example from the docs into a flight tool with a schema and a FlightCard component."
+        level: 2
+  - id: generative-ui-2
+    skill_id: generative-ui
+    situation: >-
+      Your generated UI sometimes shows a booking form with fields the model made up, and one card rendered a link
+      to a domain your company does not own.
+    options:
+      - text: "Check every URL in the tool arguments against an allowlist of domains in the renderer before a link shows."
+        level: 3
+      - text: "Remove the booking form from the generated UI and hide the links in the cards until the next release."
+        level: 0
+      - text: "Resolve the ids the model returns into links and form fields on the server and send the finished props."
+        level: 4
+      - text: "Fix the form fields in the component code and take the prefilled values from the tool call arguments."
+        level: 2
+      - text: "Add a line to the system prompt that tells the model to use only the real form fields and company links."
+        level: 1
+  - id: structured-output-1
+    skill_id: structured-output
+    situation: >-
+      Your app asks the model for an invoice summary in JSON, then parses it. About one reply in fifty breaks the
+      parser or has a missing field.
+    options:
+      - text: "Validate with the zod schema and send the validation errors back to the model for one repair attempt."
+        level: 3
+      - text: "Add a JSON example of the invoice schema to the prompt and tell the model to reply with exactly that shape."
+        level: 1
+      - text: "Turn on the provider's strict schema mode to constrain decoding and keep the zod check on each invoice."
+        level: 4
+      - text: "Wrap the parse in a try block and rerun the same request until the reply parses without an error."
+        level: 0
+      - text: "Define a zod schema for the invoice and pass it to the SDK object generation call to get typed data."
+        level: 2
+  - id: structured-output-2
+    skill_id: structured-output
+    situation: >-
+      The invoice schema gained two new fields last week. Older stored results now fail to load, and the prompt
+      still describes the old shape.
+    options:
+      - text: "Generate the field list of the prompt and the JSON shape from the one zod definition with describe calls."
+        level: 3
+      - text: "Mark the new fields optional with defaults in the zod schema and parse old rows through the same schema."
+        level: 2
+      - text: "Edit the field list in the prompt by hand to match the new zod schema and reload the failing results."
+        level: 1
+      - text: "Version the schema and write a migration that upgrades the stored rows to the new shape at load time."
+        level: 3
+  - id: evals-1
+    skill_id: evals
+    situation: >-
+      You changed the system prompt of a summarization feature, and it reads better on the three examples you tried.
+      You are about to ship it.
+    options:
+      - text: "Run both prompts over a saved set of fifty real inputs and compare the outputs side by side before merging."
+        level: 2
+      - text: "Add the saved set and the judge to CI and fail a merge when a system prompt change lowers the score."
+        level: 4
+      - text: "Ship the new prompt once the unit tests pass in CI and read the support tickets over the week for complaints."
+        level: 0
+      - text: "Score both prompts over the saved set with the judge template from the docs, rewritten for this product."
+        level: 3
+      - text: "Add the eval script from the framework docs to CI and check the same three examples for both prompts."
+        level: 1
+  - id: evals-2
+    skill_id: evals
+    situation: >-
+      Your LLM-as-judge eval says the new model is better, but a colleague who read the outputs disagrees on several
+      of the cases.
+    options:
+      - text: "Switch the judge to pairwise comparison with swapped order and require a clear win in both orders."
+        level: 3
+      - text: "Trust the judge score over the colleague and ship the new model once the eval script passes in CI."
+        level: 0
+      - text: "Label a sample by hand with the colleague and trust the judge once it agrees with those labels."
+        level: 4
+      - text: "Read the cases where the colleague disagrees and rerun the judge with a rubric that covers them."
+        level: 2
+      - text: "Swap the judge for a larger model with the judge prompt from the framework docs and run the eval again."
+        level: 1
+  - id: llm-observability-1
+    skill_id: llm-observability
+    situation: >-
+      Users report that the assistant sometimes takes thirty seconds to answer. Your logs show the request and the
+      final reply, but nothing in between.
+    options:
+      - text: "Install the tracing SDK from the vendor quick-start and keep its auto-instrumentation settings unchanged."
+        level: 1
+      - text: "Carry one trace id from each request through every service and the model gateway into a single trace."
+        level: 4
+      - text: "Wrap each model call and tool call in a span with tokens and latency under one trace per request."
+        level: 2
+      - text: "Add timing logs to the request handler that print the total time, and read them after the next complaint."
+        level: 0
+      - text: "Extend the default instrumentation with spans for the tool calls and tag each trace with the user."
+        level: 3
+  - id: llm-observability-2
+    skill_id: llm-observability
+    situation: >-
+      Your traces now contain full prompts and responses, and the security team points out that some of them include
+      customer email addresses and card numbers.
+    options:
+      - text: "Hash the user ids in trace metadata and mask the app's own sensitive fields with a custom function."
+        level: 3
+      - text: "Enable the masking option in the tracing client settings and keep the patterns it ships with."
+        level: 1
+      - text: "Run the redaction in the trace collector outside the app and drop raw payloads before storage."
+        level: 4
+      - text: "Extend the default masking patterns from the vendor docs with the email and card formats of the app."
+        level: 2
+  - id: prompt-injection-1
+    skill_id: prompt-injection
+    situation: >-
+      Your support agent reads incoming emails and can issue refunds through a tool. A tester got it to refund an
+      order by hiding instructions inside an email.
+    options:
+      - text: "Require a human approval step in the app for every refund the agent proposes from an email thread."
+        level: 2
+      - text: "Filter emails that contain phrases like ignore previous instructions with a regex before the agent."
+        level: 0
+      - text: "Have a separate model call turn each email into a typed request and give the agent that request."
+        level: 3
+      - text: "Add a line to the system prompt telling the model to treat instructions in emails like plain data."
+        level: 1
+      - text: "Check each refund in the tool code against the order's owner and the sender's verified address."
+        level: 4
+  - id: prompt-injection-2
+    skill_id: prompt-injection
+    situation: >-
+      You are adding a web browsing tool to an internal agent that can also read your company wiki and post messages
+      to chat channels.
+    options:
+      - text: "Restrict the browsing tool to an allowlist of domains in its config and log every URL it fetches."
+        level: 3
+      - text: "Disable the chat posting tool in the tool router for any agent session that has fetched a web page."
+        level: 4
+      - text: "Ask for user approval before each chat post and each browse call once wiki content is in context."
+        level: 2
+      - text: "Add the browsing tool to the agent and test that it refuses to post wiki text on a few sample pages."
+        level: 0
+  - id: cost-caching-1
+    skill_id: cost-caching
+    situation: >-
+      Your monthly model bill doubled. Most requests send the same long system prompt and a large product catalog,
+      followed by a short user question.
+    options:
+      - text: "Turn on prompt caching with the setting from the provider docs and keep the prompt order unchanged."
+        level: 1
+      - text: "Compare the cache read and write tokens per request and alert when the hit rate falls below a target."
+        level: 3
+      - text: "Switch every request to the smallest model and cap the catalog at the first hundred products."
+        level: 0
+      - text: "Follow the caching docs to move the system prompt and catalog first and mark that prefix for caching."
+        level: 2
+      - text: "Send the catalog entries that match the question from a search step and cache the fixed prompt."
+        level: 3
+  - id: cost-caching-2
+    skill_id: cost-caching
+    situation: >-
+      Finance asks you to keep the LLM spend of an internal tool under a fixed monthly amount, and one team's batch
+      script has already used half of it in a week.
+    options:
+      - text: "Move the batch script to the provider batch API at the lower price and give it its own API key."
+        level: 2
+      - text: "Email the team that runs the batch script and ask them to run it less often until next month."
+        level: 0
+      - text: "Issue the team keys from a gateway that counts the spend and rejects calls once a team's budget runs out."
+        level: 4
+      - text: "Set a spend limit in the provider console with an email alert that fires at the monthly amount."
+        level: 1
+      - text: "Write a usage report that sums the tokens per API key each day and posts totals to the team channel."
+        level: 3
+  - id: model-selection-1
+    skill_id: model-selection
+    situation: >-
+      Your feature uses the largest model for every request, including short classification calls that pick one of
+      five labels.
+    options:
+      - text: "Keep the largest model for every call and cap the prompt length that each classification call sends."
+        level: 0
+      - text: "Compare three models on a labelled set of past classification calls and pick the cheapest that fits."
+        level: 3
+      - text: "Switch all calls to the newest mid-size model in the provider lineup and keep the prompts unchanged."
+        level: 1
+      - text: "Route each request by a small model's confidence and escalate the unsure cases to the large model."
+        level: 4
+      - text: "Move the classification calls to the small model the docs suggest for labels and keep the large one."
+        level: 2
+  - id: model-selection-2
+    skill_id: model-selection
+    situation: >-
+      An agent that plans multi-file refactors gives shallow plans on hard tasks, but raising the effort level on
+      every call made the simple tasks slow.
+    options:
+      - text: "Raise the effort for the planning step alone and cap the effort for the edit steps at the default."
+        level: 2
+      - text: "Rerun the hard tasks a few times with the same settings and keep only the plan that looks most thorough."
+        level: 0
+      - text: "Pick the effort for each task from the number of files the plan touches, with the thresholds in config."
+        level: 3
+      - text: "Set the effort to the level the docs recommend for coding agents and keep it for all tasks."
+        level: 1
+      - text: "Measure the plan quality at each effort level on past refactors and route the tasks by those scores."
+        level: 3
+  - id: embeddings-1
+    skill_id: embeddings
+    situation: >-
+      You want users to find help articles by meaning, beyond exact keyword matches. There are about two thousand
+      articles.
+    options:
+      - text: "Chunk the articles by heading, embed the chunks and store them with the article id in a vector index."
+        level: 2
+      - text: "Add synonyms for common terms to the keyword index with a script that expands each query."
+        level: 0
+      - text: "Use one hybrid ranking over keyword and vector scores and tune the weight on a set of real queries."
+        level: 3
+      - text: "Index each article with the embedding model from the vector database quick-start and return the top five."
+        level: 1
+      - text: "Build a labelled query set from search logs and pick the embedding model and chunk size by recall."
+        level: 3
+  - id: embeddings-2
+    skill_id: embeddings
+    situation: >-
+      Your similarity search worked well for months. After you switched to a newer embedding model for new
+      documents, results for the old documents became poor.
+    options:
+      - text: "Encode each query with both models during the switch and search each model's vectors with its own query."
+        level: 3
+      - text: "Lower the similarity threshold in the search config to the default that the vector store docs list."
+        level: 1
+      - text: "Build the new index under a versioned name and move the read alias to it after a recall test passes."
+        level: 4
+      - text: "Raise the result count per query and check that the reranker puts the old documents back on top."
+        level: 0
+      - text: "Rerun the embedding job over every old document with the new model and swap the index once it finishes."
+        level: 2
+  - id: rag-1
+    skill_id: rag
+    situation: >-
+      Your RAG assistant answers questions about internal policies, but it often cites the right document and still
+      gets the details wrong.
+    options:
+      - text: "Raise the top-k setting in the retrieval config and send more chunks to the model with each question."
+        level: 1
+      - text: "Add a reranker over the retrieved chunks and keep a set of failing questions to rerun after each change."
+        level: 3
+      - text: "Switch to a model with a larger context window and send the whole policy folder with every question."
+        level: 0
+      - text: "Score the retrieval and the answers apart on labelled questions and keep the index changes that raise both."
+        level: 4
+      - text: "Inspect the retrieved chunks for failing questions and fix the chunk size where details got split apart."
+        level: 2
+  - id: rag-2
+    skill_id: rag
+    situation: >-
+      Your RAG assistant indexes documents from several teams. A user just got an answer quoting a document from a
+      team space they have no access to.
+    options:
+      - text: "Look up each retrieved document in the permission API of the team space at query time before the model."
+        level: 4
+      - text: "Store the team space id with each chunk and filter the retrieval query by the spaces of the current user."
+        level: 2
+      - text: "Sync the access lists from the wiki into the index metadata each hour and filter retrieval on them."
+        level: 3
+      - text: "Add a line to the system prompt telling the model to skip documents the user is not allowed to read."
+        level: 1
+  - id: team-adoption-1
+    skill_id: team-adoption
+    situation: >-
+      You set up coding agent licenses for your team of eight two months ago. Usage logs show two people use it
+      daily and the rest stopped after the first week.
+    options:
+      - text: "Share the vendor's getting-started guide in the team channel and set a date to check usage again."
+        level: 1
+      - text: "Ship the agent preinstalled in the team dev container with the repo commands ready on first launch."
+        level: 4
+      - text: "Pair with each person on one real ticket from their own backlog using the agent and note the blockers."
+        level: 2
+      - text: "Commit a project CLAUDE.md and custom commands built from the docs examples for the team's common tasks."
+        level: 3
+  - id: team-adoption-2
+    skill_id: team-adoption
+    situation: >-
+      Half of your team now uses the coding agent daily. The other half says it produces code they have to rewrite,
+      and avoids it.
+    options:
+      - text: "Collect three concrete cases of rewritten code from the skeptics and fix the prompts or context behind them."
+        level: 2
+      - text: "Leave the tool optional and let each person decide on their own whether it is worth the time."
+        level: 0
+      - text: "Review the rewrite rate of PRs labelled agent-written and go through the worst cases with authors."
+        level: 3
+      - text: "Forward the vendor's best-practices article to the skeptics and suggest a second try on a small ticket."
+        level: 1
+  - id: shared-config-standards-1
+    skill_id: shared-config-standards
+    situation: >-
+      Each of your team's twelve repos has its own copy of the agent instructions file, and the copies have drifted:
+      some forbid things others require.
+    options:
+      - text: "Write a script that diffs each repo's file against the shared base and opens a PR for any drift."
+        level: 3
+      - text: "Copy the most complete file into every repo and ask the owners to keep it in sync with that one."
+        level: 1
+      - text: "Generate the file in each repo from the central source on every merge and overwrite direct edits."
+        level: 4
+      - text: "Move the shared rules into one central file that the docs show how to import, with a local file per repo."
+        level: 2
+      - text: "Merge every repo's rules into one long file and paste it into each repo by hand once a quarter."
+        level: 0
+  - id: shared-config-standards-2
+    skill_id: shared-config-standards
+    situation: >-
+      Your team agreed on lint and formatting rules for AI-written code, but agents in different repos follow
+      different style rules from old settings files.
+    options:
+      - text: "Fix the style problems in review comments and hold the merge until the authors correct them."
+        level: 0
+      - text: "Publish one shared lint and formatter config package and require the same version in every repo."
+        level: 2
+      - text: "Make the shared lint job a required merge status in every repo and drop the local overrides."
+        level: 4
+      - text: "Add a hook to the shared agent settings that runs the shared formatter after each file edit."
+        level: 3
+  - id: ai-teaching-1
+    skill_id: ai-teaching
+    situation: >-
+      You are asked to run a two-hour workshop on working with coding agents for twenty developers with mixed
+      experience.
+    options:
+      - text: "Plan exercises on a copy of the team repo where people fix a real bug with the agent in pairs."
+        level: 2
+      - text: "Demo a few impressive prompts on stage and point people to the docs for the rest of the setup."
+        level: 0
+      - text: "Prepare a starter branch with a CLAUDE.md for the coding agents and a known bug for each exercise."
+        level: 3
+      - text: "Walk through the vendor tutorial live on a sample app and share the slides and the code afterwards."
+        level: 1
+  - id: ai-teaching-2
+    skill_id: ai-teaching
+    situation: >-
+      Two weeks after your workshop, most participants still use the agent for small inline edits and none of the
+      techniques you taught.
+    options:
+      - text: "Schedule a repeat of the same workshop for the people who missed parts of it the first time."
+        level: 1
+      - text: "Write a short exercise per technique in the team repo, each checked by a test the person runs."
+        level: 3
+      - text: "Send the workshop slides again with a note asking everyone to review the advanced sections."
+        level: 0
+      - text: "Ask each participant for one session log a week and annotate the log with the missed techniques."
+        level: 4
+      - text: "Run short follow-up sessions where each person brings a current ticket and applies one technique."
+        level: 2
+  - id: codebase-agents-1
+    skill_id: codebase-agents
+    situation: >-
+      New developers keep asking the same questions about how your services fit together. You want a team agent that
+      answers from the codebase documentation.
+    options:
+      - text: "Add a tool that reads code files on demand and a nightly job that re-indexes the docs from main."
+        level: 3
+      - text: "Collect the common questions and answers into a FAQ page that the team channel pins."
+        level: 0
+      - text: "Index the docs folder and READMEs into a retrieval tool and have the agent cite the file for each answer."
+        level: 2
+      - text: "Upload the docs folder to a chat assistant project and share the project link with the team."
+        level: 1
+      - text: "Regenerate the service map from the code on every merge and index the result next to the written docs."
+        level: 4
+  - id: codebase-agents-2
+    skill_id: codebase-agents
+    situation: >-
+      Your team's documentation agent confidently answered that a service uses REST, but the service moved to gRPC
+      three months ago and the docs were never updated.
+    options:
+      - text: "Show the last-modified date of each cited doc in the answer and flag pages older than six months."
+        level: 2
+      - text: "Add a merge rule that needs a docs page update in the same PR whenever a service's proto or route files change."
+        level: 4
+      - text: "Add a system prompt line telling the agent to say when it is unsure about a service's protocol."
+        level: 1
+      - text: "Fix the outdated page in the docs and ask the team to check the agent's answers against the code."
+        level: 0
+  - id: ai-code-governance-1
+    skill_id: ai-code-governance
+    situation: >-
+      Leadership asks for a policy on AI-written code after an agent-generated change shipped a hard-coded API key.
+    options:
+      - text: "Adopt a published AI usage policy template and add a checklist item for secrets to it."
+        level: 1
+      - text: "Add a pre-commit hook in the repo template that scans for secrets before any commit lands."
+        level: 3
+      - text: "Turn on push protection for API keys on the git host and make the scan job a merge gate."
+        level: 4
+      - text: "Require a human review on every PR with agent-written code and turn on the secret scanning."
+        level: 2
+  - id: ai-code-governance-2
+    skill_id: ai-code-governance
+    situation: >-
+      Your policy says AI-assisted PRs need a second reviewer, but nobody can tell which PRs were AI-assisted, and
+      the rule is not applied.
+    options:
+      - text: "Label AI-assisted PRs from the template checkbox and have a bot request a second reviewer on them."
+        level: 2
+      - text: "Remind reviewers in the team channel to look for AI-written code during each review they do."
+        level: 0
+      - text: "Sign the agent's commits with a dedicated key in its tooling and route those to a second reviewer."
+        level: 4
+      - text: "Add a checkbox for AI assistance to the PR template and ask authors to tick it when it applies."
+        level: 1
+      - text: "Add the agent's co-author trailer to its settings and a CI job that requires two approvals when it appears."
+        level: 3

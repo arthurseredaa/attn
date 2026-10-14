@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { quizCoverageIssues } from "@attn/shared";
 import { dataDir, loadQuiz, loadTaxonomy } from "./data";
 
 let dir: string;
@@ -101,18 +102,56 @@ describe("real quiz bank", () => {
       expect(lines.slice(0, 5)).toEqual(DRAFT_HEADER);
   });
 
-  it("has each part-1 skill exactly twice, in taxonomy order", () => {
+  const skillOrder = () =>
+    loadTaxonomy().domains.flatMap((d) => d.skills.map((s) => s.id));
+
+  it("covers every dev skill of the taxonomy", () => {
+    expect(quizCoverageIssues(loadQuiz(), loadTaxonomy(), "dev")).toEqual([]);
+  });
+
+  it("has 64 questions, exactly <skill>-1 and <skill>-2 for every taxonomy skill", () => {
+    const qs = loadQuiz().questions;
+    expect(qs).toHaveLength(64);
+    for (const skill of skillOrder()) {
+      expect(
+        qs
+          .filter((q) => q.skill_id === skill)
+          .map((q) => q.id)
+          .sort(),
+        skill,
+      ).toEqual([`${skill}-1`, `${skill}-2`]);
+    }
+  });
+
+  it("orders the whole bank by taxonomy, each skill's -1 before its -2", () => {
     const ids = loadQuiz().questions.map((q) => q.id);
-    const order = loadTaxonomy().domains.flatMap((d) =>
-      d.skills.map((s) => s.id),
+    expect(ids).toEqual(skillOrder().flatMap((s) => [`${s}-1`, `${s}-2`]));
+  });
+
+  it("does not copy one question of a skill into the other (situation and option texts differ)", () => {
+    const qs = loadQuiz().questions;
+    for (const skill of skillOrder()) {
+      const [a, b] = qs.filter((q) => q.skill_id === skill);
+      if (!a || !b) throw new Error(`${skill}: missing questions`);
+      expect(a.situation, skill).not.toBe(b.situation);
+      const textsA = new Set(a.options.map((o) => o.text.trim().toLowerCase()));
+      const shared = b.options.filter((o) =>
+        textsA.has(o.text.trim().toLowerCase()),
+      );
+      expect(shared, skill).toEqual([]);
+    }
+  });
+
+  it("uses every level 0-4 for at least 5% of the options in the whole bank", () => {
+    const levels = loadQuiz().questions.flatMap((q) =>
+      q.options.map((o) => o.level),
     );
-    const part1 = PART_1.slice().sort(
-      (a, b) => order.indexOf(a) - order.indexOf(b),
-    );
-    expect(PART_1).toEqual(part1);
-    const expected = PART_1.flatMap((s) => [`${s}-1`, `${s}-2`]);
-    expect(ids.filter((id) => expected.includes(id))).toEqual(expected);
-    expect(ids.slice(0, expected.length)).toEqual(expected);
+    for (const level of [0, 1, 2, 3, 4]) {
+      expect(
+        levels.filter((l) => l === level).length / levels.length,
+        `level ${level}`,
+      ).toBeGreaterThanOrEqual(0.05);
+    }
   });
 
   it("uses every level 0-4 across the part-1 bank", () => {
