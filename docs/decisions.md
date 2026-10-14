@@ -1,0 +1,110 @@
+# ATTN — design decisions (grill session, 2026-10-14)
+
+Input for the spec. Agreed with the user in a /grill-me session held in `~/Projects/ai-news`.
+
+## What it is
+
+Public website with a personal feed of AI articles. The user onboards, gets an AI skill map, picks focus
+skills, and ATTN ranks existing articles by their priorities and level.
+
+- Goals: portfolio, learning to build such systems, own tool. No monetization.
+- Differentiator vs TLDR (one human-curated issue for everyone) and daily.dev (tag-based feed): ranking
+  by **skill priority + skill level**, not by topic alone.
+- Curation only: links to existing articles. No generated guides.
+- Everything in English.
+
+## Skill map
+
+- Fixed curated taxonomy `Role → Domain → Skill`, versioned YAML. A skill can belong to several roles
+  (`roles: [dev, pm]`).
+- Roles: architecture supports many, launch with `dev` only (developers who use AI and build with it).
+  Adding a role = new YAML for taxonomy, sources, quiz and golden set, no code changes. The ranking
+  engine does not know about roles; roles only affect onboarding (which skills are offered) and sources.
+- Onboarding: pick role → pick up to 5 focus skills and order them (the rest are background) → quiz.
+- Quiz:
+  - situational questions ("Claude Code went off track mid-session, what do you do?") with 4–6 options;
+    each option has a hidden level 0–4;
+  - after the first choice the user picks a **second** one ("if that option weren't there");
+  - skill level = median of first choices over the skill's questions;
+  - spread |first − second| = confidence; a large spread marks the skill "uncertain", and the feed mixes
+    difficulty for it (±1) so feedback calibrates it;
+  - question bank is written together (Claude drafts, user reviews), stored in the repo as YAML,
+    versioned with the taxonomy. Being public in open source is fine.
+- Level grows from reading: the "Read" button (never disabled) gives 1 point to the article's primary
+  skill if the article's difficulty ≥ the user's level. 5 points = +1 level. Numbers live in config.
+- The user can redo onboarding at any time; the new result replaces levels. Focus and order can be
+  changed at any time.
+
+## Matching
+
+- **Labeling is global, one LLM call per article**, full text (truncated). Output: `skills[]` (primary /
+  secondary), `difficulty` 0–4, `type` (release / tutorial / deep dive / news / research), `quality`.
+  Enums in the output schema. Reading time is computed from word count, no AI. No summaries.
+- **Relevant article** for a user:
+  1. primary skill is in focus; a background skill only with quality above a high threshold;
+  2. difficulty = level or level+1 (±1 for "uncertain" skills);
+  3. quality ≥ threshold;
+  4. not read or dismissed by the user, no duplicate of the same story in the feed;
+  5. releases and news ≤ 14 days old; tutorials and deep dives have no age limit (the feed mixes fresh
+     items with an evergreen library).
+- **Ranking**: deterministic formula, priority → level fit → quality. No per-user LLM calls. A module
+  behind an interface so it can be swapped (e.g. LLM rerank) later.
+- The feed is computed by a **SQL query on request**. Nothing is precomputed per user. Cache only if
+  measured to be needed.
+- Feedback buttons: Read, 👍, too easy, too hard, not interested. "Too easy/hard" adjusts level fit for
+  that skill, "not interested" lowers weight. The share of 👍 is the ranking quality metric.
+- Label quality: the user hand-labels ~50 articles (golden set, YAML), a CLI eval script measures
+  per-field agreement. The model is chosen only by eval results. No admin UI.
+
+## Website
+
+- Login with GitHub OAuth (name and avatar from the profile).
+- **For you**: personal live feed; each article shows only title, skills and link. Read items disappear.
+- **All**: everything collected, chronological, filters by source, skill and date (the "raw" view).
+- **Profile**: map of all skills by domain with levels, focus highlighted and ordered, progress to the
+  next level (e.g. 3/5), "take quiz" for unassessed skills, reading history.
+- No Telegram in MVP.
+
+## Backend and data
+
+- pnpm monorepo: `apps/web` (Next.js, frontend only), `apps/api` (NestJS), `packages/shared` (zod
+  schemas and types), `packages/core` (collectors, labeling, ranking as plain modules without NestJS).
+  YAML data in the repo: taxonomy, quiz, `sources.yml`.
+- Postgres + Drizzle.
+- Daily schedule: collect → label new articles.
+- LLM via Vercel AI SDK (`ai` 7.x, `@ai-sdk/google`) on a free Gemini key; switching provider = changing
+  the import and the key.
+- **Invariant**: only public article text goes to the LLM. User data (quiz answers, levels, ids) never
+  does. (The Gemini free tier may use prompts for product improvement and human review.)
+- Full article text is used only for labeling; it is not shown or stored.
+- Secrets only in env; the repo has `.env.example`.
+
+## Repository and ai-news
+
+- `~/Projects/attn`, public on GitHub, MIT, code written from scratch.
+- From `~/Projects/ai-news` carry over **as data only**: `sources.yml` (28 sources: 18 rss, 6
+  gh-releases, 2 sitemap, 2 md-diff) and `taxonomy.yml` (32 skills, 6 domains) as the taxonomy base.
+  Collector types worth reimplementing: rss, GitHub releases, sitemap with path prefix, markdown
+  changelog diff; HTTP ETag/Last-Modified caching; dedup by title hash.
+- `ai-news` is archived on GitHub and its Claude Desktop scheduled task is disabled **only once ATTN
+  covers the user's own use case**, not before.
+
+## Deferred on purpose
+
+- Quiz scope and onboarding order (user leans to a quiz over all skills so the user sees the whole
+  picture) — decide at the quiz stage.
+- Hosting (compare prices, Hetzner mentioned). Free options checked 2026-10-14: only Oracle Always Free
+  stays on with a disk; Fly.io/Railway have no free tier; Render/Koyeb sleep, no disk.
+- Login for non-dev roles (Google or email) — with the first non-dev role.
+- Paid Gemini tier — when users from the EEA/CH/UK appear or at a real public launch (the free tier
+  terms require paid services for apps available to users there).
+- Feed cache — only if measured.
+
+## Research notes (2026-10-14)
+
+- TLDR AI: weekday email, ~1.15M readers, ~18 items (3 sponsored), human curators, no personalization,
+  ads-only business. https://tldr.tech/ai, https://advertise.tldr.tech/
+- Personalizing competitors: daily.dev (tags at onboarding), Feedly Leo (topics + "less like this").
+  None ranks by skill level.
+- Telegram framework, if needed later: grammY (telegraf is stalled since 2024).
+- ai-news volume: ~150–250 new items a week after the initial backfill.
