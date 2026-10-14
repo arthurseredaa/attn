@@ -1,11 +1,12 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import type { Db } from '@attn/core';
+import type { Quiz, Taxonomy } from '@attn/shared';
 import { TEST_DATABASE_URL } from '@attn/core/testing';
 import { AppModule } from '../app.module';
 import { configureApp } from '../app.setup';
 import type { Env } from '../config/env';
-import { DB, ENV } from '../tokens';
+import { DB, ENV, QUIZ, TAXONOMY } from '../tokens';
 
 export function testEnv(overrides: Partial<Env> = {}): Env {
   return {
@@ -32,11 +33,18 @@ export interface TestApp {
   close(): Promise<void>;
 }
 
-export async function startTestApp(overrides: Partial<Env> = {}): Promise<TestApp> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+export interface TestAppExtra {
+  quiz?: Quiz;
+  taxonomy?: Taxonomy;
+}
+
+export async function startTestApp(overrides: Partial<Env> = {}, extra: TestAppExtra = {}): Promise<TestApp> {
+  let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(ENV)
-    .useValue(testEnv(overrides))
-    .compile();
+    .useValue(testEnv(overrides));
+  if (extra.quiz) builder = builder.overrideProvider(QUIZ).useValue(extra.quiz);
+  if (extra.taxonomy) builder = builder.overrideProvider(TAXONOMY).useValue(extra.taxonomy);
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();
   configureApp(app);
   await app.listen(0);

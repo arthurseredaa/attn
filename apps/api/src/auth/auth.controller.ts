@@ -77,7 +77,7 @@ export class AuthController {
       res.cookie(SESSION_COOKIE, token, sessionCookieOptions(this.env));
       res.setHeader('Cache-Control', 'no-store');
       res.setHeader('Referrer-Policy', 'no-referrer');
-      res.redirect(302, `${this.env.appUrl}/all`);
+      res.redirect(302, `${this.env.appUrl}/profile`);
     } catch (e) {
       // message only: never the code, state, tokens or query
       this.logger.warn(`oauth callback failed: ${errMessage(e)}`);

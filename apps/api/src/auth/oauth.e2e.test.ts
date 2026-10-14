@@ -105,7 +105,7 @@ describe('GET /api/auth/github/callback', () => {
     const { state } = await begin();
     const res = await callback(`code=good-code&state=${state}`, `attn_oauth_state=${state}`);
     expect(res.status).toBe(302);
-    expect(res.headers.get('location')).toBe(`${LANDING}/all`);
+    expect(res.headers.get('location')).toBe(`${LANDING}/profile`);
     expect(res.headers.get('cache-control')).toBe('no-store');
     expect(res.headers.get('referrer-policy')).toBe('no-referrer');
     const session = cookieOf(res, 'attn_session')!;
@@ -156,7 +156,7 @@ describe('GET /api/auth/github/callback', () => {
       expect(res.status).toBe(302);
       expect(stateCookie).toContain('Secure');
       const cb = await callback(`code=good-code&state=${state}`, `attn_oauth_state=${state}`, app.base);
-      expect(cb.headers.get('location')).toBe('https://attn.example/all');
+      expect(cb.headers.get('location')).toBe('https://attn.example/profile');
       expect(cookieOf(cb, 'attn_session')).toContain('Secure');
       expect(cookieOf(cb, 'attn_oauth_state')).toContain('Secure');
     } finally {
@@ -174,7 +174,7 @@ describe('GET /api/auth/github/callback', () => {
       }
       const { state } = await begin();
       const res = await callback(`code=good-code&state=${state}`, `attn_oauth_state=${state}`);
-      expect(res.headers.get('location')).toBe(`${LANDING}/all`);
+      expect(res.headers.get('location')).toBe(`${LANDING}/profile`);
     }
     const rows = await ctx.db.select().from(users);
     expect(rows).toHaveLength(1);
@@ -207,7 +207,7 @@ describe('GET /api/auth/github/callback', () => {
       `code=good-code&state=${state}`,
       `attn_oauth_state=${state}; attn_session=${oldToken}`,
     );
-    expect(res.headers.get('location')).toBe(`${LANDING}/all`);
+    expect(res.headers.get('location')).toBe(`${LANDING}/profile`);
     const rows = await ctx.db.select().from(sessions);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.id).not.toBe(hashToken(oldToken));
@@ -220,14 +220,14 @@ describe('GET /api/auth/github/callback', () => {
   it('a garbage old session cookie does not break login', async () => {
     const { state } = await begin();
     const res = await callback(`code=good-code&state=${state}`, `attn_oauth_state=${state}; attn_session=garbage%E0%A4%A`);
-    expect(res.headers.get('location')).toBe(`${LANDING}/all`);
+    expect(res.headers.get('location')).toBe(`${LANDING}/profile`);
     expect(await counts()).toEqual({ users: 1, sessions: 1 });
   });
 
   it('replay without the cleared cookie -> state_mismatch, no second user or session', async () => {
     const { state } = await begin();
     const ok = await callback(`code=good-code&state=${state}`, `attn_oauth_state=${state}`);
-    expect(ok.headers.get('location')).toBe(`${LANDING}/all`);
+    expect(ok.headers.get('location')).toBe(`${LANDING}/profile`);
     expectFailure(await callback(`code=good-code&state=${state}`), 'state_mismatch');
     expect(await counts()).toEqual({ users: 1, sessions: 1 });
   });
@@ -272,7 +272,7 @@ describe('GET /api/auth/github/callback', () => {
     vi.spyOn(SessionService.prototype, 'purgeExpired').mockRejectedValue(new Error('db hiccup'));
     const { state } = await begin();
     const res = await callback(`code=good-code&state=${state}`, `attn_oauth_state=${state}`);
-    expect(res.headers.get('location')).toBe(`${LANDING}/all`);
+    expect(res.headers.get('location')).toBe(`${LANDING}/profile`);
     expect(cookieOf(res, 'attn_session')).toBeDefined();
     expect(await counts()).toEqual({ users: 1, sessions: 1 });
     expect(warn).toHaveBeenCalledTimes(1);

@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
-import { loadConfig, loadSources, loadTaxonomy } from '@attn/core';
-import { APP_CONFIG, ENV, SOURCES, TAXONOMY } from '../tokens';
+import { loadConfig, loadQuiz, loadSources, loadTaxonomy } from '@attn/core';
+import { APP_CONFIG, ENV, QUIZ, SOURCES, TAXONOMY } from '../tokens';
 import { loadEnv } from './env';
 
 @Global()
@@ -10,7 +10,8 @@ import { loadEnv } from './env';
     { provide: APP_CONFIG, useFactory: () => loadConfig() },
     { provide: TAXONOMY, useFactory: () => loadTaxonomy() },
     { provide: SOURCES, useFactory: () => loadSources() },
+    { provide: QUIZ, useFactory: () => loadQuiz() },
   ],
-  exports: [ENV, APP_CONFIG, TAXONOMY, SOURCES],
+  exports: [ENV, APP_CONFIG, TAXONOMY, SOURCES, QUIZ],
 })
 export class AppConfigModule {}
