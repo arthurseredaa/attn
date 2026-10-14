@@ -4,3 +4,4 @@ export * from './quiz';
 export * from './present';
 export * from './points';
 export * from './store';
+export * from './profile';
