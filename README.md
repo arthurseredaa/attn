@@ -360,7 +360,8 @@ counts.
 Feedback applies to the article's primary skill, only to skills that exist after onboarding (a user who has not
 onboarded has events recorded but no skill effects).
 
-- **Read** (the title and the Read link both open the article in a new tab and record it): the article leaves the
+- **Read** (only the Read button records it, and it opens the article in a new tab; clicking the title just opens the
+  article and records nothing): the article leaves the
   feed. On screen the card collapses to a strip "Read ✓ · 👍 · Too easy · Too hard", so feedback can still be given
   after reading; it is gone on the next page load. If the article's difficulty is at or above the user's level,
   the skill gets +1 point; `points_per_level` (5) points give +1 level (cap 4) and reset points.

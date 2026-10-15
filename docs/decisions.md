@@ -142,6 +142,8 @@ skills, and ATTN ranks existing articles by their priorities and level.
   `offset = served - (distinct cards with read or not_interested sent from this list)` (`feedNextOffset` in
   `@attn/shared`, refining plan Decision 10). Feedback buttons on Profile history rows were not added. Revert:
   make the card call the parent's remove on `read` again.
+- **Only the Read button marks a card read** (owner change, 2026-10-15). Clicking the title just opens the article:
+  no `read` event, no collapse. The Read button opens the article and records `read` as before; the event API is unchanged.
 - **Overload retry is configured** (`label_overload_backoff_ms`, default `[2000, 5000, 10000]`): a provider
   overload (HTTP 503/529 or "high demand") retries the same article after each pause, then fails that article and
   the run continues; a 429 still stops the run (spec §4.2). Classified by status first, message text second.
