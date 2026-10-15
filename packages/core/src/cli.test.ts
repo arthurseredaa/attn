@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { articles } from './db/schema';
 import { PIPELINE_LOCK_KEY, withAdvisoryLock } from './db/lock';
 import { articleHtml } from './extract/fixtures/html';
@@ -122,6 +123,131 @@ describe('pipeline lock', () => {
   });
 });
 
+describe('attn exclude / unexclude', () => {
+  async function seed(n: number, over: Partial<typeof articles.$inferInsert> = {}) {
+    const [row] = await db
+      .insert(articles)
+      .values({
+        sourceId: 's',
+        url: `https://e.test/p${n}`,
+        guid: `g${n}`,
+        title: `Title ${n}`,
+        titleHash: `h${n}`,
+        publishedAt: new Date('2026-01-01T00:00:00Z'),
+        ...over,
+      })
+      .returning();
+    return row!;
+  }
+  const statusOf = async (id: number) => (await db.select().from(articles).where(eq(articles.id, id)))[0]!;
+  const labeled = (q: number) => ({ labelStatus: 'labeled' as const, quality: q, difficulty: 1, type: 'news' as const });
+
+  it('--max-quality --dry-run prints counts and samples and changes nothing', async () => {
+    const low = await seed(1, labeled(1));
+    await seed(2, labeled(2));
+    await seed(3, { labelStatus: 'failed' });
+    expect(await run(['exclude', '--max-quality', '1', '--dry-run'], env, io, deps)).toBe(0);
+    expect(out[0]).toBe('would exclude: 1');
+    expect(out[1]).toContain(`${low.id}  s  q=1  Title 1`);
+    expect((await statusOf(low.id)).labelStatus).toBe('labeled');
+  });
+
+  it('--max-quality excludes labeled articles with quality <= n, stores reason and time', async () => {
+    const q0 = await seed(1, labeled(0));
+    const q1 = await seed(2, labeled(1));
+    const q2 = await seed(3, labeled(2));
+    const failed = await seed(4, { labelStatus: 'failed' });
+    expect(await run(['exclude', '--max-quality', '1', '--reason', 'junk q<=1'], env, io, deps)).toBe(0);
+    expect(out[0]).toBe('excluded: 2');
+    expect(await statusOf(q0.id)).toMatchObject({ labelStatus: 'excluded', excludedReason: 'junk q<=1', excludedAt: deps.now });
+    expect((await statusOf(q1.id)).labelStatus).toBe('excluded');
+    expect((await statusOf(q2.id)).labelStatus).toBe('labeled');
+    expect((await statusOf(failed.id)).labelStatus).toBe('failed');
+  });
+
+  it('--status failed excludes failed articles only', async () => {
+    const failed = await seed(1, { labelStatus: 'failed', labelAttempts: 3 });
+    const pending = await seed(2);
+    const q1 = await seed(3, labeled(1));
+    expect(await run(['exclude', '--status', 'failed', '--reason', 'too short'], env, io, deps)).toBe(0);
+    expect(out[0]).toBe('excluded: 1');
+    expect((await statusOf(failed.id)).labelStatus).toBe('excluded');
+    expect((await statusOf(pending.id)).labelStatus).toBe('pending');
+    expect((await statusOf(q1.id)).labelStatus).toBe('labeled');
+  });
+
+  it('validates its arguments', async () => {
+    for (const args of [
+      ['exclude', '--reason', 'x'],
+      ['exclude', '--max-quality', '1', '--status', 'failed', '--reason', 'x'],
+      ['exclude', '--max-quality', '5', '--reason', 'x'],
+      ['exclude', '--max-quality', 'a', '--reason', 'x'],
+      ['exclude', '--status', 'pending', '--reason', 'x'],
+      ['exclude', '--max-quality', '1'],
+      ['unexclude'],
+      ['unexclude', '--id', 'x'],
+    ]) {
+      err.length = 0;
+      expect(await run(args, env, io, deps), args.join(' ')).toBe(1);
+      expect(err.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('waits for the pipeline lock when writing, but not on --dry-run', async () => {
+    await seed(1, labeled(0));
+    const holder = withAdvisoryLock(TEST_DATABASE_URL, PIPELINE_LOCK_KEY, async () => {
+      expect(await run(['exclude', '--max-quality', '1', '--reason', 'x'], env, io, deps)).toBe(1);
+      expect(await run(['exclude', '--max-quality', '1', '--dry-run'], env, io, deps)).toBe(0);
+    });
+    await holder;
+    expect(err.join('\n')).toContain('another collect/label run is in progress');
+  });
+
+  it('unexclude returns an excluded article to pending with attempts and reason cleared', async () => {
+    const a = await seed(1, { ...labeled(1), labelStatus: 'excluded', excludedReason: 'r', excludedAt: new Date(), labelAttempts: 2 });
+    expect(await run(['unexclude', '--id', String(a.id)], env, io, deps)).toBe(0);
+    expect(await statusOf(a.id)).toMatchObject({ labelStatus: 'pending', labelAttempts: 0, excludedReason: null, excludedAt: null });
+  });
+
+  it('unexclude refuses an article that is not excluded or does not exist', async () => {
+    const a = await seed(1, labeled(3));
+    expect(await run(['unexclude', '--id', String(a.id)], env, io, deps)).toBe(1);
+    expect(await run(['unexclude', '--id', '9999'], env, io, deps)).toBe(1);
+    expect((await statusOf(a.id)).labelStatus).toBe('labeled');
+  });
+
+  it('collect does not re-insert an excluded article (url unique)', async () => {
+    expect(await run(['collect'], env, io, deps)).toBe(0);
+    expect(await run(['exclude', '--max-quality', '4', '--reason', 'x'], env, io, deps)).toBe(0); // nothing labeled yet
+    await db.update(articles).set({ labelStatus: 'excluded' });
+    out.length = 0;
+    expect(await run(['collect'], env, io, deps)).toBe(0);
+    expect(out.join('\n')).toContain('inserted=0');
+    expect(await db.select().from(articles)).toHaveLength(4);
+  });
+});
+
+describe('attn collect filtered', () => {
+  it('prints a line per blocked item and filtered=N in the source summary', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'sources.yml'),
+      `- id: local-feed\n  name: Local feed\n  type: rss\n  url: ${server.baseUrl}/rss.xml\n  filter:\n    exclude_title_regex: ['^first']\n`,
+    );
+    expect(await run(['collect'], env, io, deps)).toBe(0);
+    expect(out).toContain(`filtered  local-feed  exclude_title_regex  ${server.baseUrl}/posts/one`);
+    expect(out.find((l) => l.startsWith('local-feed  ok'))).toContain('filtered=1');
+  });
+
+  it('a bad regex in sources.yml is a startup error naming the source', async () => {
+    fs.writeFileSync(
+      path.join(tmp, 'sources.yml'),
+      `- id: broken-src\n  name: B\n  type: rss\n  url: ${server.baseUrl}/rss.xml\n  filter:\n    exclude_title_regex: ['(oops']\n`,
+    );
+    expect(await run(['collect'], env, io, deps)).toBe(1);
+    expect(err.join('\n')).toContain('broken-src');
+  });
+});
+
 describe('attn migrate', () => {
   it('is idempotent', async () => {
     expect(await run(['migrate'], env, io)).toBe(0);
@@ -170,7 +296,7 @@ describe('attn label', () => {
     await seed(2);
     expect(await run(['label'], labelEnv, io, withFake)).toBe(0);
     expect(out.filter((l) => l.startsWith('labeled  '))).toHaveLength(2);
-    expect(out).toContain('total: selected=2 labeled=2 failed=0 rate_limited=no');
+    expect(out).toContain('total: selected=2 labeled=2 excluded=0 failed=0 rate_limited=no');
     expect(await statuses()).toEqual(['labeled', 'labeled']);
   });
 
@@ -252,7 +378,7 @@ describe('attn label', () => {
       });
     expect(await run(['label'], labelEnv, io, { ...labelDeps, makeLabeler })).toBe(1);
     expect(err.join('\n')).toContain('provider error: provider rejected the request (401)');
-    expect(out.join('\n')).toContain('selected=1 labeled=0 failed=0');
+    expect(out.join('\n')).toContain('selected=1 labeled=0 excluded=0 failed=0');
     const [row] = await db.select().from(articles);
     expect([row!.labelStatus, row!.labelAttempts]).toEqual(['pending', 0]);
   });

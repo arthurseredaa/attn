@@ -9,6 +9,7 @@ import {
   type Labeler,
   type SourceReport,
 } from '@attn/core';
+import { Logger } from '@nestjs/common';
 import type { Config, Source, Taxonomy } from '@attn/shared';
 import type { Env } from '../config/env';
 
@@ -30,6 +31,7 @@ export interface PipelineStepsDeps {
 }
 
 export function createPipelineSteps(deps: PipelineStepsDeps): PipelineSteps {
+  const logger = new Logger('label');
   const { db, sources, config, taxonomy, labeler, fetchFn, sleep } = deps;
   return {
     collect: () => collectAll({ db, sources, config, fetchFn }),
@@ -49,6 +51,7 @@ export function createPipelineSteps(deps: PipelineStepsDeps): PipelineSteps {
           taxonomyVersion: taxonomy.version,
           fetchFn,
           sleep,
+          log: (line) => logger.log(line),
         })),
       };
     },

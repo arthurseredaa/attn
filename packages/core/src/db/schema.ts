@@ -70,6 +70,8 @@ export const articles = pgTable(
     labelModel: text('label_model'),
     labeledAt: timestamptz('labeled_at'),
     taxonomyVersion: integer('taxonomy_version'),
+    excludedReason: text('excluded_reason'),
+    excludedAt: timestamptz('excluded_at'),
   },
   (t) => [
     index('articles_guid_idx').on(t.guid),

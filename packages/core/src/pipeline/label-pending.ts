@@ -10,7 +10,7 @@ export interface LabelOptions {
   labeler: Labeler;
   config: Pick<
     Config,
-    'label_batch' | 'label_delay_ms' | 'label_max_chars' | 'label_min_chars' | 'label_max_attempts' | 'label_overload_backoff_ms'
+    'label_batch' | 'relevance_threshold' | 'label_delay_ms' | 'label_max_chars' | 'label_min_chars' | 'label_max_attempts' | 'label_overload_backoff_ms'
   >;
   taxonomyVersion: number;
   fetchFn?: FetchFn;
@@ -18,12 +18,14 @@ export interface LabelOptions {
   now?: Date;
   sleep?: (ms: number) => Promise<void>;
   limit?: number;
+  /** One line per article the relevance gate excludes (id, title, p). Defaults to nothing; the CLI prints it. */
+  log?: (line: string) => void;
 }
 
 export interface LabelItemReport {
   id: number;
   url: string;
-  outcome: 'labeled' | 'failed' | 'rate_limited';
+  outcome: 'labeled' | 'failed' | 'rate_limited' | 'excluded';
   error?: string;
 }
 
@@ -31,6 +33,8 @@ export interface LabelReport {
   selected: number;
   labeled: number;
   failed: number;
+  /** Articles the relevance gate marked excluded instead of labeling. */
+  excluded: number;
   rateLimited: boolean;
   /** Set when the provider rejected the credentials or model id; the run stopped without touching that article. */
   fatal?: string;
@@ -59,7 +63,7 @@ export async function labelPending(opts: LabelOptions): Promise<LabelReport> {
     .orderBy(asc(articles.publishedAt), asc(articles.id))
     .limit(batch);
 
-  const report: LabelReport = { selected: rows.length, labeled: 0, failed: 0, rateLimited: false, items: [] };
+  const report: LabelReport = { selected: rows.length, labeled: 0, failed: 0, excluded: 0, rateLimited: false, items: [] };
 
   const fail = async (row: { id: number; url: string }, error: string): Promise<void> => {
     await db
@@ -83,11 +87,14 @@ export async function labelPending(opts: LabelOptions): Promise<LabelReport> {
     }
 
     let label;
+    let relevance;
     try {
       if (calledLabeler) await sleep(config.label_delay_ms);
       calledLabeler = true;
       const article = makePublicArticle({ title: row.title, url: row.url, text });
-      label = normalizeLabel(await labelWithOverloadRetry(labeler, article, config.label_overload_backoff_ms, sleep));
+      const result = await labelWithOverloadRetry(labeler, article, config.label_overload_backoff_ms, sleep);
+      relevance = result.relevance;
+      label = normalizeLabel(result);
     } catch (e) {
       if (e instanceof FatalLabelerError) {
         report.fatal = e.message;
@@ -99,6 +106,23 @@ export async function labelPending(opts: LabelOptions): Promise<LabelReport> {
         break;
       }
       await fail(row, messageOf(e));
+      continue;
+    }
+
+    // Relevance gate: exclude when the labeler gave a probability below the threshold. No answer = relevant.
+    if (relevance?.probability != null && relevance.probability < config.relevance_threshold) {
+      const p = relevance.probability;
+      try {
+        await db
+          .update(articles)
+          .set({ labelStatus: 'excluded', excludedReason: `not relevant (p=${p.toFixed(2)})`, excludedAt: now, labelModel: labeler.model })
+          .where(eq(articles.id, row.id));
+        opts.log?.(`excluded  id=${row.id}  p=${p.toFixed(2)}  ${row.title}  ${row.url}`);
+        report.excluded++;
+        report.items.push({ id: row.id, url: row.url, outcome: 'excluded' });
+      } catch (e) {
+        await fail(row, messageOf(e));
+      }
       continue;
     }
 
