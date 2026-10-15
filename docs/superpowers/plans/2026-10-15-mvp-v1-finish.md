@@ -65,10 +65,13 @@ Note: repo created: github.com/arthurseredaa/attn (public), main pushed 2026-10-
 
 ## 5. UI redesign with shadcn/ui
 
-- [ ] Brainstorm the scope with the owner first: which pages, the look, and dark mode. Then a written spec and plan.
-- [ ] Set up shadcn/ui in `apps/web` (Next 16, React 19, Tailwind 4) and migrate the pages (landing, onboarding,
+- [x] Brainstorm the scope with the owner first: which pages, the look, and dark mode. Then a written spec and plan.
+- [x] Set up shadcn/ui in `apps/web` (Next 16, React 19, Tailwind 4) and migrate the pages (landing, onboarding,
   For you, All, Profile), the nav, the cards and the filter bar. Keep behaviour and tests and keep accessibility. The
   owner does a browser check at the end.
+
+Note: done 2026-10-16. Spec `docs/superpowers/specs/2026-10-15-ui-shadcn-design.md`; every page approved by the owner
+in the browser; final review fixes in c71a266; `feat/ui-shadcn` fast-forwarded into main locally (not pushed).
 
 ## 6. Teach `pnpm attn eval` + eval in CI
 
