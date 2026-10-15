@@ -70,5 +70,6 @@ export async function runEval(opts: EvalOptions): Promise<EvalReport> {
     rateLimited,
     ...(fatal !== undefined ? { fatal } : {}),
     ...(labeler.usage ? { usage: labeler.usage() } : {}),
+    ...(labeler.usageByModel ? { usageByModel: labeler.usageByModel() } : {}),
   });
 }

@@ -28,8 +28,8 @@ const USAGE = `usage: attn <migrate | collect | label | eval | seed-demo | exclu
 commands:
   migrate                                              apply database migrations
   collect [--source <id>]... [--backfill-days <n>]    collect new articles from sources
-  label [--limit <n>]                                  label pending articles with LABEL_MODEL (claude-*, gemini-* or typesafe-ai/*)
-  eval --model <id>                                    measure a model (claude-*, gemini-* or typesafe-ai/*) against data/golden/*.yml
+  label [--limit <n>]                                  label pending articles with LABEL_MODEL (claude-*, gemini-*, typesafe-ai/* or <main>+<secondary>)
+  eval --model <id>                                    measure a model (claude-*, gemini-*, typesafe-ai/* or <main>+<secondary>) against data/golden/*.yml
   exclude (--max-quality <n> | --status failed) --reason <text> [--dry-run]
                                                        mark labeled articles with quality <= n (or failed ones) excluded: never labeled or listed
   unexclude --id <id>                                  return an excluded article to pending

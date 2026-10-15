@@ -256,3 +256,7 @@ Rank already needs quality >= 2, so junk never reached a feed; it cost labeling 
   when a source's url changed (Simon Willison moved to a tag feed). `filtered=` counts per fetch.
 - **Existing junk** is excluded with `attn exclude --max-quality 1` and `--status failed` after a DB backup, run by the
   owner or orchestrator, not by the migration.
+
+## Combo labeler (2026-10-15)
+
+- **`LABEL_MODEL=<main>+<secondary>` combines two labelers.** Golden eval: `claude-haiku-5-5` is best on primary skill, type and difficulty, `gemini-3.5-flash-lite` on secondary skills, so the owner chose `claude-haiku-5-5+gemini-3.5-flash-lite`: main's label with the secondary model's secondary skills (minus main's primary, deduped, at most 3). A secondary failure of any kind keeps main's own secondary skills with one warning line and never stops the run; main failures behave as before. The stored `label_model` is the full combo string. `.env.example` keeps `LABEL_MODEL` empty (no default is named there).

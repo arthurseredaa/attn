@@ -172,3 +172,17 @@ describe('formatEvalReport', () => {
     expect(bare.at(-1)).toBe('tokens: input=100 output=20');
   });
 });
+
+describe('formatEvalReport per-model usage', () => {
+  it('prints one indented line per model after the total', () => {
+    const base = { model: 'a+b', total: 1, scored: [], failures: [], rateLimited: false };
+    const out = formatEvalReport(
+      buildReport({
+        ...base,
+        usage: { inputTokens: 30, outputTokens: 5 },
+        usageByModel: { a: { inputTokens: 20, outputTokens: 3 }, b: { inputTokens: 10, outputTokens: 2 } },
+      }),
+    ).split('\n');
+    expect(out.slice(-3)).toEqual(['tokens: input=30 output=5', '  a  tokens: input=20 output=3', '  b  tokens: input=10 output=2']);
+  });
+});
