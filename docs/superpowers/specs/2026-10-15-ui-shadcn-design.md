@@ -168,7 +168,7 @@ The structure and behaviour sections above still apply (shadcn components everyw
 
 - The accent appears only on Read and other primary actions, the primary skill, focus rings and the active nav item.
 - Destructive stays red, used only for errors.
-- The success and warning colours are kept but used sparingly: success for the "Read" check, warning for "Uncertain".
+- The success and warning colours are kept but used sparingly: warning for "Uncertain". The "Read" check is muted text, not success.
 
 **Type.**
 - Hanken Grotesk for all UI.
@@ -200,24 +200,15 @@ The grid is 3 columns at 1440px, 2 at about 1024px and 1 on mobile, with equal-h
 
 ## Pages, one per approval cycle
 
-**1. For you** (`app/for-you/page.tsx`, `feed-card.tsx`, `feed-list.tsx`, `filter-bar.tsx`)
-- **FeedCard** is a Card. It contains:
-  - the title, linked;
-  - the ArticleMeta row;
-  - skill chips;
-  - a compact LevelMeter for difficulty plus a TypeBadge;
-  - an actions row: the primary "Read" button with an ↗ icon, then icon+text buttons with `aria-pressed` (ThumbsUp Like, Too easy, Too hard, EyeOff Not interested).
-- **Read state:** the card collapses with a motion height animation to a one-line row with a success check, keeping the existing focus logic.
-- **FilterBar:**
-  - Input with a Search icon;
-  - the skills multi-select becomes Popover + Command, with checkboxes grouped by domain;
-  - active filters show as Badge chips with an × and "Clear filters".
-- **Load more:** an outline Button. EmptyState for the empty cases. A new `app/for-you/loading.tsx` shows card Skeletons.
+**1. For you** (`app/for-you/page.tsx`, `layout.tsx`, `loading.tsx`, `feed-card.tsx`, `feed-list.tsx`, `filter-bar.tsx`). The tile layout is in "Visual direction v2" above.
+- **Actions:** icon-only ghost buttons with tooltips and `aria-pressed` (Heart Like, Feather Too easy, Dumbbell Too hard, X Not interested; the aria-label carries the verb and the title), then a filled "Read" button. A pressed button stays on the hover tint; a pressed Like fills its heart.
+- **Read state:** the tile collapses with a motion height animation to a one-line row on the page background with a muted check and "Read", keeping the existing focus logic.
+- **FilterBar:** an Input with a Search icon; the skills multi-select is a Popover + Command with checkboxes grouped by domain (its trigger shows the first skill and "+N"; "Clear" inside the popover); a ghost "Clear filters" button appears while any filter is active.
+- **Load more:** an outline Button. EmptyState for the empty cases. `loading.tsx` shows tile Skeletons; the auth guard sits in `layout.tsx` so a signed-out visit is a real 307.
 
-**2. All** (`app/all/page.tsx`, `article-card.tsx`)
-- Reuses the card layout from For you, read-only with no actions.
-- FilterBar extras: source becomes a Select; the date range becomes a Popover with a range Calendar. The mapping to the existing `from`/`to` strings in `filter-state` is unchanged.
-- Cursor paging links as Buttons. Inline Alert for the 400 error. `loading.tsx`.
+**2. All** (`app/all/page.tsx`, `loading.tsx`, `article-card.tsx` → `ArticleRow`). Quiet rows as described in "Visual direction v2", read-only.
+- FilterBar extras: source is a Select ("All sources" first); the date range is two native `type=date` inputs (From / To) mapped to the existing `from`/`to` strings in `filter-state`; "Clear filters" as on For you.
+- Cursor paging links as outline Buttons ("Back to newest", "Older"). Inline destructive Alert for a 400 (hand-edited URL).
 
 **3. Profile** (`app/profile/page.tsx`, `layout.tsx`, `loading.tsx`, `profile/profile-radar.tsx`, `profile/skill-row.tsx`, `profile/focus-editor.tsx`, `onboarding/sortable-list.tsx`, `lib/skill-value.ts`). Built in the v2 quiet style; no stats header, no coloured level ramp, no badges.
 - **Header:** "Profile" left; on the right, the quiz link for unquizzed skills (existing `quizAllLabel` / `QUIZ_LINK_CAP`) and "Redo onboarding", both outline Buttons.
@@ -275,7 +266,7 @@ The grid is 3 columns at 1440px, 2 at about 1024px and 1 on mobile, with equal-h
 4. The owner reviews at localhost:3000 and either approves or sends a fix list. Only then does the next page start.
 5. After Landing is approved: a final code review, then merge `feat/ui-shadcn` into main locally (owner's OK), and tick step 5 in the MVP finish plan.
 
-Before page 1, this design is saved as `docs/superpowers/specs/2026-10-15-ui-shadcn-design.md`, and the per-page plan as `docs/superpowers/plans/2026-10-15-ui-shadcn.md`.
+This design lives in `docs/superpowers/specs/2026-10-15-ui-shadcn-design.md`; there is no separate per-page plan file (each page was briefed and reviewed in turn).
 
 ## Verification
 

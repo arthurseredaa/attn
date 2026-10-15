@@ -220,18 +220,12 @@ export function FilterBar({
                 </InputGroup>
               ))}
             </div>
-            {active ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={clearAll}
-                className="font-normal text-muted-foreground"
-              >
-                Clear filters
-              </Button>
-            ) : null}
           </>
+        ) : null}
+        {active ? (
+          <Button type="button" variant="ghost" size="sm" onClick={clearAll} className="font-normal text-muted-foreground">
+            Clear filters
+          </Button>
         ) : null}
       </div>
     </div>

@@ -116,6 +116,7 @@ function FocusBar({
   primary,
   secondary,
   nudge,
+  error,
 }: {
   items: string[];
   names: Record<string, string>;
@@ -123,6 +124,8 @@ function FocusBar({
   primary: ReactNode;
   secondary: ReactNode;
   nudge: number;
+  /** Shown in the sheet too: the secondary action lives there, and the tray's own alert sits under the modal. */
+  error: string | null;
 }) {
   const reduce = useReducedMotion();
   const squares = useRef<HTMLSpanElement>(null);
@@ -184,7 +187,14 @@ function FocusBar({
               emptyText="Nothing picked yet."
             />
           </div>
-          <SheetFooter className="pb-[max(1rem,env(safe-area-inset-bottom))]">{secondary}</SheetFooter>
+          <SheetFooter className="pb-[max(1rem,env(safe-area-inset-bottom))]">
+            {error ? (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            ) : null}
+            {secondary}
+          </SheetFooter>
         </SheetContent>
       </Sheet>
       <div className="ml-auto">{primary}</div>
@@ -249,7 +259,15 @@ export function FocusTray({
         </div>
       </div>
       <div className="lg:hidden">
-        <FocusBar items={items} names={names} onChange={onChange} primary={primary} secondary={secondary} nudge={nudge} />
+        <FocusBar
+          items={items}
+          names={names}
+          onChange={onChange}
+          primary={primary}
+          secondary={secondary}
+          nudge={nudge}
+          error={error}
+        />
       </div>
       {error ? (
         <p role="alert" className="mt-3 text-sm text-destructive">

@@ -75,10 +75,11 @@ export const getArticles = (q: ArticlesQuery): Promise<ArticlesPage> =>
 export const getSources = (): Promise<SourceSummary[]> => apiGet('/sources', sourcesResponseSchema);
 export const getTaxonomy = (): Promise<Taxonomy> => apiGet('/taxonomy', taxonomySchema);
 
-export async function getProfile(): Promise<Profile> {
+// cache(): a route's layout guard and its page share one /profile call per request.
+export const getProfile = cache(async (): Promise<Profile> => {
   const cookie = (await cookies()).toString(); // outside any try/catch, see getMe
   return apiGet('/profile', profileSchema, { cookie });
-}
+});
 
 export async function getQuiz(skills: string[]): Promise<QuizResponse> {
   const cookie = (await cookies()).toString();
