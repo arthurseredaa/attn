@@ -194,8 +194,8 @@ skills, and ATTN ranks existing articles by their priorities and level.
   "Free tier users do not have access to this model".
 - **Known jev weaknesses, to revisit after a trial period:**
   - Difficulty is often one level too hard (43.1% exact vs Haiku's 62.1%), so the feed may serve articles above the
-    reader's level. Options: a difficulty-only second opinion from Haiku (the parked `feat/combo-labeler` branch
-    supports `<main>+<secondary>` combos, currently for secondary skills only), or a calibration offset.
+    reader's level. Options: a difficulty-only second opinion from Haiku (the combo labeler is merged, 2026-10-15, and
+    available via `LABEL_MODEL=<main>+<secondary>`, secondary skills only; `LABEL_MODEL` stays `typesafe-ai/jev`), or a calibration offset.
   - Secondary skills are under-predicted at `jev_secondary_threshold` 0.5: in 21 of the 32 secondary-skill
     disagreements jev returned none where the reference had some. Try 0.3 and 0.4 with `attn eval` (≈ 2 cents each).
 - **The initial backlog was labeled without the API.** The 389 articles pending on 2026-10-15 were labeled by Claude

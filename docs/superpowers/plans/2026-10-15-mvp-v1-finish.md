@@ -49,12 +49,14 @@ State at writing (main = `ef71d11` + this file):
 
 ## 3. Merge feat/combo-labeler
 
-- [ ] Rebase or merge onto the current main, run the gate, then merge locally and remove the worktree and branch.
+- [x] Rebase or merge onto the current main, run the gate, then merge locally and remove the worktree and branch.
   `LABEL_MODEL` stays `typesafe-ai/jev` unless the owner picks a combo. A natural candidate is
   `typesafe-ai/jev+...`, but the combo only swaps secondary skills. jev's weak field is difficulty, which would need
   a per-field combo.
 
 ## 4. Push to GitHub
+
+Note: repo created: github.com/arthurseredaa/attn (public), main pushed 2026-10-15.
 
 - [ ] Ask the owner: repo name (`attn`?) and visibility (private/public). `gh` is logged in as `arthurseredaa`. The
   repo has no remote yet.
