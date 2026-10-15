@@ -135,3 +135,28 @@ describe('fetchArticleText', () => {
     expect(a.wordCount).toBeGreaterThan(90);
   });
 });
+
+describe('bot-blocked responses', () => {
+  const html = articleHtml('A', 100);
+  const mk = (init: ResponseInit) =>
+    (async () => new Response(html, { ...init, headers: { 'content-type': 'text/html', ...init.headers } })) as typeof fetch;
+
+  it('reports a 202 with x-amzn-waf-action as bot-blocked', async () => {
+    const fetchFn = mk({ status: 202, headers: { 'x-amzn-waf-action': 'challenge' } });
+    const err = await fetchArticleText('https://example.invalid/x', { fetchFn }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ExtractError);
+    expect((err as ExtractError).kind).toBe('bot_blocked');
+    expect((err as ExtractError).message).toContain('bot-blocked (HTTP 202, x-amzn-waf-action: challenge)');
+  });
+
+  it('reports cf-mitigated as bot-blocked', async () => {
+    const fetchFn = mk({ status: 200, headers: { 'cf-mitigated': 'challenge' } });
+    const err = await fetchArticleText('https://example.invalid/x', { fetchFn }).catch((e: unknown) => e);
+    expect((err as ExtractError).kind).toBe('bot_blocked');
+  });
+
+  it('leaves a normal 200 alone', async () => {
+    const a = await fetchArticleText('https://example.invalid/x', { fetchFn: mk({ status: 200 }) });
+    expect(a.wordCount).toBeGreaterThan(90);
+  });
+});
