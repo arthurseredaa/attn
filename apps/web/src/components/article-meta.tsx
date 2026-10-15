@@ -3,6 +3,9 @@ import { cn } from '@/lib/utils';
 
 const dateFormat = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
+/** "Oct 15": the publish date as shown next to articles (UTC, so server and client agree). */
+export const shortDate = (iso: string): string => dateFormat.format(new Date(iso));
+
 /** Source · date · reading time: the source in sans, the numbers in mono. */
 export function ArticleMeta({
   sourceName,
@@ -23,7 +26,7 @@ export function ArticleMeta({
         ·
       </span>
       <time dateTime={publishedAt} className="font-mono text-[13px]">
-        {dateFormat.format(new Date(publishedAt))}
+        {shortDate(publishedAt)}
       </time>
       {minutes !== null ? (
         <>

@@ -9,7 +9,6 @@ import { hasActiveFilters, toggleSkill } from '@/lib/filters';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Input } from '@/components/ui/input';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -20,6 +19,8 @@ import { cn } from '@/lib/utils';
 const DEBOUNCE_MS = 300;
 // Radix Select has no empty value: this stands for "no source filter".
 const ALL_SOURCES = '__all__';
+// All's one filter row: on phones the skills and source controls go two per line under the full-width search.
+const HALF_ROW = 'min-w-0 flex-[1_1_calc(50%-4px)]';
 
 /**
  * Filters shared by For you and All, kept in the URL: title search, skills (multi-select, any-match), and on All also
@@ -94,9 +95,9 @@ export function FilterBar({
   const more = v.skill.length - 1;
 
   return (
-    <div className={cn(sources ? 'space-y-3' : 'w-full sm:w-auto')} role="search" aria-label="Filter articles">
+    <div className={cn(!sources && 'w-full sm:w-auto')} role="search" aria-label="Filter articles">
       <div className="flex flex-wrap items-center gap-2">
-        <InputGroup className="w-full sm:w-[260px]">
+        <InputGroup className={sources ? 'sm:flex-[3_1_220px]' : 'w-full sm:w-[260px]'}>
           <InputGroupAddon className="pl-2.5">
             <Search aria-hidden strokeWidth={1.75} />
           </InputGroupAddon>
@@ -111,7 +112,13 @@ export function FilterBar({
         </InputGroup>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="min-w-0 flex-1 justify-between gap-2 px-2.5 font-normal sm:max-w-60 sm:flex-none">
+            <Button
+              variant="outline"
+              className={cn(
+                'min-w-0 justify-between gap-2 px-2.5 font-normal',
+                sources ? HALF_ROW + ' sm:flex-[1_1_170px]' : 'flex-1 sm:max-w-60 sm:flex-none',
+              )}
+            >
               <span className="flex min-w-0 items-baseline gap-1">
                 {first ? (
                   <>
@@ -173,24 +180,13 @@ export function FilterBar({
             </Command>
           </PopoverContent>
         </Popover>
-        {sources && active ? (
-          <Button type="button" variant="ghost" size="sm" onClick={clearAll} className="font-normal text-muted-foreground">
-            Clear filters
-          </Button>
-        ) : null}
-      </div>
-
-      {sources ? (
-        <div className="grid gap-3 sm:grid-cols-3 lg:max-w-3xl">
-          <div className="grid gap-1.5">
-            <Label htmlFor={`${id}-source`} className="text-xs text-muted-foreground">
-              Source
-            </Label>
+        {sources ? (
+          <>
             <Select
               value={v.source ?? ALL_SOURCES}
               onValueChange={(value) => applyNow({ source: value === ALL_SOURCES ? undefined : value })}
             >
-              <SelectTrigger id={`${id}-source`} className="w-full bg-card">
+              <SelectTrigger aria-label="Source" className={cn(HALF_ROW, 'sm:flex-[1_1_160px]')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -202,34 +198,42 @@ export function FilterBar({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor={`${id}-from`} className="text-xs text-muted-foreground">
-              From
-            </Label>
-            <Input
-              id={`${id}-from`}
-              type="date"
-              value={v.from ?? ''}
-              onChange={(e) => applyLater({ from: e.target.value || undefined })}
-              className="bg-card"
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor={`${id}-to`} className="text-xs text-muted-foreground">
-              To
-            </Label>
-            <Input
-              id={`${id}-to`}
-              type="date"
-              value={v.to ?? ''}
-              onChange={(e) => applyLater({ to: e.target.value || undefined })}
-              className="bg-card"
-            />
-          </div>
-        </div>
-      ) : null}
-
+            {/* The dates wrap as a pair, so a narrow row breaks between whole groups. */}
+            <div className="flex min-w-0 basis-full gap-2 sm:max-w-md sm:flex-[2_1_308px]">
+              {(['from', 'to'] as const).map((key) => (
+                <InputGroup key={key} className="min-w-0 flex-1">
+                  <InputGroupAddon className="pl-2.5">
+                    <Label htmlFor={`${id}-${key}`} className="text-[13px] font-normal text-muted-foreground">
+                      {key === 'from' ? 'From' : 'To'}
+                    </Label>
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    id={`${id}-${key}`}
+                    type="date"
+                    value={v[key] ?? ''}
+                    onChange={(e) => {
+                      const date = e.target.value || undefined;
+                      applyLater(key === 'from' ? { from: date } : { to: date });
+                    }}
+                    className="font-mono text-[13px] md:text-[13px] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-50 max-sm:[&::-webkit-calendar-picker-indicator]:hidden"
+                  />
+                </InputGroup>
+              ))}
+            </div>
+            {active ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={clearAll}
+                className="font-normal text-muted-foreground"
+              >
+                Clear filters
+              </Button>
+            ) : null}
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }
