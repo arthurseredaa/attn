@@ -142,6 +142,8 @@ skills, and ATTN ranks existing articles by their priorities and level.
   `offset = served - (distinct cards with read or not_interested sent from this list)` (`feedNextOffset` in
   `@attn/shared`, refining plan Decision 10). Feedback buttons on Profile history rows were not added. Revert:
   make the card call the parent's remove on `read` again.
+- **Only the Read button marks a card read** (owner change, 2026-10-15). Clicking the title just opens the article:
+  no `read` event, no collapse. The Read button opens the article and records `read` as before; the event API is unchanged.
 - **Overload retry is configured** (`label_overload_backoff_ms`, default `[2000, 5000, 10000]`): a provider
   overload (HTTP 503/529 or "high demand") retries the same article after each pause, then fails that article and
   the run continues; a 429 still stops the run (spec §4.2). Classified by status first, message text second.
@@ -172,6 +174,88 @@ skills, and ATTN ranks existing articles by their priorities and level.
 ## jev labeler (2026-10-14)
 
 - **`typesafe-ai/jev` is a third labeler, chosen by the `typesafe-ai/` prefix.** It is a decision model on the Vercel AI Gateway (`JEV_API_KEY`, paid per input token), called with the experimental `experimental_decide`: one call per article, choices for primary skill, type, difficulty and quality, and a yes/no question per skill for secondary skills (kept when probability >= `jev_secondary_threshold`, default 0.5, at most 3, never the primary); gateway auth, billing, restricted-model and non-input 400/422 errors stop the run, since they would repeat for every article; 409/5xx are retried and input-caused 4xx fail only that article.
+
+## Labeler choice and eval results (2026-10-15)
+
+- **`LABEL_MODEL=typesafe-ai/jev` labels everything; Gemini is not used.** Golden-set eval (58 articles, the
+  Claude-drafted reference, so Claude may be favoured), % agreement:
+
+  | Field | jev | claude-haiku-5-5 | gemini-3.5-flash-lite |
+  |---|---|---|---|
+  | primary skill | 72.4 | 65.5 | 58.6 |
+  | secondary skills (Jaccard) | 49.7 | 20.0 | 31.3 |
+  | difficulty exact | 43.1 | 62.1 | 58.6 |
+  | difficulty ±1 | 93.1 | 98.3 | 93.1 |
+  | type | 89.7 | 82.8 | 75.9 |
+  | quality ±1 | 89.7 | 96.6 | 98.3 |
+
+  Cost per run of 58: jev ≈ $0.019 (≈ $0.33 per 1000 articles at $0.042/M input tokens), Haiku 5.5 ≈ $0.026
+  (≈ $0.45 per 1000 with prompt caching). jev needs paid Vercel credits: the free tier answers 403
+  "Free tier users do not have access to this model".
+- **Known jev weaknesses, to revisit after a trial period:**
+  - Difficulty is often one level too hard (43.1% exact vs Haiku's 62.1%), so the feed may serve articles above the
+    reader's level. Options: a difficulty-only second opinion from Haiku (the parked `feat/combo-labeler` branch
+    supports `<main>+<secondary>` combos, currently for secondary skills only), or a calibration offset.
+  - Secondary skills are under-predicted at `jev_secondary_threshold` 0.5: in 21 of the 32 secondary-skill
+    disagreements jev returned none where the reference had some. Try 0.3 and 0.4 with `attn eval` (≈ 2 cents each).
+- **The initial backlog was labeled without the API.** The 389 articles pending on 2026-10-15 were labeled by Claude
+  Code subagents (Sonnet) reading each article's full extracted text with the same system prompt and rubrics, then
+  imported with the labeler's own write path (`label_model = claude-code-subagent:sonnet`); 8 articles under
+  `label_min_chars` were marked failed. Of the 389: 154 news, 104 deep_dive, 96 release, 21 research, only 14
+  tutorial; 147 have quality 0–1 (mostly company news and vendor product posts outside the skill map), which points
+  at sources worth pruning in `data/sources.yml`.
+
+## Filters and search (2026-10-15)
+
+- **Skill filters and title search on For you and All**, kept in the URL (`?skill=a&skill=b&q=text`, plus All's
+  `source`, `from`, `to`). Owner request. `skill` is any-match over primary and secondary skills; `q` is a
+  case-insensitive substring of the title (`%`, `_` and `\` escaped). Both endpoints validate the same way (unknown
+  skill, more than 10 skills or a `q` over 100 characters is a 400). In the feed the filters sit in the ranking
+  query's eligibility `WHERE`, before scoring, ordering and paging, so offsets stay consistent: a next page repeats
+  the filters, and the web computes the offset (served minus excluded) per filtered list. Full-text search over the
+  article body is not part of this. Revert: drop the two `and` fragments in `rank/sql.ts` and the filter bar.
+
+## Source cleanup (2026-10-15)
+
+Measured on the dev DB snapshot (397 articles: 389 labeled, 8 failed; 147 with quality <= 1, 137 with quality >= 3).
+Rank already needs quality >= 2, so junk never reached a feed; it cost labeling spend and clutter.
+
+- **Per-source junk (quality <= 1):** anthropic-news 107 of 181 (59%, 20 good), simon-willison 13 of 29 (54%),
+  cloudflare-ai 8 of 20 (40%), vercel 6 of 29 (21%), mozilla-ai-blog 4 of 15 (27%, only 3 good), latent-space 4 of 20,
+  ai-hero 4 of 47 (9%, 39 good). addy-osmani, github-blog-ai, claude-dev, anthropic-engineering and mcp-blog had none.
+  The 8 failed rows were too short: simon-willison 5, ai-hero 2 (landing pages), latent-space 1.
+- **Dropped:** `mozilla-ai-blog` (vendor product posts, few good). Its existing rows stay; no table has a foreign key
+  to a source id, and the API falls back to the id as the name.
+- **Collect rules (measured: junk blocked / q=2 blocked / good wrongly blocked):** ai-hero exact landing paths and
+  `/workshops/` 4 / 0 / 0; vercel customer stories (`^/blog/how-.*-(on-vercel|with-v0|with-vercel)$`) and
+  `accelerator` 5 / 3 / 0; cloudflare-ai titles (`birthday`, `founders`, `launched during`, `one year`, `sovereign`,
+  `civil society`) 5 / 0 / 0. The analysis also proposed rules for simon-willison (no longer needed: tag feeds) and a
+  cloudflare `domains` title (dropped: the owner approved the list above). Tuned on one sample, so the rules are narrow.
+- **No collect rule for anthropic-news.** An exclude-path regex would have blocked about 78 junk but also 18 q=2 and
+  2 good posts (cyber evals, CAISI/AISI safeguards); the stricter include-keyword list loses 7 good. The owner rejected
+  both as too risky; the relevance gate decides per article instead.
+- **Simon Willison:** the full feed (quotes, release notes) is replaced by the `ai-assisted-programming` tag feed
+  (keeps id `simon-willison`, so old rows keep their source) and the `claude-code` tag feed (`simon-willison-claude-code`).
+  They overlap; url uniqueness dedups.
+- **New sources, no filter:** `philschmid` (https://www.philschmid.de/rss) and `jetbrains-ai`
+  (https://blog.jetbrains.com/ai/feed/); the gate handles relevance. Feeds were fetched fine during analysis; tests use
+  small saved fixtures shaped like them, never the network.
+- **jetbrains-ai dropped the same day:** blog.jetbrains.com answers with an AWS WAF challenge (HTTP 202,
+  `x-amzn-waf-action: challenge`). Fetches now report such responses (202, `x-amzn-waf-action`, `cf-mitigated`)
+  as `bot-blocked` instead of extracting the challenge page ("text too short").
+- **Relevance gate:** one extra boolean `relevant` question inside the existing single jev decide call (no extra call,
+  negligible extra cost: the skill map adds some input tokens); below `relevance_threshold` 0.3 (lowered by the owner on 2026-10-15 after the first run excluded a useful live blog; code default stays 0.5) the article is `excluded` instead of labeled. A refusal or missing
+  answer = relevant (never exclude on doubt). Other labelers have no gate. Recall bias is deliberate: sample-audit the
+  `excluded` log lines now and then.
+- **`excluded` status instead of deleting:** the foreign keys of `article_events` and `article_skills` cascade, so a
+  delete would destroy user events and remove the dedup anchor (the url would be re-collected and re-labeled within the
+  backfill window). Excluded rows stay, are skipped by labeling and every reader, and can be restored with
+  `attn unexclude`, which also sets `relevance_override` so the gate cannot exclude that article again. Columns
+  `excluded_reason` and `excluded_at` are nullable.
+- **Stale HTTP validators:** `source_state.feed_url` records which url an etag/last-modified belongs to; validators are ignored
+  when a source's url changed (Simon Willison moved to a tag feed). `filtered=` counts per fetch.
+- **Existing junk** is excluded with `attn exclude --max-quality 1` and `--status failed` after a DB backup, run by the
+  owner or orchestrator, not by the migration.
 
 ## Combo labeler (2026-10-15)
 

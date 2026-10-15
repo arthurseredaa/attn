@@ -9,5 +9,5 @@ export type ArticleType = z.infer<typeof articleTypeSchema>;
 export const eventKindSchema = z.enum(['read', 'like', 'too_easy', 'too_hard', 'not_interested']);
 export type EventKind = z.infer<typeof eventKindSchema>;
 
-export const labelStatusSchema = z.enum(['pending', 'labeled', 'failed']);
+export const labelStatusSchema = z.enum(['pending', 'labeled', 'failed', 'excluded']);
 export type LabelStatus = z.infer<typeof labelStatusSchema>;

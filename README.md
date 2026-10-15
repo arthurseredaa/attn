@@ -51,13 +51,16 @@ Over plain http, set `COOKIE_SECURE=false` in `.env` or sign-in cookies will not
 | `pnpm attn migrate` | Apply database migrations to `DATABASE_URL` (idempotent) |
 | `pnpm attn collect [--source <id>]... [--backfill-days <n>]` | Collect new articles from all sources, or only the given ones |
 | `pnpm attn label [--limit <n>]` | Label pending articles with `LABEL_MODEL` (see Labeling) |
+| `pnpm attn exclude (--max-quality <n> \| --status failed) --reason <text> [--dry-run]` | Mark labeled articles with quality <= n (or failed ones) `excluded`; `--dry-run` prints the count and samples and changes nothing (see Source cleanup) |
+| `pnpm attn unexclude --id <id>` | Return an excluded article to `pending` so the next `attn label` handles it |
 | `pnpm attn eval --model <id>` | Measure a model against the golden set; writes nothing to the DB (see Evaluation) |
 | `pnpm attn seed-demo [--remove]` | Insert deterministic labeled demo articles so For you works without a labeling API key; `--remove` deletes them |
 | `pnpm api` | Start the API on `PORT` (default 3001); `GET /api/health`; runs the daily job |
 | `pnpm web` | Start the Next.js site in dev mode on port 3000; rewrites `/api/*` to `API_URL` (default `http://localhost:3001`) |
 
-`attn collect` prints one line per source and a totals line. A failing source is recorded in
-`source_state.last_error` and does not stop the others.
+`attn collect` prints one line per source (`seen= inserted= dup= old= skipped= filtered=`) and a totals line. A failing
+source is recorded in `source_state.last_error` and does not stop the others. Every item blocked by an exclusion rule
+(below) also gets one line before its source's summary: `filtered  <source id>  <rule>  <url>`.
 
 ## Layout
 
@@ -99,7 +102,9 @@ All routes are under `/api`; errors are JSON `{ "error", "message" }`.
 - `GET /api/auth/github/callback`: finish sign-in, set the session cookie, redirect to the site
 - `POST /api/auth/logout`: delete the session (204)
 - `GET /api/me`: the signed-in user (401 without a session)
-- `GET /api/articles?source=&skill=&from=&to=&cursor=&limit=`: labeled articles, newest first, cursor pagination
+- `GET /api/articles?source=&skill=&q=&from=&to=&cursor=&limit=`: labeled articles, newest first, cursor pagination;
+  `skill` repeats (`skill=a&skill=b`, any-match on primary or secondary, up to 10, each a taxonomy id) and `q` is a
+  case-insensitive title search (up to 100 characters); both are 400 when invalid
 - `GET /api/sources`
 - `GET /api/taxonomy`
 - `GET /api/quiz?skills=`: quiz questions (no answers) for the signed-in user's role, for the given skills
@@ -107,7 +112,9 @@ All routes are under `/api`; errors are JSON `{ "error", "message" }`.
 - `PUT /api/focus`: replace the ordered focus skills (onboarded users only)
 - `GET /api/profile`: the signed-in user's skill levels and focus, reading history (latest 20, plus the total) and
   the 👍 share among read articles
-- `GET /api/feed?offset=`: the For you page (20 cards, `{ items, nextOffset }`), ranked for the signed-in user
+- `GET /api/feed?offset=&skill=&q=`: the For you page (20 cards, `{ items, nextOffset }`), ranked for the signed-in
+  user; `skill` and `q` work as on `/api/articles` and narrow the ranked list before paging, so repeat them with
+  every `offset`
 - `POST /api/articles/:id/events`: record feedback with `{ kind }` (`read`, `like`, `too_easy`, `too_hard`,
   `not_interested`); 200 `{ kind, recorded }`, a repeated click is a no-op (`recorded: false`)
 
@@ -126,7 +133,9 @@ not published on the host; the browser reaches it only through the web proxy.
 ## Data files
 
 - `data/taxonomy.yml`: Role, Domain and Skill tree with the 0-4 level scale and a version.
-- `data/sources.yml`: the 13 first-party sources (`rss` or `sitemap`), with optional filters.
+- `data/sources.yml`: the 15 first-party sources (`rss` or `sitemap`), with optional per-source `filter` (see Source cleanup).
+  A source removed from the file (e.g. `mozilla-ai-blog`) keeps its articles and `source_state` row: nothing references
+  source ids by foreign key, and the API shows such an article with its source id as the name.
 - `data/config.yml`: the single place for tunable numbers (backfill window, label limits, thresholds, feed settings).
 - `data/quiz/dev.yml`: DRAFT question bank for role dev (32 skills x 2 situational questions with hidden option levels); needs owner review.
 - `data/golden/`: hand-labeled articles for `attn eval`. It holds `draft.yml` for now (see Evaluation).
@@ -187,9 +196,9 @@ turn it off, such as Opus 5.5, the SDK uses its lowest setting, effort `low`, an
 `typesafe-ai/jev` is not a text-generation model but a decision model (32k context, $0.042 per 1M input tokens, no
 output price), called with the AI SDK's `experimental_decide` through the Vercel AI Gateway; set `JEV_API_KEY` to a
 gateway key (`vck_...`, passed explicitly, `AI_GATEWAY_API_KEY` is not needed). One decide call per article answers
-about 36 questions against the same state (title, URL and the article text cut to `label_max_chars`): a choice for
+about 37 questions against the same state (title, URL and the article text cut to `label_max_chars`): a choice for
 `primary_skill` over all taxonomy skills, choices for `type`, `difficulty` (0-4) and `quality` (0-4) with the same
-rubrics as the other labelers, and one yes/no question per skill for `secondary_skills`, since decide has no
+rubrics as the other labelers, the `relevant` gate below, and one yes/no question per skill for `secondary_skills`, since decide has no
 multi-select. The secondary skills are those with probability at least `jev_secondary_threshold` (`data/config.yml`,
 default 0.5), highest first, at most 3, never the primary. `experimental_decide` is an experimental API and may change
 between AI SDK releases. Fatal for the run: 401/402/403/404 (bad key, no credit, a restricted model such as the
@@ -211,11 +220,44 @@ changing that article's status or attempts, `attn label` prints the provider err
 logs it at error level. `attn eval` stops the same way and exits 1 with the partial report; it also exits 1 when
 not a single article could be scored.
 
+### Source cleanup: collect rules, relevance gate, `excluded`
+
+Junk is kept out at two points. Both are owner-approved (2026-10-15, numbers in `docs/decisions.md`).
+
+**Collect-time rules.** The per-source `filter` in `data/sources.yml` takes, besides `path_prefix`, `keywords` and
+`exclude_path_prefix`:
+
+| Key | Matches |
+| --- | --- |
+| `exclude_paths` | the URL path exactly, a trailing slash ignored (`/skills` also blocks `/skills/`, not `/skills/tdd`) |
+| `exclude_path_regex` | a list of regexes tested against the URL path (case-sensitive) |
+| `exclude_title_regex` | a list of regexes tested against the title (case-insensitive) |
+
+A bad regex is a config error at load, naming the source, and stops `attn` and the API at startup. A blocked item is
+not inserted; it is logged (source id, rule name, url) and counted in `filtered=` (not in `skipped=`). Rules in use:
+ai-hero landing pages and `/workshops/`, vercel customer stories and accelerator posts, cloudflare-ai company news
+by title. `anthropic-news` deliberately has no rule: the relevance gate handles it.
+
+**Relevance gate (jev only).** The jev labeler's single decide call has one more yes/no question, `relevant`: does the
+article teach or meaningfully inform at least one skill in the skill map (every taxonomy skill is listed in the
+question; AI built into products counts; corporate news, events, marketing and unrelated topics do not). If the
+probability is below `relevance_threshold` (`data/config.yml`, default 0.5) the article is not labeled but marked
+`excluded`, with `excluded_reason` and `excluded_at`, and logged (id, title, p, url). A refused or missing answer counts
+as relevant. The Claude and Gemini labelers have no gate and treat every article as relevant.
+
+**The `excluded` status.** An excluded article stays in the table, so collect's unique-url dedup never re-inserts it.
+It is never selected for labeling and never appears in For you, All or counts (every reader filters on
+`label_status = 'labeled'`). `attn exclude --max-quality 1 --reason "q<=1 cleanup"` and
+`attn exclude --status failed --reason "too short"` exclude existing rows (take the pipeline lock; `--dry-run` takes
+none and writes nothing); `attn unexclude --id <id>` returns one article to `pending` with its attempts reset and marks it so the relevance gate
+never excludes it again (the rescue path for a gate mistake).
+
 `attn collect` and `attn label` take the same Postgres advisory lock as the daily job. If another run holds it,
 they print `another collect/label run is in progress` and exit 1.
 
-Output: one line per article, `<outcome>  <url>[  <error>]`, then
-`total: selected=<n> labeled=<n> failed=<n> rate_limited=<yes|no>`.
+Output: one line per article, `<outcome>  <url>[  <error>]` (an article excluded by the relevance gate prints
+`excluded  id=<id>  p=<probability>  <title>  <url>`), then
+`total: selected=<n> labeled=<n> excluded=<n> failed=<n> rate_limited=<yes|no>`.
 
 Privacy invariant: only the article `title`, `url` and public article text go to the model, and the `Labeler`
 type has no place for user data (quiz answers, levels, user ids). This is enforced by types and tests, and
@@ -372,7 +414,8 @@ counts.
 Feedback applies to the article's primary skill, only to skills that exist after onboarding (a user who has not
 onboarded has events recorded but no skill effects).
 
-- **Read** (the title and the Read link both open the article in a new tab and record it): the article leaves the
+- **Read** (only the Read button records it, and it opens the article in a new tab; clicking the title just opens the
+  article and records nothing): the article leaves the
   feed. On screen the card collapses to a strip "Read ✓ · 👍 · Too easy · Too hard", so feedback can still be given
   after reading; it is gone on the next page load. If the article's difficulty is at or above the user's level,
   the skill gets +1 point; `points_per_level` (5) points give +1 level (cap 4) and reset points.
@@ -421,6 +464,8 @@ Owner hand-off:
 - OpenAI News is not a source. openai.com article pages sit behind a Cloudflare managed challenge (HTTP 403) for
   the honest `attn-collector` User-Agent, and spoofing a browser is not an option. Its RSS blurbs (median 149
   characters) are also below `label_min_chars` (500), so they could not be labeled.
+- JetBrains AI blog is not a source. blog.jetbrains.com (pages and feed) answers the honest `attn-collector`
+  User-Agent with an AWS WAF bot challenge (HTTP 202, `x-amzn-waf-action: challenge`) as of 2026-10-15.
 
 ## License
 

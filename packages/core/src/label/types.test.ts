@@ -1,7 +1,7 @@
 import { describe, it, expect, expectTypeOf } from 'vitest';
-import { taxonomySkillIds, type LabelOutput } from '@attn/shared';
+import { taxonomySkillIds } from '@attn/shared';
 import { loadTaxonomy } from '../data';
-import { makePublicArticle, type Labeler, type PublicArticle } from './types';
+import { makePublicArticle, type LabelResult, type Labeler, type PublicArticle } from './types';
 import { RateLimitError } from './errors';
 import { createFakeLabeler, DEFAULT_FAKE_LABEL } from './fake';
 
@@ -9,7 +9,7 @@ describe('label types', () => {
   it('PublicArticle has exactly title, url, text', () => {
     expectTypeOf<keyof PublicArticle>().toEqualTypeOf<'title' | 'url' | 'text'>();
     expectTypeOf<Parameters<Labeler['label']>>().toEqualTypeOf<[article: PublicArticle]>();
-    expectTypeOf<ReturnType<Labeler['label']>>().toEqualTypeOf<Promise<LabelOutput>>();
+    expectTypeOf<ReturnType<Labeler['label']>>().toEqualTypeOf<Promise<LabelResult>>();
   });
 
   it('makePublicArticle copies only the allowed keys', () => {

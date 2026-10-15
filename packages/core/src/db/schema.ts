@@ -48,6 +48,8 @@ export const sourceState = pgTable('source_state', {
   lastModified: text('last_modified'),
   lastRunAt: timestamptz('last_run_at'),
   lastError: text('last_error'),
+  /** The feed url the validators belong to; validators are ignored when the source's url has changed. */
+  feedUrl: text('feed_url'),
 });
 
 export const articles = pgTable(
@@ -70,6 +72,10 @@ export const articles = pgTable(
     labelModel: text('label_model'),
     labeledAt: timestamptz('labeled_at'),
     taxonomyVersion: integer('taxonomy_version'),
+    excludedReason: text('excluded_reason'),
+    excludedAt: timestamptz('excluded_at'),
+    /** Set by `attn unexclude`: the relevance gate no longer excludes this article. */
+    relevanceOverride: boolean('relevance_override').notNull().default(false),
   },
   (t) => [
     index('articles_guid_idx').on(t.guid),

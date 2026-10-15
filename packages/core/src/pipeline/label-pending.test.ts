@@ -2,9 +2,10 @@ import { eq, getTableColumns, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { articleSkills, articles, type Db } from '../db';
 import { articleHtml } from '../extract/fixtures/html';
-import { createFakeLabeler, FatalLabelerError, OverloadedError, RateLimitError } from '../label';
+import { createFakeLabeler, DEFAULT_FAKE_LABEL, FatalLabelerError, OverloadedError, RateLimitError } from '../label';
 import { resetDb, testDb } from '../test/db';
 import { startServer, type TestServer } from '../test/server';
+import { unexcludeArticle } from './exclude';
 import { labelPending, type LabelOptions } from './label-pending';
 
 const config = {
@@ -14,6 +15,7 @@ const config = {
   label_min_chars: 200,
   label_max_attempts: 3,
   label_overload_backoff_ms: [2000, 5000, 10000],
+  relevance_threshold: 0.5,
 };
 const now = new Date('2026-10-14T12:00:00Z');
 const html = { headers: { 'content-type': 'text/html' } };
@@ -110,6 +112,66 @@ describe('labelPending', () => {
       ['cc-hooks', true],
       ['cc-plugins', false],
     ]);
+  });
+
+  describe('relevance gate', () => {
+    const verdict = (probability: number | null) => () => ({ ...DEFAULT_FAKE_LABEL, relevance: { probability } });
+
+    it('excludes an article below relevance_threshold instead of labeling it, and logs id, title, p', async () => {
+      const a = await insertArticle(1);
+      const lines: string[] = [];
+      const report = await run(createFakeLabeler(verdict(0.2), 'fake-m'), { log: (l) => lines.push(l) });
+      expect(report).toMatchObject({ selected: 1, labeled: 0, excluded: 1, failed: 0 });
+      expect(report.items).toEqual([{ id: a.id, url: a.url, outcome: 'excluded' }]);
+      const row = await getRow(a.id);
+      expect(row).toMatchObject({ labelStatus: 'excluded', excludedReason: 'not relevant (p=0.20)', excludedAt: now });
+      expect(row.quality).toBeNull();
+      expect(row.labeledAt).toBeNull();
+      expect(await db.select().from(articleSkills).where(eq(articleSkills.articleId, a.id))).toEqual([]);
+      expect(lines).toEqual([`excluded  id=${a.id}  p=0.20  Title 1  ${a.url}`]);
+    });
+
+    it('labels at exactly the threshold, and when the verdict is missing, null or absent', async () => {
+      const a = await insertArticle(1);
+      const b = await insertArticle(2);
+      await run(createFakeLabeler(verdict(0.5)));
+      await run(createFakeLabeler(verdict(null)), { limit: 1 });
+      expect([(await getRow(a.id)).labelStatus, (await getRow(b.id)).labelStatus]).toEqual(['labeled', 'labeled']);
+      const c = await insertArticle(3);
+      await run(createFakeLabeler());
+      expect((await getRow(c.id)).labelStatus).toBe('labeled');
+    });
+
+    it('honors a different threshold', async () => {
+      const a = await insertArticle(1);
+      await run(createFakeLabeler(verdict(0.6)), { config: { ...config, relevance_threshold: 0.7 } });
+      expect((await getRow(a.id)).labelStatus).toBe('excluded');
+    });
+
+    it('unexclude rescues a gate-excluded article: the next run labels it even with p below the threshold', async () => {
+      const a = await insertArticle(1);
+      await run(createFakeLabeler(verdict(0.1)));
+      expect((await getRow(a.id)).labelStatus).toBe('excluded');
+      expect(await unexcludeArticle(db, a.id)).toBe(true);
+      const report = await run(createFakeLabeler(verdict(0.1)));
+      expect(report).toMatchObject({ labeled: 1, excluded: 0 });
+      expect(await getRow(a.id)).toMatchObject({ labelStatus: 'labeled', relevanceOverride: true });
+    });
+
+    it('never selects an excluded article again', async () => {
+      const a = await insertArticle(1);
+      await run(createFakeLabeler(verdict(0.1)));
+      const labeler = createFakeLabeler();
+      const report = await run(labeler);
+      expect(report.selected).toBe(0);
+      expect(labeler.calls).toHaveLength(0);
+      expect((await getRow(a.id)).labelStatus).toBe('excluded');
+    });
+
+    it('does not select excluded articles even when they have few attempts', async () => {
+      await insertArticle(1, { labelStatus: 'excluded', labelAttempts: 0 });
+      expect((await run(createFakeLabeler())).selected).toBe(0);
+    });
   });
 
   it('truncates for the labeler and stores no text', async () => {

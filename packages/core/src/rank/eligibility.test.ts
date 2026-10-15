@@ -159,6 +159,14 @@ describe('events', () => {
 });
 
 describe('labeling and urls', () => {
+  it('excluded rows are never ranked, even with a label, skills and high quality', async () => {
+    await focus();
+    const ok = await makeArticle(db, { primary: S1 });
+    const gone = await makeArticle(db, { primary: S1, quality: 4 });
+    await db.update(articles).set({ labelStatus: 'excluded', excludedReason: 'r' }).where(eq(articles.id, gone));
+    expect(await ids()).toEqual([ok]);
+  });
+
   it('pending and failed are excluded', async () => {
     await focus();
     await makeArticle(db, { primary: S1, status: 'pending' });

@@ -1,6 +1,6 @@
 import type { LabelOutput } from '@attn/shared';
 import { FatalLabelerError } from './errors';
-import type { LabelTokenUsage, Labeler, PublicArticle } from './types';
+import type { LabelResult, LabelTokenUsage, Labeler, PublicArticle } from './types';
 
 export const MAX_SECONDARY_SKILLS = 3;
 
@@ -25,7 +25,7 @@ export function parseLabelModel(model: string): ParsedLabelModel {
 }
 
 /** Main's label with its secondary skills replaced by the secondary labeler's: minus main's primary, deduped, at most 3, order kept. */
-export function mergeSecondarySkills(main: LabelOutput, secondarySkills: readonly string[]): LabelOutput {
+export function mergeSecondarySkills<T extends LabelOutput>(main: T, secondarySkills: readonly string[]): T {
   const seen = new Set<string>([main.primary_skill]);
   const merged: string[] = [];
   for (const s of secondarySkills) {
@@ -67,14 +67,14 @@ function shortReason(e: unknown): string {
 
 /**
  * Calls both labelers in parallel. The label is main's, with secondary skills from the secondary labeler. Any
- * secondary failure keeps main's own secondary skills; a main failure is thrown as is (so fatal, 429 and overload
+ * secondary failure keeps main's own secondary skills; main's relevance verdict (if any) is kept unchanged and the secondary's is ignored; a main failure is thrown as is (so fatal, 429 and overload
  * handling stay exactly the main labeler's).
  */
 export function createComboLabeler(opts: ComboLabelerOptions): Labeler {
   const { main, secondary } = opts;
   return {
     model: opts.model,
-    async label(article: PublicArticle): Promise<LabelOutput> {
+    async label(article: PublicArticle): Promise<LabelResult> {
       const [m, s] = await Promise.allSettled([main.label(article), secondary.label(article)]);
       if (m.status === 'rejected') throw m.reason;
       if (s.status === 'rejected') {

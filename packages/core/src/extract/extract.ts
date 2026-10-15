@@ -1,8 +1,8 @@
 import { Readability } from '@mozilla/readability';
 import { JSDOM } from 'jsdom';
-import { USER_AGENT, type FetchFn } from '../collect/http';
+import { botBlockReason, USER_AGENT, type FetchFn } from '../collect/http';
 
-export type ExtractErrorKind = 'http' | 'not_html' | 'unreadable' | 'too_short';
+export type ExtractErrorKind = 'http' | 'not_html' | 'unreadable' | 'too_short' | 'bot_blocked';
 
 export class ExtractError extends Error {
   readonly kind: ExtractErrorKind;
@@ -71,6 +71,8 @@ export async function fetchArticleText(
     redirect: 'follow',
     signal: AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS),
   });
+  const blocked = botBlockReason(res);
+  if (blocked) throw new ExtractError('bot_blocked', `${blocked} for ${url}`);
   if (!res.ok) throw new ExtractError('http', `HTTP ${res.status} for ${url}`);
   const contentType = res.headers.get('content-type');
   if (contentType && !contentType.toLowerCase().includes('html')) {

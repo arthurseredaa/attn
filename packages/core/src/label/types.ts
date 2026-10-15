@@ -15,9 +15,20 @@ export interface LabelTokenUsage {
   cacheWriteTokens?: number;
 }
 
+/**
+ * The relevance gate's verdict (only the jev labeler gives one). `probability` is the model's probability that the
+ * article is useful for the skill map; null = no usable answer (refused or missing), which counts as relevant.
+ */
+export interface RelevanceVerdict {
+  probability: number | null;
+}
+
+/** A label, plus the optional relevance verdict. A labeler without a gate (Claude, Gemini, fake) omits it = relevant. */
+export type LabelResult = LabelOutput & { relevance?: RelevanceVerdict };
+
 export interface Labeler {
   readonly model: string;
-  label(article: PublicArticle): Promise<LabelOutput>;
+  label(article: PublicArticle): Promise<LabelResult>;
   /** Optional: a labeler that sees provider token counts reports their running totals. */
   usage?(): LabelTokenUsage;
   /** Optional: a combo labeler also reports the running totals of each underlying model. */

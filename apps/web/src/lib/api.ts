@@ -42,7 +42,7 @@ interface Parser<T> {
 export async function apiGet<T>(
   path: string,
   schema: Parser<T>,
-  opts: { query?: Record<string, string | number | undefined>; cookie?: string } = {},
+  opts: { query?: Record<string, string | number | string[] | undefined>; cookie?: string } = {},
 ): Promise<T> {
   const headers: Record<string, string> = { accept: 'application/json' };
   if (opts.cookie) headers.cookie = opts.cookie;
@@ -85,7 +85,7 @@ export async function getQuiz(skills: string[]): Promise<QuizResponse> {
   return apiGet('/quiz', quizResponseSchema, { query: { skills: skills.join(',') }, cookie });
 }
 
-export async function getFeed(offset = 0): Promise<FeedPage> {
+export async function getFeed(offset = 0, filters: { skill?: string[]; q?: string } = {}): Promise<FeedPage> {
   const cookie = (await cookies()).toString(); // outside any try/catch, see getMe
-  return apiGet('/feed', feedPageSchema, { cookie, query: { offset } });
+  return apiGet('/feed', feedPageSchema, { cookie, query: { offset, skill: filters.skill, q: filters.q } });
 }

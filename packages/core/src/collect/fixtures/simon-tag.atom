@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Simon Willison's Weblog: ai-assisted-programming</title><link href="{{BASE}}/tags/ai-assisted-programming/" rel="alternate"></link><link href="{{BASE}}/tags/ai-assisted-programming.atom" rel="self"></link><id>{{BASE}}/tags/ai-assisted-programming/</id><updated>2026-10-12T10:00:00+00:00</updated>
+<entry><title>Vibe engineering</title><link href="{{BASE}}/2026/Oct/12/vibe-engineering/" rel="alternate"></link><published>2026-10-12T10:00:00+00:00</published><updated>2026-10-12T10:00:00+00:00</updated><id>tag:simonwillison.net,2026-10-12:/2026/Oct/12/vibe-engineering/</id><summary type="html">&lt;p&gt;Summary&lt;/p&gt;</summary></entry>
+<entry><title>Claude Code tips</title><link href="{{BASE}}/2026/Oct/01/claude-code-tips/" rel="alternate"></link><published>2026-10-01T10:00:00+00:00</published><updated>2026-10-01T10:00:00+00:00</updated><id>tag:simonwillison.net,2026-10-01:/2026/Oct/01/claude-code-tips/</id><summary type="html">&lt;p&gt;Tips&lt;/p&gt;</summary></entry>
+</feed>

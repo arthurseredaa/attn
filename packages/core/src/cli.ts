@@ -9,7 +9,7 @@ import type { FetchFn } from './collect/http';
 import { createLabeler, labelerConfigError, type Labeler } from './label';
 import { createTextCache, defaultCacheDir, formatEvalReport, loadGolden, runEval } from './eval';
 import { removeDemoArticles, seedDemoArticles } from './demo/seed';
-import { labelPending, type LabelItemReport } from './pipeline';
+import { excludeArticles, labelPending, unexcludeArticle, type LabelItemReport } from './pipeline';
 
 export interface Io {
   out(s: string): void;
@@ -23,13 +23,16 @@ export interface Deps {
   sleep?: (ms: number) => Promise<void>;
 }
 
-const USAGE = `usage: attn <migrate | collect | label | eval | seed-demo>
+const USAGE = `usage: attn <migrate | collect | label | eval | seed-demo | exclude | unexclude>
 
 commands:
   migrate                                              apply database migrations
   collect [--source <id>]... [--backfill-days <n>]    collect new articles from sources
   label [--limit <n>]                                  label pending articles with LABEL_MODEL (claude-*, gemini-*, typesafe-ai/* or <main>+<secondary>)
   eval --model <id>                                    measure a model (claude-*, gemini-*, typesafe-ai/* or <main>+<secondary>) against data/golden/*.yml
+  exclude (--max-quality <n> | --status failed) --reason <text> [--dry-run]
+                                                       mark labeled articles with quality <= n (or failed ones) excluded: never labeled or listed
+  unexclude --id <id>                                  return an excluded article to pending
   seed-demo [--remove]                                 add (or remove) demo articles for local use without a labeling key
 `;
 
@@ -39,7 +42,7 @@ const defaultIo: Io = {
 };
 
 function formatReport(r: SourceReport): string {
-  const line = `${r.sourceId}  ${r.status}  seen=${r.seen} inserted=${r.inserted} dup=${r.duplicates} old=${r.tooOld} skipped=${r.skipped}`;
+  const line = `${r.sourceId}  ${r.status}  seen=${r.seen} inserted=${r.inserted} dup=${r.duplicates} old=${r.tooOld} skipped=${r.skipped} filtered=${r.filtered}`;
   return r.error ? `${line}  ${r.error}` : line;
 }
 
@@ -118,14 +121,15 @@ async function labelCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps
         labeler,
         config,
         taxonomyVersion: taxonomy.version,
+        log: io.out,
         ...(limit !== undefined ? { limit } : {}),
         ...(deps.sleep ? { sleep: deps.sleep } : {}),
         ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}),
         ...(deps.now ? { now: deps.now } : {}),
       });
-      for (const i of report.items) io.out(formatLabelItem(i));
+      for (const i of report.items) if (i.outcome !== 'excluded') io.out(formatLabelItem(i));
       io.out(
-        `total: selected=${report.selected} labeled=${report.labeled} failed=${report.failed} rate_limited=${report.rateLimited ? 'yes' : 'no'}`,
+        `total: selected=${report.selected} labeled=${report.labeled} excluded=${report.excluded} failed=${report.failed} rate_limited=${report.rateLimited ? 'yes' : 'no'}`,
       );
       if (report.fatal) {
         io.err(`provider error: ${report.fatal}; the run was stopped and no further articles were touched`);
@@ -188,6 +192,88 @@ async function evalCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps:
     return 1;
   }
   return 0;
+}
+
+async function excludeCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps: Deps): Promise<number> {
+  const { values } = parseArgs({
+    args,
+    options: {
+      'max-quality': { type: 'string' },
+      status: { type: 'string' },
+      reason: { type: 'string' },
+      'dry-run': { type: 'boolean' },
+    },
+    strict: true,
+  });
+  const rawQ = values['max-quality'];
+  if ((rawQ === undefined) === (values.status === undefined)) {
+    io.err('give exactly one of --max-quality <0-4> or --status failed');
+    return 1;
+  }
+  let maxQuality: number | undefined;
+  if (rawQ !== undefined) {
+    if (!/^[0-4]$/.test(rawQ)) {
+      io.err(`--max-quality must be an integer from 0 to 4, got "${rawQ}"`);
+      return 1;
+    }
+    maxQuality = Number(rawQ);
+  }
+  if (values.status !== undefined && values.status !== 'failed') {
+    io.err(`--status must be "failed", got "${values.status}"`);
+    return 1;
+  }
+  const dryRun = values['dry-run'] === true;
+  if (!dryRun && !values.reason?.trim()) {
+    io.err('--reason <text> is required');
+    return 1;
+  }
+  const url = env.DATABASE_URL;
+  if (!url) {
+    io.err('DATABASE_URL is not set');
+    return 1;
+  }
+  const run = async (): Promise<number> => {
+    const { db, close } = createDb(url);
+    try {
+      const report = await excludeArticles({
+        db,
+        ...(maxQuality !== undefined ? { maxQuality } : { status: 'failed' as const }),
+        reason: values.reason?.trim() ?? '',
+        dryRun,
+        ...(deps.now ? { now: deps.now } : {}),
+      });
+      io.out(`${dryRun ? 'would exclude' : 'excluded'}: ${report.count}`);
+      for (const s of report.samples) io.out(`  ${s.id}  ${s.sourceId}  q=${s.quality ?? '-'}  ${s.title}`);
+      return 0;
+    } finally {
+      await close();
+    }
+  };
+  return dryRun ? run() : withPipelineLock(url, io, run);
+}
+
+async function unexcludeCommand(args: string[], env: NodeJS.ProcessEnv, io: Io): Promise<number> {
+  const { values } = parseArgs({ args, options: { id: { type: 'string' } }, strict: true });
+  if (values.id === undefined || !/^\d+$/.test(values.id) || !Number.isSafeInteger(Number(values.id))) {
+    io.err('--id <article id> is required (a positive integer)');
+    return 1;
+  }
+  const url = env.DATABASE_URL;
+  if (!url) {
+    io.err('DATABASE_URL is not set');
+    return 1;
+  }
+  const { db, close } = createDb(url);
+  try {
+    if (!(await unexcludeArticle(db, Number(values.id)))) {
+      io.err(`article ${values.id} is not excluded (or does not exist)`);
+      return 1;
+    }
+    io.out(`article ${values.id}: pending`);
+    return 0;
+  } finally {
+    await close();
+  }
 }
 
 async function seedDemoCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps: Deps): Promise<number> {
@@ -258,7 +344,10 @@ async function collect(args: string[], env: NodeJS.ProcessEnv, io: Io, deps: Dep
         ...(backfillDays !== undefined ? { backfillDays } : {}),
         ...(values.source ? { onlySourceIds: values.source } : {}),
       });
-      for (const r of reports) io.out(formatReport(r));
+      for (const r of reports) {
+        for (const f of r.filteredItems) io.out(`filtered  ${r.sourceId}  ${f.rule}  ${f.url}`);
+        io.out(formatReport(r));
+      }
       const sum = (k: 'inserted' | 'duplicates') => reports.reduce((n, r) => n + r[k], 0);
       const failed = reports.filter((r) => r.status === 'error').length;
       io.out(`total: sources=${reports.length} inserted=${sum('inserted')} dup=${sum('duplicates')} errors=${failed}`);
@@ -288,6 +377,10 @@ export async function run(argv: string[], env: NodeJS.ProcessEnv, io: Io = defau
         return await labelCommand(rest, env, io, deps);
       case 'eval':
         return await evalCommand(rest, env, io, deps);
+      case 'exclude':
+        return await excludeCommand(rest, env, io, deps);
+      case 'unexclude':
+        return await unexcludeCommand(rest, env, io);
       case 'seed-demo':
         return await seedDemoCommand(rest, env, io, deps);
       default:

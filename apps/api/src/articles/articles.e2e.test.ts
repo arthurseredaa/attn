@@ -39,6 +39,7 @@ describe('GET /api/articles', () => {
     const ok = await seed();
     await seed({ status: 'pending' });
     await seed({ status: 'failed' });
+    await seed({ status: 'excluded' });
     const r = await get();
     expect(r.status).toBe(200);
     expect(ids(articlesPageSchema.parse(r.body))).toEqual([ok]);
@@ -112,6 +113,43 @@ describe('GET /api/articles', () => {
     expect(ids(await page(`?skill=${S2}`))).toEqual([both]);
     expect(ids(await page(`?skill=${S1}`))).toEqual([both]);
     expect(ids(await page(`?skill=${S3}`))).toEqual([only3]);
+  });
+
+  it('filters by several skills (any-match, repeatable param), no duplicates', async () => {
+    const a = await seed({ primary: S1, secondary: [S2] });
+    const b = await seed({ primary: S3 });
+    await seed({ primary: 'orphan-skill' });
+    expect(ids(await page(`?skill=${S1}&skill=${S2}`))).toEqual([a]);
+    expect(ids(await page(`?skill=${S2}&skill=${S3}`)).sort()).toEqual([a, b].sort());
+  });
+
+  it('searches titles case-insensitively and treats % _ and backslash literally', async () => {
+    const rag = await seed({ title: 'Building RAG Pipelines' });
+    const pct = await seed({ title: '100% accuracy' });
+    const us = await seed({ title: 'snake_case naming' });
+    const bs = await seed({ title: 'path C:\\temp' });
+    await seed({ title: 'plain' });
+    expect(ids(await page('?q=rag%20pipe'))).toEqual([rag]);
+    expect(ids(await page('?q=%25'))).toEqual([pct]);
+    expect(ids(await page('?q=_'))).toEqual([us]);
+    expect(ids(await page('?q=%5C'))).toEqual([bs]);
+    expect(ids(await page('?q=%20%20'))).toHaveLength(5); // blank = no filter
+    expect((await page('?q=zzz')).items).toEqual([]);
+  });
+
+  it('combines q, skill, source and dates, and paging carries the filters', async () => {
+    const t = (n: number) => at(`2026-02-0${n}T00:00:00.000Z`);
+    const a = await seed({ title: 'Agents 1', primary: S1, publishedAt: t(1) });
+    await seed({ title: 'Agents 2', primary: S2, publishedAt: t(2) });
+    const c = await seed({ title: 'Agents 3', primary: S1, secondary: [S3], publishedAt: t(3) });
+    await seed({ title: 'Other', primary: S1, publishedAt: t(4) });
+    const d = await seed({ title: 'Agents 5', primary: S3, publishedAt: t(5) });
+    const qs = `skill=${S1}&skill=${S3}&q=agents`;
+    expect(ids(await page(`?${qs}`))).toEqual([d, c, a]);
+    const p1 = await page(`?${qs}&limit=2`);
+    expect(ids(p1)).toEqual([d, c]);
+    expect(ids(await page(`?${qs}&limit=2&cursor=${p1.nextCursor}`))).toEqual([a]);
+    expect(ids(await page(`?${qs}&from=2026-02-02&to=2026-02-04`))).toEqual([c]);
   });
 
   it('applies date ranges with the documented bounds', async () => {
@@ -189,7 +227,10 @@ describe('GET /api/articles', () => {
     ['from=2026-03-02&to=2026-03-01', 'to'],
     ['cursor=garbage', 'cursor'],
     ['cursor=', 'cursor'],
-    ['skill=a&skill=b', 'skill'],
+    ['skill=nope', 'skill'],
+    [`skill=${S1}&skill=nope`, 'skill'],
+    [`q=${'x'.repeat(101)}`, 'q'],
+    ['skill=a&skill=b&skill=c&skill=d&skill=e&skill=f&skill=g&skill=h&skill=i&skill=j&skill=k', 'skill'],
   ])('400 with the error shape for %s', async (qs, field) => {
     const r = await get(`?${qs}`);
     expect(r.status).toBe(400);

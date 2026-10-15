@@ -1,4 +1,5 @@
 # First-party sources only (vendor and practitioner blogs).
+# anthropic-news deliberately has no collect-time rule (owner decision): the label-time relevance gate handles it.
 # No changelogs, no GitHub releases, no aggregators.
 - id: claude-dev
   name: claude.dev
@@ -14,10 +15,6 @@
   type: sitemap
   url: https://www.anthropic.com/sitemap.xml
   path_prefix: /engineering/
-- id: mozilla-ai-blog
-  name: Mozilla.ai blog
-  type: rss
-  url: https://blog.mozilla.ai/rss/
 - id: mcp-blog
   name: MCP blog
   type: rss
@@ -29,16 +26,26 @@
   filter:
     path_prefix: [/blog/]
     keywords: [ai, llm, llms, agent, agents, agentic, mcp, claude, openai, gpt, gemini, ai sdk, ai gateway, v0, inference, embeddings, rag, prompt]
+    # Customer stories and accelerator recaps.
+    exclude_path_regex: ['^/blog/how-.*-(on-vercel|with-v0|with-vercel)$', 'accelerator']
 - id: github-blog-ai
   name: GitHub Blog - AI & ML
   type: rss
   url: https://github.blog/ai-and-ml/feed/
 # openai-news is intentionally absent: openai.com article pages are behind a Cloudflare managed challenge
 # (HTTP 403) for our honest attn-collector User-Agent, and its RSS blurbs are shorter than label_min_chars.
+# jetbrains-ai is intentionally absent: blog.jetbrains.com (pages and feed) sits behind an AWS WAF bot challenge
+# (HTTP 202, x-amzn-waf-action: challenge) as of 2026-10-15.
+# Simon Willison: tag feeds instead of the full feed (which is mostly quotes and release notes). Both feeds overlap;
+# url uniqueness dedups. The id simon-willison stays with the first feed so existing articles keep their source.
 - id: simon-willison
   name: Simon Willison
   type: rss
-  url: https://simonwillison.net/atom/everything/
+  url: https://simonwillison.net/tags/ai-assisted-programming.atom
+- id: simon-willison-claude-code
+  name: Simon Willison (Claude Code)
+  type: rss
+  url: https://simonwillison.net/tags/claude-code.atom
 - id: latent-space
   name: Latent Space
   type: rss
@@ -56,8 +63,17 @@
   type: rss
   url: https://www.aihero.dev/rss.xml
   filter:
-    exclude_path_prefix: [/ai-coding-dictionary/]
+    # Landing pages, not articles.
+    exclude_paths: [/skills, /skills-catalog, /newsletter, /ai-coding-dictionary, /skills/subscribe]
+    exclude_path_prefix: [/workshops/, /ai-coding-dictionary/]
 - id: cloudflare-ai
   name: Cloudflare Blog - AI
   type: rss
   url: https://blog.cloudflare.com/tag/ai/rss/
+  filter:
+    # Company news, not engineering content.
+    exclude_title_regex: [birthday, founders, launched during, one year, sovereign, civil society]
+- id: philschmid
+  name: Philipp Schmid
+  type: rss
+  url: https://www.philschmid.de/rss

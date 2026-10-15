@@ -55,6 +55,7 @@ export interface ArticleFixture {
   status?: LabelStatus;
   url?: string;
   sourceId?: string;
+  title?: string;
 }
 
 export async function makeArticle(db: Db, o: ArticleFixture): Promise<number> {
@@ -67,7 +68,7 @@ export async function makeArticle(db: Db, o: ArticleFixture): Promise<number> {
       sourceId: o.sourceId ?? 'src',
       url: o.url ?? `https://src.test/a/${n}`,
       guid: `guid-${n}`,
-      title: `Article ${n}`,
+      title: o.title ?? `Article ${n}`,
       titleHash: `hash-${n}`,
       publishedAt: o.publishedAt ?? new Date(RANK_NOW.getTime() - 86_400_000),
       wordCount: 1000,

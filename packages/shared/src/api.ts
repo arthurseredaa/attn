@@ -72,6 +72,34 @@ export type ArticlesPage = z.infer<typeof articlesPageSchema>;
 
 export const ARTICLES_MAX_LIMIT = 50;
 
+/** Skill filter and title search, shared by `GET /articles` and `GET /feed`. */
+export const MAX_FILTER_SKILLS = 10;
+export const MAX_SEARCH_LENGTH = 100;
+
+/**
+ * Repeatable `skill` query param (`?skill=a&skill=b`; a single value is a one-item list). Any-match: the article has
+ * ANY of the skills as primary or secondary. Whether each id is a taxonomy skill is checked by the api.
+ */
+export const skillFilterSchema = z
+  .preprocess(
+    (v) => (v === undefined ? v : [...new Set(Array.isArray(v) ? v : [v])]),
+    z.array(z.string().min(1)).max(MAX_FILTER_SKILLS),
+  )
+  .optional();
+
+/** `q`: trimmed; empty means no filter. */
+export const searchTextSchema = z
+  .string()
+  .trim()
+  .max(MAX_SEARCH_LENGTH)
+  .transform((s) => (s === '' ? undefined : s))
+  .optional();
+
+/** Escapes `\`, `%` and `_` so the text matches literally inside `ILIKE '%' || text || '%'`. */
+export function escapeLike(text: string): string {
+  return text.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/;
 
@@ -103,7 +131,8 @@ const dateBound = z.string().refine(isDateBound, 'must be YYYY-MM-DD or an ISO 8
 export const articlesQuerySchema = z
   .object({
     source: z.string().min(1).optional(),
-    skill: z.string().min(1).optional(),
+    skill: skillFilterSchema,
+    q: searchTextSchema,
     from: dateBound.optional(),
     to: dateBound.optional(),
     cursor: z.string().min(1).optional(),

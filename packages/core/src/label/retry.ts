@@ -1,6 +1,5 @@
-import type { LabelOutput } from '@attn/shared';
 import { OverloadedError } from './errors';
-import type { Labeler, PublicArticle } from './types';
+import type { LabelResult, Labeler, PublicArticle } from './types';
 
 /**
  * Labels one article, retrying only a provider overload: before retry n it sleeps `backoffMs[n]`, so the number of
@@ -12,7 +11,7 @@ export async function labelWithOverloadRetry(
   article: PublicArticle,
   backoffMs: readonly number[],
   sleep: (ms: number) => Promise<void>,
-): Promise<LabelOutput> {
+): Promise<LabelResult> {
   for (let attempt = 0; ; attempt++) {
     try {
       return await labeler.label(article);
