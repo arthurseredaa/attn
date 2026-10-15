@@ -1,9 +1,13 @@
 import Link from 'next/link';
 import { skillNameMap } from '@attn/shared';
+import { shortDate } from '@/components/article-meta';
+import { FocusEditor } from '@/components/profile/focus-editor';
+import { ProfileRadar } from '@/components/profile/profile-radar';
+import { QUIET_LINK, SKILL_ROWS, SkillRow } from '@/components/profile/skill-row';
+import { Button } from '@/components/ui/button';
 import { getTaxonomy } from '@/lib/api';
 import { requireProfile } from '@/lib/guards';
-import { FocusEditor } from '@/components/profile/focus-editor';
-import { SkillCard } from '@/components/profile/skill-card';
+import { domainPoints, focusPoints } from '@/lib/skill-value';
 
 export const metadata = { title: 'Profile | ATTN' };
 
@@ -16,6 +20,13 @@ function quizAllLabel(left: number): string {
   return `Take the quiz for ${left} ${left === 1 ? 'skill' : 'skills'}`;
 }
 
+/** The focus radar needs at least three axes to be a shape. */
+const MIN_FOCUS_RADAR = 3;
+
+/** History rows: title, then source and read date in fixed right-hand columns from 600px; two lines below it. */
+const HISTORY_ROW =
+  'grid grid-cols-1 gap-y-0.5 border-b border-border py-2.5 @min-[600px]:h-[42px] @min-[600px]:grid-cols-[minmax(0,1fr)_200px_52px] @min-[600px]:items-center @min-[600px]:gap-x-4 @min-[600px]:px-2 @min-[600px]:py-0';
+
 export default async function ProfilePage() {
   const profile = await requireProfile();
   const taxonomy = await getTaxonomy();
@@ -24,15 +35,46 @@ export default async function ProfilePage() {
   const allSkills = profile.domains.flatMap((d) => d.skills.map((s) => ({ id: s.id, name: s.name, domain: d.name })));
   const unquizzed = profile.domains.flatMap((d) => d.skills).filter((s) => !s.quizzed);
   const { history, likes } = profile;
+  const domains = domainPoints(profile.domains, labels);
+  const focus = focusPoints(profile.domains, labels);
+  const showFocusRadar = focus.length >= MIN_FOCUS_RADAR;
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold tracking-tight">Your profile</h1>
-        <Link href="/onboarding" className="rounded-md border border-border px-3 py-1 text-sm hover:bg-primary/10">
-          Redo onboarding
-        </Link>
+    <div className="space-y-10">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl leading-tight font-semibold tracking-[-0.025em] sm:text-[28px]">Profile</h1>
+        <div className="flex flex-wrap gap-2">
+          {unquizzed.length > 0 ? (
+            <Button asChild variant="outline" className="px-3.5">
+              <Link href={quizHref(unquizzed.slice(0, QUIZ_LINK_CAP).map((s) => s.id))}>
+                {quizAllLabel(unquizzed.length)}
+              </Link>
+            </Button>
+          ) : null}
+          <Button asChild variant="outline" className="px-3.5">
+            <Link href="/onboarding">Redo onboarding</Link>
+          </Button>
+        </div>
       </header>
+
+      <div className="@container">
+        <div className="grid gap-x-10 gap-y-8 @min-[760px]:grid-cols-2 @min-[760px]:max-w-[840px]">
+          <section aria-labelledby="radar-domains" className="space-y-1">
+            <h2 id="radar-domains" className="text-sm font-semibold">
+              Domains
+            </h2>
+            <ProfileRadar points={domains} variant="domains" caption="Domains" className="mx-auto @min-[760px]:mx-0" />
+          </section>
+          {showFocusRadar ? (
+            <section aria-labelledby="radar-focus" className="space-y-1">
+              <h2 id="radar-focus" className="text-sm font-semibold">
+                Focus
+              </h2>
+              <ProfileRadar points={focus} variant="focus" caption="Focus" className="mx-auto @min-[760px]:mx-0" />
+            </section>
+          ) : null}
+        </div>
+      </div>
 
       <FocusEditor
         key={profile.focus.map((f) => f.skillId).join(',')}
@@ -41,64 +83,70 @@ export default async function ProfilePage() {
         names={skillNameMap(profile)}
       />
 
-      {unquizzed.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-3 text-sm">
-          <Link href={quizHref(unquizzed.slice(0, QUIZ_LINK_CAP).map((s) => s.id))} className="font-medium underline">
-            {quizAllLabel(unquizzed.length)}
-          </Link>
-        </div>
-      )}
-
       {profile.domains.map((d) => {
         const open = d.skills.filter((s) => !s.quizzed).map((s) => s.id);
         return (
-          <section key={d.id} className="space-y-3">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-lg font-semibold">{d.name}</h2>
-              {open.length > 0 && (
-                <Link href={quizHref(open.slice(0, QUIZ_LINK_CAP))} className="text-sm underline">
+          <section key={d.id} id={`domain-${d.id}`} aria-labelledby={`domain-${d.id}-heading`} className="scroll-mt-20 md:scroll-mt-6">
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <h2 id={`domain-${d.id}-heading`} className="text-lg font-semibold tracking-[-0.01em]">
+                {d.name}
+              </h2>
+              {open.length > 0 ? (
+                <Link href={quizHref(open.slice(0, QUIZ_LINK_CAP))} className={`${QUIET_LINK} text-[13px]`}>
                   Take quiz for this domain
                 </Link>
-              )}
+              ) : null}
             </div>
-            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <ul role="list" className={SKILL_ROWS}>
               {d.skills.map((s) => (
-                <SkillCard key={s.id} skill={s} levelLabel={s.level === null ? '' : (labels.get(s.level) ?? '')} />
+                <SkillRow key={s.id} skill={s} levelLabel={s.level === null ? '' : (labels.get(s.level) ?? '')} />
               ))}
             </ul>
           </section>
         );
       })}
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Reading history</h2>
+      <section aria-labelledby="history-heading">
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h2 id="history-heading" className="text-lg font-semibold tracking-[-0.01em]">
+            Reading history
+          </h2>
+          {likes.share !== null ? (
+            <p className="text-[13px] text-muted-foreground">
+              Liked <span className="font-mono">{Math.round(likes.share * 100)}%</span>
+              <span aria-hidden className="mx-1.5 text-faint">
+                ·
+              </span>
+              <span className="font-mono">{likes.liked}</span> of <span className="font-mono">{likes.read}</span>
+            </p>
+          ) : null}
+        </div>
         {history.items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nothing read yet. Articles you open from For you will appear here.</p>
+          <p className="text-sm text-muted-foreground">Nothing read yet</p>
         ) : (
-          <ul className="space-y-2">
+          <ul role="list" className="@container border-t border-border">
             {history.items.map((h) => (
-              <li key={`${h.articleId}-${h.readAt}`} className="text-sm">
-                <a href={h.url} target="_blank" rel="noopener noreferrer" className="font-medium underline">
+              <li key={`${h.articleId}-${h.readAt}`} className={HISTORY_ROW}>
+                <a
+                  href={h.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="line-clamp-2 rounded-sm text-sm leading-snug decoration-2 underline-offset-3 outline-none hover:underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring @min-[600px]:block @min-[600px]:truncate"
+                >
                   {h.title}
                 </a>
-                <span className="text-muted-foreground">
-                  {' '}
-                  · {h.sourceName} · {h.readAt.slice(0, 10)}
-                </span>
+                <p className="flex min-w-0 items-baseline gap-x-2 text-[13px] text-muted-foreground @min-[600px]:contents">
+                  <span className="min-w-0 truncate">{h.sourceName}</span>
+                  <span aria-hidden className="text-faint @min-[600px]:hidden">
+                    ·
+                  </span>
+                  <time dateTime={h.readAt} className="font-mono whitespace-nowrap @min-[600px]:text-right">
+                    {shortDate(h.readAt)}
+                  </time>
+                </p>
               </li>
             ))}
           </ul>
-        )}
-      </section>
-
-      <section className="space-y-1">
-        <h2 className="text-lg font-semibold">👍 share</h2>
-        {likes.share === null ? (
-          <p className="text-sm text-muted-foreground">No reads yet</p>
-        ) : (
-          <p className="text-sm">
-            {Math.round(likes.share * 100)}% ({likes.liked} of {likes.read} read)
-          </p>
         )}
       </section>
     </div>

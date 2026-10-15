@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ArrowDown, ArrowUp, GripVertical, X, type LucideIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { moveItem } from '@/lib/reorder';
-
-const btn =
-  'rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted-foreground';
+import { cn } from '@/lib/utils';
 
 type Refocus = { kind: 'move'; id: string; dir: 'up' | 'down' } | { kind: 'remove'; index: number };
 
@@ -76,8 +77,29 @@ export function SortableList({
     );
   }
 
+  // An icon button with a tooltip; the aria-label carries the item name.
+  const action = (key: string, Icon: LucideIcon, tip: string, label: string, disabled: boolean, onClick: () => void) => (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          ref={setRef(key)}
+          aria-label={label}
+          disabled={disabled}
+          onClick={onClick}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <Icon aria-hidden />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{tip}</TooltipContent>
+    </Tooltip>
+  );
+
   return (
-    <ol className="space-y-2">
+    <ol className="border-t border-border">
       {items.map((id, i) => {
         const name = labels?.[id] ?? id;
         return (
@@ -91,44 +113,18 @@ export function SortableList({
               if (dragFrom !== null) onChange(moveItem(items, dragFrom, i));
               setDragFrom(null);
             }}
-            className={`flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 ${dragFrom === i ? 'opacity-50' : ''}`}
+            className={cn('flex h-11 items-center gap-2.5 border-b border-border pr-1 pl-1', dragFrom === i && 'opacity-50')}
           >
-            <span aria-hidden className="cursor-grab select-none text-muted-foreground">
-              ⠿
+            <GripVertical aria-hidden className="size-4 shrink-0 cursor-grab text-faint" />
+            <span className="w-6 shrink-0 font-mono text-[13px] text-primary">#{i + 1}</span>
+            <span className="min-w-0 flex-1 truncate text-sm">{renderLabel(id)}</span>
+            <span className="flex shrink-0 items-center gap-0.5">
+              {action(`${id}:up`, ArrowUp, 'Move up', `Move ${name} up`, i === 0, () => move(id, i, i - 1, 'up'))}
+              {action(`${id}:down`, ArrowDown, 'Move down', `Move ${name} down`, i === items.length - 1, () =>
+                move(id, i, i + 1, 'down'),
+              )}
+              {action(`${id}:remove`, X, 'Remove', `Remove ${name}`, false, () => remove(id, i))}
             </span>
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold">
-              {i + 1}
-            </span>
-            <span className="min-w-0 flex-1">{renderLabel(id)}</span>
-            <button
-              type="button"
-              className={btn}
-              ref={setRef(`${id}:up`)}
-              aria-label={`Move ${name} up`}
-              disabled={i === 0}
-              onClick={() => move(id, i, i - 1, 'up')}
-            >
-              Move up
-            </button>
-            <button
-              type="button"
-              className={btn}
-              ref={setRef(`${id}:down`)}
-              aria-label={`Move ${name} down`}
-              disabled={i === items.length - 1}
-              onClick={() => move(id, i, i + 1, 'down')}
-            >
-              Move down
-            </button>
-            <button
-              type="button"
-              className={btn}
-              ref={setRef(`${id}:remove`)}
-              aria-label={`Remove ${name}`}
-              onClick={() => remove(id, i)}
-            >
-              Remove
-            </button>
           </li>
         );
       })}
