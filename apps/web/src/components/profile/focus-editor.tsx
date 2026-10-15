@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 /** Wide containers: one band of three columns (domains radar, focus radar, the focus list with its controls). Medium:
  * the two radars side by side, the list under them. Narrow: one column. Without a focus radar the list takes its place. */
 const GRID =
-  'grid gap-x-10 gap-y-8 @min-[700px]:grid-cols-2 @min-[1100px]:grid-cols-[minmax(0,340px)_minmax(0,340px)_minmax(0,1fr)]';
+  'grid gap-x-6 gap-y-6 @min-[700px]:grid-cols-2 @min-[1100px]:grid-cols-[minmax(0,360px)_minmax(0,360px)_minmax(0,1fr)]';
 
 export function FocusEditor({
   focus,
@@ -121,7 +121,7 @@ export function FocusEditor({
         <section
           aria-labelledby="focus-editor-heading"
           className={cn(
-            'space-y-3',
+            'space-y-3 @min-[700px]:pt-5',
             focusChart
               ? '@min-[700px]:col-span-2 @min-[700px]:max-w-xl @min-[1100px]:col-span-1 @min-[1100px]:max-w-none'
               : '@min-[1100px]:col-span-2 @min-[1100px]:max-w-xl',

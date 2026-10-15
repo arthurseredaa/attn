@@ -7,7 +7,7 @@ import type { RadarPoint } from '@/lib/skill-value';
 import { cn } from '@/lib/utils';
 
 const LINE_HEIGHT = 15;
-const WRAP_AT = 15;
+const WRAP_AT = 13;
 
 /** Greedy word wrap for the axis labels (SVG text does not wrap). */
 function wrap(text: string, max: number): string[] {
@@ -24,8 +24,9 @@ type TickProps = { x: number | string; y: number | string; index: number; textAn
 
 /**
  * A 0–4 radar of profile values: one axis per point, polygon grid rings at 1–4.
- * - `domains`: an ink polygon; each axis label links to that domain's section, in the accent colour when it holds a focus skill.
- * - `focus`: an accent polygon over the focus skills.
+ * - `domains`: drawn white for the signal (deep orange) block; each axis label links to that domain's section, full
+ *   white and medium weight when it holds a focus skill, dimmed otherwise.
+ * - `focus`: an accent polygon over the focus skills, for a plain tile.
  * The svg is backed by a visually hidden table with the same values.
  */
 export function ProfileRadar({
@@ -41,7 +42,7 @@ export function ProfileRadar({
 }) {
   const reduceMotion = useReducedMotion();
   const config = {
-    value: { label: 'Level', color: variant === 'focus' ? 'var(--primary)' : 'var(--foreground)' },
+    value: { label: 'Level', color: variant === 'focus' ? 'var(--primary)' : 'var(--signal-foreground)' },
   } satisfies ChartConfig;
 
   const tick = ({ x, y, index, textAnchor, payload }: TickProps) => {
@@ -66,8 +67,8 @@ export function ProfileRadar({
       <a
         href={`#domain-${point.id}`}
         className={cn(
-          'outline-none hover:underline focus-visible:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid',
-          point.focused ? 'fill-primary' : 'fill-muted-foreground hover:fill-foreground',
+          'outline-none hover:underline focus-visible:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-foreground focus-visible:outline-solid',
+          point.focused ? 'fill-signal-foreground font-medium' : 'fill-signal-foreground/65 hover:fill-signal-foreground',
         )}
       >
         {text}
@@ -82,7 +83,7 @@ export function ProfileRadar({
         initialDimension={{ width: 380, height: 380 }}
         className="aspect-square w-full [&_.recharts-surface]:overflow-visible"
       >
-        <RadarChart data={points} outerRadius="60%" margin={{ top: 8, right: 8, bottom: 8, left: 8 }} title={caption}>
+        <RadarChart data={points} outerRadius="56%" margin={{ top: 8, right: 8, bottom: 8, left: 8 }} title={caption}>
           <ChartTooltip
             cursor={false}
             content={
@@ -97,7 +98,10 @@ export function ProfileRadar({
               />
             }
           />
-          <PolarGrid gridType="polygon" stroke="var(--border)" />
+          <PolarGrid
+            gridType="polygon"
+            stroke={variant === 'focus' ? 'var(--border)' : 'color-mix(in oklab, var(--signal-foreground) 28%, transparent)'}
+          />
           <PolarRadiusAxis domain={[0, 4]} tickCount={5} tick={false} axisLine={false} />
           <PolarAngleAxis dataKey="name" tick={tick} tickLine={false} />
           <Radar
@@ -105,7 +109,7 @@ export function ProfileRadar({
             stroke="var(--color-value)"
             strokeWidth={1.5}
             fill="var(--color-value)"
-            fillOpacity={variant === 'focus' ? 0.14 : 0.1}
+            fillOpacity={variant === 'focus' ? 0.14 : 0.18}
             dot={{ r: 2.5, fillOpacity: 1, strokeWidth: 0 }}
             activeDot={{ r: 4, strokeWidth: 0 }}
             isAnimationActive={reduceMotion !== true}

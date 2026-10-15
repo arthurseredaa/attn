@@ -22,6 +22,10 @@
   --popover-foreground: #1b1b18;
   --primary: #c2410c;
   --primary-foreground: #ffffff;
+  /* A flat accent block with white content (Profile's domains radar); the same deep orange in both themes so white
+     stays readable on it. */
+  --signal: #c2410c;
+  --signal-foreground: #ffffff;
   --secondary: #efefea;
   --secondary-foreground: #1b1b18;
   --muted: #efefea;
@@ -58,6 +62,8 @@
   --popover-foreground: #ecece6;
   --primary: #ff7a45;
   --primary-foreground: #121211;
+  --signal: #c2410c;
+  --signal-foreground: #ffffff;
   --secondary: #212120;
   --secondary-foreground: #ecece6;
   --muted: #212120;
@@ -97,6 +103,8 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-signal: var(--signal);
+  --color-signal-foreground: var(--signal-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);

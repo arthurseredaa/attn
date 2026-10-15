@@ -25,12 +25,9 @@ export default function Loading() {
       </div>
       {/* Two radars and the focus list (same grid as FocusEditor). */}
       <div className="@container">
-        <div className="grid gap-x-10 gap-y-8 @min-[700px]:grid-cols-2 @min-[1100px]:grid-cols-[minmax(0,340px)_minmax(0,340px)_minmax(0,1fr)]">
+        <div className="grid gap-x-6 gap-y-6 @min-[700px]:grid-cols-2 @min-[1100px]:grid-cols-[minmax(0,360px)_minmax(0,360px)_minmax(0,1fr)]">
           {[0, 1].map((i) => (
-            <div key={i} className={cn('space-y-1', i === 1 && 'hidden @min-[700px]:block')}>
-              <Skeleton className="h-5 w-16" />
-              <Skeleton className="mx-auto aspect-square w-full max-w-[380px] rounded-lg @min-[700px]:mx-0" />
-            </div>
+            <Skeleton key={i} className={cn('aspect-square w-full rounded-lg', i === 1 && 'hidden @min-[700px]:block')} />
           ))}
           <div className="space-y-3 @min-[700px]:col-span-2 @min-[700px]:max-w-xl @min-[1100px]:col-span-1">
             <Skeleton className="h-5 w-24" />
