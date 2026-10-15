@@ -10,10 +10,13 @@ import { SortableList } from '@/components/onboarding/sortable-list';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-/** Wide containers: one band of three columns (domains radar, focus radar, the focus list with its controls). Medium:
- * the two radars side by side, the list under them. Narrow: one column. Without a focus radar the list takes its place. */
-const GRID =
-  'grid gap-x-6 gap-y-6 @min-[700px]:grid-cols-2 @min-[1100px]:grid-cols-[minmax(0,360px)_minmax(0,360px)_minmax(0,1fr)]';
+/** Wide containers: one band with the radar tiles butted together on the left and the focus list with its controls on
+ * the right. Medium and narrow: the tiles (side by side from 700px), then the list. Without a focus radar the domains
+ * tile stands alone. */
+const BAND = {
+  pair: 'grid gap-6 @min-[1100px]:grid-cols-[minmax(0,720px)_minmax(0,1fr)]',
+  single: 'grid gap-6 @min-[700px]:grid-cols-[minmax(0,360px)_minmax(0,1fr)]',
+};
 
 export function FocusEditor({
   focus,
@@ -115,17 +118,14 @@ export function FocusEditor({
 
   return (
     <div className="@container">
-      <div className={GRID}>
-        {domainsChart}
-        {focusChart}
+      <div className={focusChart ? BAND.pair : BAND.single}>
+        <div className={cn('grid', focusChart && '@min-[700px]:grid-cols-2')}>
+          {domainsChart}
+          {focusChart}
+        </div>
         <section
           aria-labelledby="focus-editor-heading"
-          className={cn(
-            'space-y-3 @min-[700px]:pt-5',
-            focusChart
-              ? '@min-[700px]:col-span-2 @min-[700px]:max-w-xl @min-[1100px]:col-span-1 @min-[1100px]:max-w-none'
-              : '@min-[1100px]:col-span-2 @min-[1100px]:max-w-xl',
-          )}
+          className={cn('space-y-3 @min-[700px]:pt-5', focusChart && '@min-[700px]:max-w-xl @min-[1100px]:max-w-none')}
         >
           <h2 id="focus-editor-heading" className="text-sm font-semibold">
             Focus skills

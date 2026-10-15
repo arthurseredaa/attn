@@ -63,7 +63,7 @@ export default async function ProfilePage() {
         skills={allSkills}
         names={skillNameMap(profile)}
         domainsChart={
-          <section aria-labelledby="radar-domains" className="space-y-1 rounded-lg bg-signal p-5 text-signal-foreground">
+          <section aria-labelledby="radar-domains" className="space-y-1 border border-signal bg-signal p-5 text-signal-foreground">
             <h2 id="radar-domains" className="text-sm font-semibold">
               Domains
             </h2>
@@ -72,7 +72,7 @@ export default async function ProfilePage() {
         }
         focusChart={
           showFocusRadar ? (
-            <section aria-labelledby="radar-focus" className="space-y-1 rounded-lg border border-border bg-card p-5">
+            <section aria-labelledby="radar-focus" className="space-y-1 border border-border bg-card p-5 @max-[699px]:border-t-0 @min-[700px]:border-l-0">
               <h2 id="radar-focus" className="text-sm font-semibold">
                 Focus
               </h2>
