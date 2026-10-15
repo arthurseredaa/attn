@@ -23,14 +23,16 @@ export default function Loading() {
         <Skeleton className="h-8 w-24" />
         <Skeleton className="h-9 w-36" />
       </div>
-      {/* The radars on the left, the focus list and its controls on the right (same grid as FocusEditor). */}
+      {/* Two radars and the focus list (same grid as FocusEditor). */}
       <div className="@container">
-        <div className="grid gap-x-12 gap-y-8 @min-[760px]:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
-          <div className="space-y-1">
-            <Skeleton className="h-5 w-16" />
-            <Skeleton className="mx-auto aspect-square w-full max-w-[380px] rounded-lg @min-[760px]:mx-0" />
-          </div>
-          <div className="space-y-3">
+        <div className="grid gap-x-10 gap-y-8 @min-[700px]:grid-cols-2 @min-[1100px]:grid-cols-[minmax(0,340px)_minmax(0,340px)_minmax(0,1fr)]">
+          {[0, 1].map((i) => (
+            <div key={i} className={cn('space-y-1', i === 1 && 'hidden @min-[700px]:block')}>
+              <Skeleton className="h-5 w-16" />
+              <Skeleton className="mx-auto aspect-square w-full max-w-[380px] rounded-lg @min-[700px]:mx-0" />
+            </div>
+          ))}
+          <div className="space-y-3 @min-[700px]:col-span-2 @min-[700px]:max-w-xl @min-[1100px]:col-span-1">
             <Skeleton className="h-5 w-24" />
             {NAME_WIDTHS.map((w, i) => (
               <Skeleton key={i} className={cn('h-4', w)} />

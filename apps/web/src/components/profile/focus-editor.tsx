@@ -5,19 +5,15 @@ import { useRouter } from 'next/navigation';
 import { MAX_FOCUS, profileSchema, type FocusEntry } from '@attn/shared';
 import { BrowserApiError, browserJson } from '@/lib/browser-api';
 import { toggleSkill } from '@/lib/reorder';
+import { cn } from '@/lib/utils';
 import { SortableList } from '@/components/onboarding/sortable-list';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-/** Wide containers: two columns, a chart on the left of each row (domains, then focus) with the focus list and its
- * controls on the right. Narrow: one column in reading order (domains, focus chart, list, controls). Without a focus
- * chart the controls sit under the list. */
-const CELL = {
-  domains: '@min-[760px]:col-start-1 @min-[760px]:row-start-1',
-  focusChart: '@min-[760px]:col-start-1 @min-[760px]:row-start-2',
-  list: '@min-[760px]:col-start-2 @min-[760px]:row-start-1',
-  controls: '@min-[760px]:col-start-2 @min-[760px]:row-start-2',
-};
+/** Wide containers: one band of three columns (domains radar, focus radar, the focus list with its controls). Medium:
+ * the two radars side by side, the list under them. Narrow: one column. Without a focus radar the list takes its place. */
+const GRID =
+  'grid gap-x-10 gap-y-8 @min-[700px]:grid-cols-2 @min-[1100px]:grid-cols-[minmax(0,340px)_minmax(0,340px)_minmax(0,1fr)]';
 
 export function FocusEditor({
   focus,
@@ -60,7 +56,7 @@ export function FocusEditor({
 
   const controls = (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="space-y-2">
         <label className="sr-only" htmlFor="add-focus-skill">
           Add a skill
         </label>
@@ -71,7 +67,7 @@ export function FocusEditor({
             if (id) setValue(toggleSkill(value, id, MAX_FOCUS));
           }}
         >
-          <SelectTrigger id="add-focus-skill" className="w-full sm:w-64">
+          <SelectTrigger id="add-focus-skill" className="w-full">
             <SelectValue placeholder="Add a skill" />
           </SelectTrigger>
           <SelectContent position="popper" align="start">
@@ -91,7 +87,7 @@ export function FocusEditor({
             })}
           </SelectContent>
         </Select>
-        <div className="flex gap-2 sm:ml-auto">
+        <div className="flex justify-end gap-2">
           <Button
             type="button"
             variant="outline"
@@ -119,10 +115,18 @@ export function FocusEditor({
 
   return (
     <div className="@container">
-      <div className="grid gap-x-12 gap-y-8 @min-[760px]:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
-        <div className={CELL.domains}>{domainsChart}</div>
-        {focusChart ? <div className={CELL.focusChart}>{focusChart}</div> : null}
-        <section aria-labelledby="focus-editor-heading" className={`space-y-3 ${CELL.list}`}>
+      <div className={GRID}>
+        {domainsChart}
+        {focusChart}
+        <section
+          aria-labelledby="focus-editor-heading"
+          className={cn(
+            'space-y-3',
+            focusChart
+              ? '@min-[700px]:col-span-2 @min-[700px]:max-w-xl @min-[1100px]:col-span-1 @min-[1100px]:max-w-none'
+              : '@min-[1100px]:col-span-2 @min-[1100px]:max-w-xl',
+          )}
+        >
           <h2 id="focus-editor-heading" className="text-sm font-semibold">
             Focus skills
           </h2>
@@ -133,9 +137,8 @@ export function FocusEditor({
             onChange={setValue}
             emptyText="Pick at least one focus skill."
           />
-          {focusChart ? null : controls}
+          {controls}
         </section>
-        {focusChart ? <div className={CELL.controls}>{controls}</div> : null}
       </div>
     </div>
   );
