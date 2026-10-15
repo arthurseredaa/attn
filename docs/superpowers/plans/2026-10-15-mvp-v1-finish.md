@@ -38,13 +38,13 @@ State at writing (main = `ef71d11` + this file):
 
 ## 2. Source cleanup — remove junk and keep it out of the DB
 
-- [ ] Analysis (read-only): per-source quality stats, junk share and samples. Output: proposed drop/keep/narrow
+- [x] Analysis (read-only): per-source quality stats, junk share and samples. Output: proposed drop/keep/narrow
   lists, collect-time rules (URL path include/exclude, title keywords, RSS categories) with blocked-junk vs
   wrongly-blocked counts measured on the DB, a label-time relevance gate as a fallback (jev boolean "is this about
   AI-assisted software engineering?"), and new tutorial-heavy sources.
-- [ ] Show the proposal to the owner and get the go-ahead. Deleting existing junk rows is destructive: back up
+- [x] Show the proposal to the owner and get the go-ahead. Deleting existing junk rows is destructive: back up
   first, and mind the FKs on `article_events` and `article_skills`.
-- [ ] Implement: `data/sources.yml` changes plus collect-time filtering in `packages/core/src/collect/`, with tests
+- [x] Implement: `data/sources.yml` changes plus collect-time filtering in `packages/core/src/collect/`, with tests
   and docs. Then a review, a merge and the cleanup of the existing junk.
 
 ## 3. Merge feat/combo-labeler
