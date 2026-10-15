@@ -23,15 +23,19 @@ export default function Loading() {
         <Skeleton className="h-8 w-24" />
         <Skeleton className="h-9 w-36" />
       </div>
-      {/* The radars. */}
+      {/* The radars on the left, the focus list and its controls on the right (same grid as FocusEditor). */}
       <div className="@container">
-        <div className="grid gap-x-10 gap-y-8 @min-[760px]:max-w-[840px] @min-[760px]:grid-cols-2">
-          {[0, 1].map((i) => (
-            <div key={i} className={cn('space-y-1', i === 1 && 'hidden @min-[760px]:block')}>
-              <Skeleton className="h-5 w-16" />
-              <Skeleton className="mx-auto aspect-square w-full max-w-[380px] rounded-lg @min-[760px]:mx-0" />
-            </div>
-          ))}
+        <div className="grid gap-x-12 gap-y-8 @min-[760px]:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+          <div className="space-y-1">
+            <Skeleton className="h-5 w-16" />
+            <Skeleton className="mx-auto aspect-square w-full max-w-[380px] rounded-lg @min-[760px]:mx-0" />
+          </div>
+          <div className="space-y-3">
+            <Skeleton className="h-5 w-24" />
+            {NAME_WIDTHS.map((w, i) => (
+              <Skeleton key={i} className={cn('h-4', w)} />
+            ))}
+          </div>
         </div>
       </div>
       {/* One domain's skill rows. */}

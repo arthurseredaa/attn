@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { MAX_FOCUS, profileSchema, type FocusEntry } from '@attn/shared';
 import { BrowserApiError, browserJson } from '@/lib/browser-api';
@@ -9,12 +9,27 @@ import { SortableList } from '@/components/onboarding/sortable-list';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+/** Wide containers: two columns, a chart on the left of each row (domains, then focus) with the focus list and its
+ * controls on the right. Narrow: one column in reading order (domains, focus chart, list, controls). Without a focus
+ * chart the controls sit under the list. */
+const CELL = {
+  domains: '@min-[760px]:col-start-1 @min-[760px]:row-start-1',
+  focusChart: '@min-[760px]:col-start-1 @min-[760px]:row-start-2',
+  list: '@min-[760px]:col-start-2 @min-[760px]:row-start-1',
+  controls: '@min-[760px]:col-start-2 @min-[760px]:row-start-2',
+};
+
 export function FocusEditor({
   focus,
   skills,
   names,
+  domainsChart,
+  focusChart,
 }: {
   focus: FocusEntry[];
+  domainsChart: ReactNode;
+  /** null when there are too few focus skills for a radar. */
+  focusChart: ReactNode | null;
   skills: { id: string; name: string; domain: string }[];
   /** skill id -> name (skillNameMap). */
   names: Record<string, string>;
@@ -43,19 +58,9 @@ export function FocusEditor({
     }
   };
 
-  return (
-    <section aria-labelledby="focus-editor-heading" className="max-w-2xl space-y-3">
-      <h2 id="focus-editor-heading" className="text-lg font-semibold tracking-[-0.01em]">
-        Focus skills
-      </h2>
-      <SortableList
-        items={value}
-        labels={names}
-        renderLabel={(id) => names[id] ?? id}
-        onChange={setValue}
-        emptyText="Pick at least one focus skill."
-      />
-      <div className="flex flex-wrap items-center gap-2 pt-1">
+  const controls = (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
         <label className="sr-only" htmlFor="add-focus-skill">
           Add a skill
         </label>
@@ -109,6 +114,29 @@ export function FocusEditor({
           {error}
         </p>
       )}
-    </section>
+    </div>
+  );
+
+  return (
+    <div className="@container">
+      <div className="grid gap-x-12 gap-y-8 @min-[760px]:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+        <div className={CELL.domains}>{domainsChart}</div>
+        {focusChart ? <div className={CELL.focusChart}>{focusChart}</div> : null}
+        <section aria-labelledby="focus-editor-heading" className={`space-y-3 ${CELL.list}`}>
+          <h2 id="focus-editor-heading" className="text-sm font-semibold">
+            Focus skills
+          </h2>
+          <SortableList
+            items={value}
+            labels={names}
+            renderLabel={(id) => names[id] ?? id}
+            onChange={setValue}
+            emptyText="Pick at least one focus skill."
+          />
+          {focusChart ? null : controls}
+        </section>
+        {focusChart ? <div className={CELL.controls}>{controls}</div> : null}
+      </div>
+    </div>
   );
 }

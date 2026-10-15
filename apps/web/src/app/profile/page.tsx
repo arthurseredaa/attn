@@ -57,30 +57,29 @@ export default async function ProfilePage() {
         </div>
       </header>
 
-      <div className="@container">
-        <div className="grid gap-x-10 gap-y-8 @min-[760px]:grid-cols-2 @min-[760px]:max-w-[840px]">
+      <FocusEditor
+        key={profile.focus.map((f) => f.skillId).join(',')}
+        focus={profile.focus}
+        skills={allSkills}
+        names={skillNameMap(profile)}
+        domainsChart={
           <section aria-labelledby="radar-domains" className="space-y-1">
             <h2 id="radar-domains" className="text-sm font-semibold">
               Domains
             </h2>
             <ProfileRadar points={domains} variant="domains" caption="Domains" className="mx-auto @min-[760px]:mx-0" />
           </section>
-          {showFocusRadar ? (
+        }
+        focusChart={
+          showFocusRadar ? (
             <section aria-labelledby="radar-focus" className="space-y-1">
               <h2 id="radar-focus" className="text-sm font-semibold">
                 Focus
               </h2>
               <ProfileRadar points={focus} variant="focus" caption="Focus" className="mx-auto @min-[760px]:mx-0" />
             </section>
-          ) : null}
-        </div>
-      </div>
-
-      <FocusEditor
-        key={profile.focus.map((f) => f.skillId).join(',')}
-        focus={profile.focus}
-        skills={allSkills}
-        names={skillNameMap(profile)}
+          ) : null
+        }
       />
 
       {profile.domains.map((d) => {
