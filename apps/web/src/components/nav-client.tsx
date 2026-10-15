@@ -6,8 +6,9 @@ import { usePathname } from 'next/navigation';
 import { House, List, LogIn, UserRound, type LucideIcon } from 'lucide-react';
 import type { Me } from '@attn/shared';
 import { cn } from '@/lib/utils';
-import { isOnboardingPath, type NavItem } from '@/lib/nav-items';
+import { isLandingPath, isOnboardingPath, type NavItem } from '@/lib/nav-items';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -166,7 +167,8 @@ const contentPadding = 'px-4 pt-5 pb-12 md:px-10 md:pt-8 md:pb-16';
 
 /**
  * Sidebar layout (collapsible to icons, Cmd/Ctrl+B, a sheet on mobile with a slim top bar). The onboarding flow gets
- * only a brand bar, so the user stays in the flow (route-driven, so it also holds for "Redo onboarding").
+ * only a brand bar, so the user stays in the flow (route-driven, so it also holds for "Redo onboarding"). The landing page
+ * is full screen too, with a slim bar: Browse all, For you (signed in), theme, Sign in (signed out).
  */
 export function AppShell({
   me,
@@ -180,6 +182,39 @@ export function AppShell({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  if (isLandingPath(pathname)) {
+    // Full screen, no sidebar: the page draws its own gutters.
+    return (
+      <div className="min-h-svh">
+        <header className="sticky top-0 z-30 border-b bg-background">
+          <div className="flex h-14 items-center justify-between gap-2 px-4 md:px-10">
+            <Brand />
+            <nav aria-label="Main" className="flex items-center gap-1 sm:gap-1.5">
+              <Button asChild variant="ghost" size="sm" className="px-2.5 text-muted-foreground sm:px-3">
+                <Link href="/all">Browse all</Link>
+              </Button>
+              {me ? (
+                <Button asChild variant="ghost" size="sm" className="px-2.5 text-muted-foreground sm:px-3">
+                  <Link href="/for-you">For you</Link>
+                </Button>
+              ) : null}
+              <ThemeToggle />
+              {me ? null : (
+                <Button asChild size="sm" className="ml-1 px-3">
+                  {/* Plain anchor: this is an api redirect, not a Next route. */}
+                  <a href="/api/auth/github">
+                    <span className="sm:hidden">Sign in</span>
+                    <span className="hidden sm:inline">Sign in with GitHub</span>
+                  </a>
+                </Button>
+              )}
+            </nav>
+          </div>
+        </header>
+        <main>{children}</main>
+      </div>
+    );
+  }
   if (isOnboardingPath(pathname)) {
     return (
       <div className="min-h-svh">

@@ -249,17 +249,21 @@ The grid is 3 columns at 1440px, 2 at about 1024px and 1 on mobile, with equal-h
 - **`/onboarding/quiz`:** "Quiz" at the same title size; the empty state is the muted line plus "Back to your profile" as an outline Button link.
 - Reduced motion: no flip, flood, sweep, shake, pop, sparks, stagger or slides; state changes are instant and a pick moves on without the hold.
 
-**5. Landing** (`app/page.tsx`, `error.tsx`, `not-found.tsx`)
-- Hero with an impressive animation in motion/react, made to explain the product rather than generic decoration.
-  - **Proposed concept:** a stream of raw article cards flows in. Each one gets labelled (skill chips and a difficulty LevelMeter "scan" in), then they sort into a ranked "For you" column matched to the reader's level colour.
-  - Alternative: an animated level-ramp aurora or grid background.
-  - "Obsidian UI" could not be found. If a reference link turns up, borrow from it. MIT-licensed shadcn-registry options are Magic UI and Animate UI.
-  - The concept is confirmed with the owner at the start of this step.
-  - Reduced-motion fallback: a static composed frame.
-- Three step cards with icons.
-- CTAs: GitHub sign in or Open ATTN; Browse all.
-- The `auth_error` message becomes an Alert.
-- `error.tsx` and `not-found.tsx` become EmptyState.
+**5. Landing** (`app/page.tsx`, `error.tsx`, `not-found.tsx`, `landing/landing-story.tsx`, `lib/landing-scene.ts`, the `/` branch of `nav-client.tsx`). Owner choices: one sticky scene that transforms as you scroll, and a full-screen page without the sidebar. The story says which problem ATTN solves: quality material from many sources, a few skills in focus, a structured way through the chaos.
+- **Shell:** no sidebar on `/` (`isLandingPath`). A slim sticky bar: the brand (a link, unlike onboarding) on the left; on the right "Browse all" (`/all`), "For you" when signed in, the theme toggle, and "Sign in with GitHub" (primary, `/api/auth/github`; "Sign in" on phones) when signed out.
+- **`auth_error`:** `authErrorMessage(code)` as a destructive `Alert` above the story.
+- **Data:** all real, fetched on the server: the newest 40 articles, the source list and the taxonomy (`toSceneData` keeps only what the scene draws). The focus skills are the five with the most articles in that set, names from the taxonomy. If any call fails or the pool is empty, the acts render as text sections with no visual.
+- **The pinned scene:** a 440svh section with a `sticky` stage under the bar. `useScroll` (`start start` → `end end`) feeds a light `useSpring`, and every moving part is a `useTransform` of it (transforms and opacity only; no React render per frame). The layout is computed once per stage size (ResizeObserver) and is deterministic: the scatter is seeded from article ids, so nothing renders on the server and hydration cannot mismatch. Desktop (1024px+): the act text on the left (5/12), the visual on the right (7/12, up to 640px tall). Below 1024px: text on top, the visual fills the rest; on phones the chips are single-line and fewer (2 per focus skill + 8 others instead of 4 + 12).
+  - **Chaos** (h1, letters flip once on load): "AI learning material is everywhere." / "Most of it is noise for you right now." Real titles as hairline chips on a jittered grid with small tilts, drifting as you start to scroll; a "Scroll" cue.
+  - **Collected:** "Quality articles from {N} sources, in one place." (N = the real source count, in mono) / "Curation only: every card links to the original." The chips straighten and fly into columns grouped by source (biggest group onto the shortest column, scaled to fit), muted source names over each group, hairlines between columns.
+  - **Focus:** "Pick up to five skills. Everything else steps back." Five blocks butted on hairlines along the top fill with `--signal` left to right (a moving window with counter-moved white content, so it is transforms only), white mono ranks 1–5. Each focus skill's chips stack under its block; the rest shrink to 15% and drift down behind.
+  - **Structured:** "Read in order, at your level." The focus chips land in one list under the blocks and hand over to its rows: accent mono rank, title, compact `DifficultyMeter`; ordered by focus rank, then difficulty ascending, then newest (up to 10 rows, 8 on phones).
+  - Timing: short holds at each act, long transitions between them; each chip starts its move with a seeded delay and travels on a smootherstep with a small lift, so nothing moves in lockstep. Act text fades and slides out before the next comes in.
+- **CTA band:** full-width `bg-signal`, white "Find your way through it." with an inverted white button ("Sign in with GitHub" signed out, "Open For you" signed in) and a white outline "Browse all articles →".
+- **Reduced motion:** both versions are in the HTML and CSS (`motion-reduce`) shows one, so there is no hydration flash: no pinning or morphing, four static stacked sections, each with its act's final frame, then the CTA. No flip, intro or scroll cue.
+- **Accessibility:** the visual is `aria-hidden` and pointer-inert; the acts are real headings (h1, then h2s) in DOM order with nothing focusable inside them.
+- **Obsidian UI** (https://www.obsidianui.dev) was found and is the source of the flip, flood and spark techniques used on Onboarding; the landing borrows only the flip.
+- `error.tsx` and `not-found.tsx`: the page heading, then `EmptyState` with an outline Button ("Try again" / "Back to the home page").
 
 ## Execution per page
 

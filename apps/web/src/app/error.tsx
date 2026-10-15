@@ -1,17 +1,19 @@
 'use client';
 
+import { EmptyState } from '@/components/empty-state';
+import { Button } from '@/components/ui/button';
+
 export default function ErrorPage({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight">Something went wrong</h1>
-      <p className="text-muted-foreground">The page could not be loaded. Please try again.</p>
-      <button
-        type="button"
-        onClick={reset}
-        className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
-      >
-        Try again
-      </button>
+    <div>
+      <h1 className="text-2xl leading-tight font-semibold tracking-[-0.025em] sm:text-[28px]">Something went wrong</h1>
+      <EmptyState title="The page could not be loaded. Please try again." className="py-6">
+        <div className="mt-3">
+          <Button type="button" variant="outline" className="px-3.5" onClick={reset}>
+            Try again
+          </Button>
+        </div>
+      </EmptyState>
     </div>
   );
 }

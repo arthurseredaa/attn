@@ -15,3 +15,8 @@ export const NAV_ITEMS: NavItem[] = [
 export function isOnboardingPath(pathname: string | null): boolean {
   return pathname === '/onboarding' || (pathname?.startsWith('/onboarding/') ?? false);
 }
+
+/** The landing page: full screen, no sidebar, a slim bar with its own links. */
+export function isLandingPath(pathname: string | null): boolean {
+  return pathname === '/';
+}
