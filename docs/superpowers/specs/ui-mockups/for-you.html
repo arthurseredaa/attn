@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>attn · For you</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#F7F7F4; --tile:#FFFFFF; --ink:#1B1B18; --muted:#6B6B64; --faint:#9C9C94;
+  --line:#E2E2DC; --seg:#D6D6CF; --hover:#EFEFEA; --accent:#C2410C; --on-accent:#FFFFFF;
+  --sans:"Hanken Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+  --r:8px; color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --page:#121211; --tile:#191917; --ink:#ECECE6; --muted:#9A9A91; --faint:#6E6E66;
+    --line:#2B2B28; --seg:#3A3A35; --hover:#212120; --accent:#FF7A45; --on-accent:#121211; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --page:#121211; --tile:#191917; --ink:#ECECE6; --muted:#9A9A91; --faint:#6E6E66;
+  --line:#2B2B28; --seg:#3A3A35; --hover:#212120; --accent:#FF7A45; --on-accent:#121211; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--page);color:var(--ink);font:400 15px/1.5 var(--sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+a{color:inherit;text-decoration:none}
+button,input,select{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.mono{font-family:var(--mono);font-feature-settings:"zero" 0;letter-spacing:-.01em}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+/* tooltips */
+[data-tip]{position:relative}
+[data-tip]:hover::after,[data-tip]:focus-visible::after{
+  content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+  background:var(--ink);color:var(--page);font:500 12px/1.2 var(--sans);letter-spacing:0;
+  padding:5px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;z-index:30;
+  animation:tip .12s ease .25s both}
+.tip-start[data-tip]::after{left:0!important;transform:none!important}
+.tip-end[data-tip]::after{left:auto!important;right:0;transform:none!important}
+@keyframes tip{from{opacity:0}to{opacity:1}}
+
+/* shell */
+.app{display:flex;min-height:100vh}
+.sidebar{position:sticky;top:0;height:100vh;width:224px;flex:none;border-right:1px solid var(--line);
+  display:flex;flex-direction:column;padding:16px 12px}
+.sb-head{display:flex;align-items:center;justify-content:space-between;height:36px;padding:0 4px 0 10px;margin-bottom:20px}
+.brand{font-weight:700;font-size:20px;letter-spacing:-.03em;line-height:1}
+.icon-btn{width:32px;height:32px;display:inline-grid;place-items:center;border-radius:6px;color:var(--muted)}
+.icon-btn:hover{background:var(--hover);color:var(--ink)}
+.nav{display:flex;flex-direction:column;gap:2px}
+.navlink{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:6px;color:var(--muted);font-weight:500;white-space:nowrap}
+.navlink:hover{background:var(--hover);color:var(--ink)}
+.navlink[aria-current="page"]{background:var(--hover);color:var(--ink);font-weight:600}
+.sb-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 4px 0 6px}
+.me{display:flex;align-items:center;gap:10px;min-width:0;font-weight:500}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--page);display:grid;place-items:center;font-size:13px;font-weight:600;flex:none}
+.sidebar .tip-right[data-tip]::after{display:none}
+.sidebar.collapsed{width:64px}
+.sidebar.collapsed .brand,.sidebar.collapsed .label{display:none}
+.sidebar.collapsed .sb-head{padding:0;justify-content:center}
+.sidebar.collapsed .navlink{justify-content:center;padding:0}
+.sidebar.collapsed .sb-foot{flex-direction:column-reverse;padding:8px 0 0;gap:12px}
+.sidebar.collapsed .tip-right[data-tip]::after{display:block;left:calc(100% + 10px);top:50%;bottom:auto;transform:translateY(-50%)}
+.sidebar.collapsed .tip-right[data-tip]:not(:hover):not(:focus-visible)::after{display:none}
+
+.main{flex:1;min-width:0;padding:32px 40px 64px}
+.page-head{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:24px}
+h1{font-size:28px;font-weight:600;letter-spacing:-.025em;line-height:1.2;margin:0}
+
+/* filters */
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.field{height:36px;border:1px solid var(--line);border-radius:6px;background:var(--tile);display:flex;align-items:center;gap:8px;padding:0 10px;color:var(--muted)}
+.field:focus-within{border-color:var(--ink)}
+.field input{border:0;outline:0;background:transparent;height:100%;color:var(--ink);min-width:0}
+.field input::placeholder{color:var(--faint)}
+.search{width:260px}
+.search input{flex:1}
+.ms{position:relative}
+.ms-btn{color:var(--ink);cursor:pointer;max-width:240px;text-align:left}
+.ms-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ms-btn .dim{color:var(--muted)}
+.ms-btn svg{color:var(--muted)}
+.ms-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:40;width:280px;max-height:340px;overflow:auto;background:var(--tile);border:1px solid var(--line);border-radius:8px;padding:6px}
+.ms-pop[hidden]{display:none}
+.ms-opt{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:5px;cursor:pointer;font-size:14px;line-height:1.3}
+.ms-opt:hover{background:var(--hover)}
+.ms-opt input{position:absolute;opacity:0;pointer-events:none}
+.box{width:16px;height:16px;border:1px solid var(--faint);border-radius:4px;display:grid;place-items:center;flex:none;color:var(--page)}
+.box svg{width:12px;height:12px;stroke-width:2.5;opacity:0}
+.ms-opt input:checked + .box{background:var(--ink);border-color:var(--ink)}
+.ms-opt input:checked + .box svg{opacity:1}
+.ms-opt input:focus-visible + .box{outline:2px solid var(--accent);outline-offset:2px}
+.ms-clear{display:block;width:100%;text-align:left;padding:8px;margin-top:4px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+.ms-clear:hover{color:var(--ink)}
+select.field{appearance:none;-webkit-appearance:none;color:var(--ink);padding-right:30px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239C9C94' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 9px center;background-size:14px}
+select.field:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.range input{font-family:var(--mono);font-size:13px;width:118px}
+.range input::-webkit-calendar-picker-indicator{opacity:.5;cursor:pointer}
+.range .sep{color:var(--faint)}
+
+/* building blocks */
+.type{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;font-weight:500}
+.type svg{width:15px;height:15px}
+.diff{display:inline-flex;gap:2px;align-items:center}
+.diff i{width:6px;height:10px;border-radius:1px;background:var(--seg)}
+.diff i.on{background:var(--ink)}
+.diff-wrap{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:11.5px;white-space:nowrap}
+.sep-dot{color:var(--faint)}
+.skill{color:var(--accent);font-weight:500}
+.more{color:var(--muted);white-space:nowrap}
+.empty{color:var(--muted);padding:48px 0}
+
+/* mobile shell */
+@media (max-width:719px){
+  .app{flex-direction:column}
+  .sidebar,.sidebar.collapsed{position:sticky;top:0;z-index:50;width:auto;height:56px;flex-direction:row;align-items:center;gap:4px;padding:0 12px 0 16px;border-right:0;border-bottom:1px solid var(--line);background:var(--page)}
+  .sb-head,.sidebar.collapsed .sb-head{margin:0;padding:0 8px 0 0;height:auto}
+  .sidebar .brand{display:block!important}
+  .sb-head .icon-btn{display:none}
+  .nav{flex-direction:row;gap:0}
+  .navlink,.sidebar.collapsed .navlink{height:32px;padding:0 9px;gap:0}
+  .navlink svg{display:none}
+  .sidebar .label{display:inline!important}
+  .sb-foot,.sidebar.collapsed .sb-foot{margin:0 0 0 auto;padding:0;flex-direction:row;gap:6px}
+  .me .label{display:none!important}
+  .sidebar .tip-right[data-tip]::after{display:none!important}
+  .main{padding:20px 16px 48px}
+  .page-head{margin-bottom:16px;gap:14px}
+  h1{font-size:24px}
+  .filters,.search{width:100%}
+  .ms{flex:1;min-width:0}
+  .ms-btn{max-width:none;width:100%}
+  .ms-btn span{flex:1}
+  .ms-pop{width:min(320px,calc(100vw - 32px))}
+}
+
+.page-head .ms-pop{left:auto;right:0}
+.wrap{container-type:inline-size}
+.grid{display:grid;grid-template-columns:1fr;gap:16px}
+@container (min-width:560px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (min-width:1000px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container (min-width:1560px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.tile{background:var(--tile);border:1px solid var(--line);border-radius:8px;padding:22px 24px 20px;display:flex;flex-direction:column;min-width:0;transition:opacity .16s ease,transform .16s ease}
+.tile.leaving{opacity:0;transform:scale(.985)}
+.tile-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.tile-title{font-size:18px;font-weight:600;line-height:1.35;letter-spacing:-.012em;margin:0 0 10px;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;text-wrap:pretty}
+.tile-title a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+.meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 8px;color:var(--muted);font-size:14px}
+.meta .mono{font-size:13px}
+.tile-foot{margin-top:auto;padding-top:22px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.skills{min-width:0;font-size:13.5px;line-height:1.4}
+.actions{display:flex;align-items:center;gap:0;flex:none}
+.act{width:28px;height:30px;display:grid;place-items:center;border-radius:6px;color:var(--muted)}
+.act:hover{background:var(--hover);color:var(--ink)}
+.act[aria-pressed="true"]{color:var(--ink);background:var(--hover)}
+.act[data-act="like"][aria-pressed="true"] svg{fill:currentColor}
+.read-btn{margin-left:8px;height:32px;padding:0 13px;display:inline-flex;align-items:center;border-radius:6px;background:var(--accent);color:var(--on-accent);font-weight:600;font-size:14px}
+.read-btn:hover{filter:brightness(.94)}
+.read-btn:focus-visible{outline-offset:3px}
+/* read state */
+.tile.is-read{align-self:start;padding:14px 16px 12px 20px;background:transparent}
+.tile.is-read .tile-title{font-size:15px;font-weight:500;color:var(--muted);-webkit-line-clamp:1;margin:0}
+.tile.is-read .tile-foot{padding-top:6px}
+.read-mark{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;font-weight:500}
+.read-mark svg{width:14px;height:14px}
+.load{display:flex;justify-content:center;margin-top:32px}
+.btn{height:38px;padding:0 18px;border:1px solid var(--line);border-radius:6px;background:var(--tile);font-weight:500}
+.btn:hover{border-color:var(--faint)}
+.btn[hidden]{display:none}
+@media (max-width:719px){
+  .grid{gap:12px}
+  .tile{padding:18px 18px 16px}
+  .tile-top{margin-bottom:10px}
+  .tile-title{font-size:17px}
+  .tile-foot{padding-top:16px}
+  .tile.is-read{padding:12px 14px 10px 16px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar" id="sidebar">
+  <div class="sb-head">
+    <a class="brand" href="v2-2-for-you.html">attn</a>
+    <button class="icon-btn tip-right" id="collapse-btn" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg></button>
+  </div>
+  <nav class="nav">
+    <a class="navlink tip-right" href="v2-2-for-you.html" data-tip="For you" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="label">For you</span></a>
+    <a class="navlink tip-right" href="v2-2-all.html" data-tip="All" ><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></svg><span class="label">All</span></a>
+    <a class="navlink tip-right" href="#" data-tip="Profile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg><span class="label">Profile</span></a>
+  </nav>
+  <div class="sb-foot">
+    <a class="me tip-right" href="#" data-tip="Arthur" aria-label="Arthur"><span class="avatar" aria-hidden="true">A</span><span class="label">Arthur</span></a>
+    <button class="icon-btn tip-right" id="theme-btn" type="button"></button>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="page-head">
+    <h1>For you</h1>
+    <div class="filters">
+      <label class="field search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input id="q" type="search" placeholder="Search titles" aria-label="Search titles"></label>
+      <div class="ms" id="skills"></div>
+    </div>
+  </div>
+  <div class="wrap"><div class="grid" id="grid"></div></div>
+  <p class="empty" id="empty" hidden>No matching articles</p>
+  <div class="load"><button class="btn" id="more" type="button">Load more</button></div>
+</main>
+</div>
+<script>
+const ARTICLES = [{"id": 3018, "title": "[AINews] Modal’s $1B ARR, $16B Series D makes it NYC’s newest AI Infra Decacorn, 3x usage and 3x valuation in 5 months, 15x in 1 yr", "url": "https://www.latent.space/p/ainews-modals-1b-arr-16b-series-d", "src": "Latent Space", "pub": "2026-10-15T10:08:08.000Z", "wc": 2190, "d": 4, "type": "news", "skills": [{"n": "Evals", "p": true}]}, {"id": 3019, "title": "Crossing the Threshold: How OpenAI and Anthropic Approach Autonomy and Safety in Financial Agents", "url": "https://www.latent.space/p/crossing-the-threshold", "src": "Latent Space", "pub": "2026-10-14T21:40:52.000Z", "wc": 1008, "d": 3, "type": "news", "skills": [{"n": "Approvals and permissions", "p": true}]}, {"id": 3020, "title": "Lab-in-the-Loop at Compute Speed — Ian Quigley, Leash Bio", "url": "https://www.latent.space/p/lab-in-the-loop-at-compute-speed", "src": "Latent Space", "pub": "2026-10-14T20:35:09.000Z", "wc": 574, "d": 0, "type": "news", "skills": [{"n": "Gates and verification", "p": true}]}, {"id": 640, "title": "Agentic Verification", "url": "https://addyo.substack.com/p/agentic-verification", "src": "Addy Osmani", "pub": "2026-10-14T11:31:03.000Z", "wc": 2131, "d": 2, "type": "deep_dive", "skills": [{"n": "Gates and verification", "p": true}, {"n": "Hooks", "p": false}]}, {"id": 620, "title": "[AINews] AI Engineer NYC: Gemini 4 Argon, Vals AI Benchmarks", "url": "https://www.latent.space/p/ainews-ai-engineer-nyc-gemini-4-argon", "src": "Latent Space", "pub": "2026-10-14T05:40:28.000Z", "wc": 2077, "d": 1, "type": "news", "skills": [{"n": "Model and effort selection", "p": true}, {"n": "Cost and caching", "p": false}]}, {"id": 591, "title": "llm-gemini 0.35", "url": "https://simonwillison.net/2026/Oct/13/llm-gemini", "src": "Simon Willison", "pub": "2026-10-13T22:28:54.000Z", "wc": 315, "d": 1, "type": "news", "skills": [{"n": "Model and effort selection", "p": true}, {"n": "Cost and caching", "p": false}]}, {"id": 253, "title": "GitHub’s model for secret detection: Finding more secrets with less noise", "url": "https://github.blog/ai-and-ml/githubs-model-for-secret-detection-finding-more-secrets-with-less-noise", "src": "GitHub Blog - AI & ML", "pub": "2026-10-13T17:56:33.000Z", "wc": 1843, "d": 3, "type": "deep_dive", "skills": [{"n": "AI code review and policies", "p": true}, {"n": "Cost and caching", "p": false}]}, {"id": 202, "title": "Redesigning source control at Anthropic", "url": "https://www.anthropic.com/engineering/redesigning-source-control", "src": "Anthropic Engineering", "pub": "2026-10-13T16:27:06.000Z", "wc": 3684, "d": 3, "type": "deep_dive", "skills": [{"n": "AI code review and policies", "p": true}]}, {"id": 592, "title": "Quoting Geoffrey Huntley", "url": "https://simonwillison.net/2026/Oct/13/geoffrey-huntley", "src": "Simon Willison", "pub": "2026-10-13T13:32:00.000Z", "wc": 172, "d": 3, "type": "news", "skills": [{"n": "Hooks", "p": true}, {"n": "CLAUDE.md, memory, context structure", "p": false}]}, {"id": 203, "title": "Building the Missing Half", "url": "https://blog.mozilla.ai/building-the-missing-half", "src": "mozilla-ai-blog", "pub": "2026-10-13T13:28:31.000Z", "wc": 396, "d": 3, "type": "deep_dive", "skills": [{"n": "Model and effort selection", "p": true}, {"n": "Cost and caching", "p": false}]}, {"id": 622, "title": "[AINews] Meta Muse Wonder & Wonder Full: MSL’s Claude 5.5-tier Frontier Model", "url": "https://www.latent.space/p/ainews-meta-muse-wonder-and-wonder", "src": "Latent Space", "pub": "2026-10-13T09:37:04.000Z", "wc": 6579, "d": 2, "type": "news", "skills": [{"n": "Model and effort selection", "p": true}]}, {"id": 70, "title": "Claude discovers a novel enzyme system", "url": "https://www.anthropic.com/news/claude-discovers-novel-enzyme-system", "src": "Anthropic News", "pub": "2026-10-13T00:18:23.000Z", "wc": 1624, "d": 2, "type": "research", "skills": [{"n": "Agent orchestration", "p": true}]}, {"id": 623, "title": "How Anthropic’s Dynamic Workflows Coordinate Claude Agents", "url": "https://www.latent.space/p/claude-dynamic-workflows", "src": "Latent Space", "pub": "2026-10-12T18:18:17.000Z", "wc": 1064, "d": 3, "type": "news", "skills": [{"n": "Agent orchestration", "p": true}, {"n": "Cost and caching", "p": false}, {"n": "LLM tracing", "p": false}]}, {"id": 254, "title": "GitHub Copilot app for Beginners: How to teach Copilot about your codebase", "url": "https://github.blog/ai-and-ml/github-copilot/github-copilot-app-for-beginners-how-to-teach-copilot-about-your-codebase", "src": "GitHub Blog - AI & ML", "pub": "2026-10-12T17:43:59.000Z", "wc": 1004, "d": 1, "type": "tutorial", "skills": [{"n": "CLAUDE.md, memory, context structure", "p": true}, {"n": "Using MCP in daily work", "p": false}, {"n": "Skills and slash commands", "p": false}, {"n": "Subagents", "p": false}]}, {"id": 596, "title": "Profiling web-edit with Python 3.15: flame graphs and source heatmaps", "url": "https://simonwillison.net/2026/Oct/12/python-3-15-web-edit-profiling", "src": "Simon Willison", "pub": "2026-10-12T16:58:00.000Z", "wc": 128, "d": 2, "type": "research", "skills": [{"n": "Gates and verification", "p": true}]}, {"id": 626, "title": "[AINews] TypeSafe/Jev at >$100M ARR, $7.5B valuation 3 weeks after launch", "url": "https://www.latent.space/p/ainews-typesafejev-at-100m-arr-75b", "src": "Latent Space", "pub": "2026-10-10T06:45:57.000Z", "wc": 1460, "d": 2, "type": "news", "skills": [{"n": "Structured output", "p": true}, {"n": "Model and effort selection", "p": false}, {"n": "Agent orchestration", "p": false}]}, {"id": 706, "title": "Introducing Clef-omni with full multimodality, plus a faster Clef and a cheaper Clef-flash", "url": "https://blog.cloudflare.com/clef-faster-cheaper-multimodal", "src": "Cloudflare Blog - AI", "pub": "2026-10-09T18:27:34.000Z", "wc": 1519, "d": 3, "type": "release", "skills": [{"n": "Structured output", "p": true}, {"n": "Cost and caching", "p": false}]}, {"id": 604, "title": "A new feature for my blog, built using my voice", "url": "https://simonwillison.net/2026/Oct/9/built-using-my-voice", "src": "Simon Willison", "pub": "2026-10-09T12:54:06.000Z", "wc": 1160, "d": 1, "type": "deep_dive", "skills": [{"n": "Spec, plan, execute", "p": true}]}, {"id": 224, "title": "How Rillet ships 3× faster with AI agents on Vercel", "url": "https://vercel.com/blog/how-rillet-ships-3-faster-with-ai-agents-on-vercel", "src": "Vercel", "pub": "2026-10-09T04:00:00.000Z", "wc": 1290, "d": 2, "type": "news", "skills": [{"n": "Claude Agent SDK", "p": true}, {"n": "Model and effort selection", "p": false}, {"n": "Agent orchestration", "p": false}]}, {"id": 605, "title": "ttok 1.0", "url": "https://simonwillison.net/2026/Oct/9/ttok", "src": "Simon Willison", "pub": "2026-10-09T00:34:43.000Z", "wc": 126, "d": 1, "type": "release", "skills": [{"n": "Cost and caching", "p": true}]}, {"id": 628, "title": "[AINews] not much happened today", "url": "https://www.latent.space/p/ainews-not-much-happened-today-60f", "src": "Latent Space", "pub": "2026-10-08T23:29:43.000Z", "wc": 5720, "d": 1, "type": "news", "skills": [{"n": "Model and effort selection", "p": true}, {"n": "Evals", "p": false}, {"n": "Prompt injection", "p": false}]}, {"id": 36, "title": "Introducing the Anthropic Cyber Mission", "url": "https://www.anthropic.com/news/anthropic-cyber-mission", "src": "Anthropic News", "pub": "2026-10-08T19:00:45.000Z", "wc": 2225, "d": 1, "type": "release", "skills": [{"n": "AI code review and policies", "p": true}]}, {"id": 16, "title": "2026 Usage Policy update", "url": "https://www.anthropic.com/news/2026-usage-policy-update", "src": "Anthropic News", "pub": "2026-10-08T17:00:30.000Z", "wc": 1180, "d": 1, "type": "release", "skills": [{"n": "AI code review and policies", "p": true}, {"n": "Approvals and permissions", "p": false}]}, {"id": 1, "title": "Building effective agent automations", "url": "https://claude.dev/blog/building-effective-agent-automations", "src": "claude.dev", "pub": "2026-10-08T12:00:00.000Z", "wc": 2453, "d": 3, "type": "tutorial", "skills": [{"n": "Claude Agent SDK", "p": true}, {"n": "Headless, CI, scheduling", "p": false}, {"n": "Cost and caching", "p": false}, {"n": "Prompt injection", "p": false}]}, {"id": 630, "title": "[AINews] Claude Haiku 5.5 — better than GPT-6 Luna at the same pricing", "url": "https://www.latent.space/p/ainews-claude-haiku-55-better-than", "src": "Latent Space", "pub": "2026-10-08T07:27:51.000Z", "wc": 1353, "d": 2, "type": "news", "skills": [{"n": "Model and effort selection", "p": true}, {"n": "Subagents", "p": false}, {"n": "Cost and caching", "p": false}]}, {"id": 609, "title": "Claude Haiku 5.5", "url": "https://simonwillison.net/2026/Oct/7/claude-haiku-5-5", "src": "Simon Willison", "pub": "2026-10-07T20:56:21.000Z", "wc": 581, "d": 2, "type": "release", "skills": [{"n": "Model and effort selection", "p": true}, {"n": "Cost and caching", "p": false}]}, {"id": 255, "title": "Secret protection must scale with software", "url": "https://github.blog/ai-and-ml/github-copilot/secret-protection-must-scale-with-software", "src": "GitHub Blog - AI & ML", "pub": "2026-10-07T17:45:34.000Z", "wc": 1454, "d": 2, "type": "deep_dive", "skills": [{"n": "AI code review and policies", "p": true}]}, {"id": 631, "title": "Can a Cloud-Native Harness Make Agents Reliable Beyond the Desktop?", "url": "https://www.latent.space/p/stacklok", "src": "Latent Space", "pub": "2026-10-07T14:10:45.000Z", "wc": 1402, "d": 3, "type": "deep_dive", "skills": [{"n": "Agent orchestration", "p": true}, {"n": "Using MCP in daily work", "p": false}, {"n": "Tooling adoption", "p": false}]}, {"id": 100, "title": "Expanding the Cyber Verification Program", "url": "https://www.anthropic.com/news/cyber-verification-program", "src": "Anthropic News", "pub": "2026-10-07T08:52:51.000Z", "wc": 1485, "d": 1, "type": "release", "skills": [{"n": "AI code review and policies", "p": true}, {"n": "Prompt injection", "p": false}]}, {"id": 632, "title": "[AINews] Quasi-Riemann-Hypothesis: OpenAI publishes 722 math papers solving 90 of the top 500 open math problems; “the most significant moment” in >100 years of mathematics", "url": "https://www.latent.space/p/ainews-quasi-riemann-hypothesis-openai", "src": "Latent Space", "pub": "2026-10-07T04:55:44.000Z", "wc": 2086, "d": 1, "type": "news", "skills": [{"n": "Model and effort selection", "p": true}, {"n": "Embeddings", "p": false}]}, {"id": 612, "title": "OpenAI “rogue” agent activities found on Wikimedia projects", "url": "https://simonwillison.net/2026/Oct/7/openai-rogue-agents-wikimedia", "src": "Simon Willison", "pub": "2026-10-07T00:16:45.000Z", "wc": 209, "d": 2, "type": "news", "skills": [{"n": "Prompt injection", "p": true}]}, {"id": 614, "title": "llm-openai-decisions 0.1a0", "url": "https://simonwillison.net/2026/Oct/6/llm-openai-decisions", "src": "Simon Willison", "pub": "2026-10-06T23:04:13.000Z", "wc": 164, "d": 2, "type": "release", "skills": [{"n": "Model and effort selection", "p": true}, {"n": "Structured output", "p": false}]}, {"id": 616, "title": "EmbeddingGemma 2", "url": "https://simonwillison.net/2026/Oct/6/hn-49983751", "src": "Simon Willison", "pub": "2026-10-06T20:37:53.000Z", "wc": 174, "d": 1, "type": "news", "skills": [{"n": "Embeddings", "p": true}]}, {"id": 617, "title": "Introducing Mistral Large 4: Le chonk", "url": "https://simonwillison.net/2026/Oct/6/le-chonk", "src": "Simon Willison", "pub": "2026-10-06T20:18:19.000Z", "wc": 172, "d": 1, "type": "release", "skills": [{"n": "Model and effort selection", "p": true}]}, {"id": 618, "title": "Using Parseable with Datasette for OpenTelemetry traces", "url": "https://simonwillison.net/2026/Oct/6/datasette-parseable-opentelemetry", "src": "Simon Willison", "pub": "2026-10-06T19:07:31.000Z", "wc": 116, "d": 2, "type": "tutorial", "skills": [{"n": "LLM tracing", "p": true}]}, {"id": 2, "title": "Claude Code in the cloud: a field guide to cloud sessions", "url": "https://claude.dev/blog/claude-code-in-the-cloud", "src": "claude.dev", "pub": "2026-10-06T12:00:00.000Z", "wc": 4241, "d": 2, "type": "tutorial", "skills": [{"n": "Headless, CI, scheduling", "p": true}, {"n": "Parallel sessions", "p": false}]}, {"id": 633, "title": "[AINews] Reflection Beam - 501B-A23B American Open Model", "url": "https://www.latent.space/p/ainews-reflection-beam-501b-a23b", "src": "Latent Space", "pub": "2026-10-06T06:28:43.000Z", "wc": 2011, "d": 2, "type": "news", "skills": [{"n": "Model and effort selection", "p": true}]}, {"id": 256, "title": "ReviewBench: An open benchmark for AI code review", "url": "https://github.blog/ai-and-ml/github-copilot/reviewbench-an-open-benchmark-for-ai-code-review", "src": "GitHub Blog - AI & ML", "pub": "2026-10-05T15:59:40.000Z", "wc": 1915, "d": 3, "type": "research", "skills": [{"n": "Evals", "p": true}, {"n": "AI code review and policies", "p": false}]}, {"id": 664, "title": "v1.3: /implement-spec, /pr, /retro, and GLOSSARY.md", "url": "https://www.aihero.dev/skills-changelog-v13-implement-spec-pr-retro-and-glossary-md", "src": "AI Hero", "pub": "2026-10-05T11:01:07.000Z", "wc": 1675, "d": 2, "type": "release", "skills": [{"n": "Skills and slash commands", "p": true}, {"n": "Plugins", "p": false}, {"n": "Spec, plan, execute", "p": false}]}, {"id": 205, "title": "You Don’t Just Need Better AI. You Need Better Infrastructure.", "url": "https://blog.mozilla.ai/you-dont-just-need-better-ai-you-need-better-infrastructure", "src": "mozilla-ai-blog", "pub": "2026-10-05T09:02:24.000Z", "wc": 1095, "d": 3, "type": "deep_dive", "skills": [{"n": "Approvals and permissions", "p": true}, {"n": "AI code review and policies", "p": false}, {"n": "Prompt injection", "p": false}]}];
+const LEVELS = ["Never touched it","Basic use","Regular practice","Advanced","Builds it / expert"];
+const P = {
+  release:'<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
+  tutorial:'<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  deep_dive:'<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+  news:'<path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/>',
+  research:'<path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/>',
+  heart:'<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+  easy:'<path d="M12.67 19a2 2 0 0 0 1.416-.588l6.154-6.172a6 6 0 0 0-8.49-8.49L5.586 9.914A2 2 0 0 0 5 11.328V18a1 1 0 0 0 1 1z"/><path d="M16 8 2 22"/><path d="M17.5 15H9"/>',
+  hard:'<path d="M14.4 14.4 9.6 9.6"/><path d="M18.657 21.485a2 2 0 1 1-2.829-2.828l-1.767 1.768a2 2 0 1 1-2.829-2.829l6.364-6.364a2 2 0 1 1 2.829 2.829l-1.768 1.767a2 2 0 1 1 2.828 2.829z"/><path d="m21.5 21.5-1.4-1.4"/><path d="M3.9 3.9 2.5 2.5"/><path d="M6.404 12.768a2 2 0 1 1-2.829-2.829l1.768-1.767a2 2 0 1 1-2.828-2.829l2.828-2.828a2 2 0 1 1 2.829 2.828l1.767-1.768a2 2 0 1 1 2.829 2.829z"/>',
+  x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  chevron:'<path d="m6 9 6 6 6-6"/>',
+  home:'<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  list:'<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>',
+  user:'<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+  moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  panel:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>',
+  left:'<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  right:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>'
+};
+const icon = n => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${P[n]}</svg>`;
+const TYPE_LABEL = {release:"Release",tutorial:"Tutorial",deep_dive:"Deep dive",news:"News",research:"Research"};
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmtDate = iso => { const d = new Date(iso); return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`; };
+const minutes = wc => Math.max(1, Math.ceil(wc / 230));
+const primary = a => a.skills.find(s => s.p) || a.skills[0];
+const secondary = a => a.skills.filter(s => s !== primary(a));
+const typeTag = (t, withWord = true) => withWord
+  ? `<span class="type">${icon(t)}${TYPE_LABEL[t]}</span>`
+  : `<span class="type" data-tip="${TYPE_LABEL[t]}" aria-label="${TYPE_LABEL[t]}">${icon(t)}</span>`;
+const diffBar = lvl => `<span class="diff" role="img" aria-label="Difficulty: ${LEVELS[lvl]}">${[0,1,2,3,4].map(i => `<i class="${i <= lvl ? "on" : ""}"></i>`).join("")}</span>`;
+const moreSkills = a => { const s = secondary(a); return s.length ? ` <span class="more tip-start" tabindex="0" data-tip="${esc(s.map(x => x.n).join(", "))}">+${s.length} more</span>` : ""; };
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+};
+
+/* theme */
+(function(){
+  const forced = new URLSearchParams(location.search).get("theme");
+  const saved = forced || store.get("attn-theme");
+  if (saved) document.documentElement.dataset.theme = saved;
+})();
+function currentTheme(){
+  const t = document.documentElement.dataset.theme;
+  if (t) return t;
+  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+function paintThemeBtn(){
+  const b = document.getElementById("theme-btn"); if (!b) return;
+  const dark = currentTheme() === "dark";
+  b.innerHTML = icon(dark ? "sun" : "moon");
+  b.setAttribute("aria-label", dark ? "Light theme" : "Dark theme");
+  b.dataset.tip = dark ? "Light theme" : "Dark theme";
+}
+
+/* sidebar */
+function initShell(){
+  const sb = document.getElementById("sidebar");
+  if (store.get("attn-collapsed") === "1") sb.classList.add("collapsed");
+  const cb = document.getElementById("collapse-btn");
+  const paint = () => { const c = sb.classList.contains("collapsed"); cb.setAttribute("aria-label", c ? "Expand sidebar" : "Collapse sidebar"); cb.dataset.tip = c ? "Expand" : "Collapse"; cb.setAttribute("aria-expanded", String(!c)); };
+  cb.addEventListener("click", () => { sb.classList.toggle("collapsed"); store.set("attn-collapsed", sb.classList.contains("collapsed") ? "1" : "0"); paint(); });
+  paint();
+  document.getElementById("theme-btn").addEventListener("click", () => {
+    const next = currentTheme() === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next; store.set("attn-theme", next); paintThemeBtn();
+  });
+  paintThemeBtn();
+}
+
+/* skills multi-select */
+function multiSelect(root, options, onChange){
+  const selected = new Set();
+  root.innerHTML = `<button type="button" class="field ms-btn" aria-haspopup="listbox" aria-expanded="false"><span class="ms-text">Skills</span>${icon("chevron")}</button>
+    <div class="ms-pop" role="listbox" aria-multiselectable="true" hidden>
+      ${options.map(o => `<label class="ms-opt"><input type="checkbox" value="${esc(o)}"><span class="box">${icon("check")}</span><span>${esc(o)}</span></label>`).join("")}
+      <button type="button" class="ms-clear">Clear</button>
+    </div>`;
+  const btn = root.querySelector(".ms-btn"), pop = root.querySelector(".ms-pop"), text = root.querySelector(".ms-text");
+  const paint = () => {
+    const arr = [...selected];
+    text.innerHTML = arr.length === 0 ? "Skills" : esc(arr[0]) + (arr.length > 1 ? ` <span class="dim">+${arr.length - 1}</span>` : "");
+  };
+  const open = v => { pop.hidden = !v; btn.setAttribute("aria-expanded", String(v)); };
+  btn.addEventListener("click", () => open(pop.hidden));
+  pop.addEventListener("change", e => { e.target.checked ? selected.add(e.target.value) : selected.delete(e.target.value); paint(); onChange(selected); });
+  root.querySelector(".ms-clear").addEventListener("click", () => { selected.clear(); pop.querySelectorAll("input").forEach(i => i.checked = false); paint(); onChange(selected); });
+  document.addEventListener("click", e => { if (!root.contains(e.target)) open(false); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !pop.hidden){ open(false); btn.focus(); } });
+  return selected;
+}
+const allSkills = () => [...new Set(ARTICLES.flatMap(a => a.skills.map(s => s.n)))].sort((a,b) => a.localeCompare(b));
+const matches = (a, q, skills) =>
+  (!q || a.title.toLowerCase().includes(q)) &&
+  (skills.size === 0 || a.skills.some(s => skills.has(s.n)));
+
+initShell();
+
+const PAGE = 12;
+const st = { shown: PAGE, q: "", removed: new Set(), read: new Set(), liked: new Set(), level: new Map() };
+const skillSel = multiSelect(document.getElementById("skills"), allSkills(), () => { st.shown = PAGE; render(); });
+const grid = document.getElementById("grid");
+
+function actBtn(a, act, label, ic){
+  const pressed = act === "like" ? st.liked.has(a.id) : st.level.get(a.id) === act;
+  return `<button type="button" class="act" data-act="${act}" aria-label="${label}" data-tip="${label}"${act !== "x" ? ` aria-pressed="${pressed}"` : ""}>${icon(ic)}</button>`;
+}
+function tile(a){
+  const p = primary(a);
+  if (st.read.has(a.id)) return `<article class="tile is-read" data-id="${a.id}">
+    <h2 class="tile-title"><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a></h2>
+    <div class="tile-foot">
+      <span class="read-mark">${icon("check")}Read</span>
+      <div class="actions">${actBtn(a,"like","Like","heart")}${actBtn(a,"easy","Too easy","easy")}${actBtn(a,"hard","Too hard","hard")}</div>
+    </div></article>`;
+  return `<article class="tile" data-id="${a.id}">
+    <div class="tile-top">${typeTag(a.type)}<span class="diff-wrap"><span class="mono">${LEVELS[a.d]}</span>${diffBar(a.d)}</span></div>
+    <h2 class="tile-title"><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a></h2>
+    <div class="meta"><span>${esc(a.src)}</span><span class="sep-dot">·</span><span class="mono">${fmtDate(a.pub)}</span><span class="sep-dot">·</span><span class="mono">${minutes(a.wc)} min</span></div>
+    <div class="tile-foot">
+      <div class="skills"><span class="skill">${esc(p.n)}</span>${moreSkills(a)}</div>
+      <div class="actions">${actBtn(a,"like","Like","heart")}${actBtn(a,"easy","Too easy","easy")}${actBtn(a,"hard","Too hard","hard")}${actBtn(a,"x","Not interested","x")}<a class="read-btn" data-act="read" href="${esc(a.url)}" target="_blank" rel="noopener">Read</a></div>
+    </div></article>`;
+}
+function render(){
+  const list = ARTICLES.filter(a => !st.removed.has(a.id) && matches(a, st.q, skillSel));
+  grid.innerHTML = list.slice(0, st.shown).map(tile).join("");
+  document.getElementById("empty").hidden = list.length > 0;
+  document.getElementById("more").hidden = list.length <= st.shown;
+}
+grid.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const card = b.closest(".tile"), id = +card.dataset.id, act = b.dataset.act;
+  if (act === "read"){ st.read.add(id); setTimeout(render, 0); return; }
+  if (act === "x"){ card.classList.add("leaving"); setTimeout(() => { st.removed.add(id); render(); }, 170); return; }
+  if (act === "like"){ st.liked.has(id) ? st.liked.delete(id) : st.liked.add(id); }
+  else { st.level.get(id) === act ? st.level.delete(id) : st.level.set(id, act); }
+  render();
+  const again = grid.querySelector(`.tile[data-id="${id}"] [data-act="${act}"]`); again && again.focus();
+});
+document.getElementById("q").addEventListener("input", e => { st.q = e.target.value.trim().toLowerCase(); st.shown = PAGE; render(); });
+document.getElementById("more").addEventListener("click", () => { st.shown += PAGE; render(); });
+render();
+</script>
+</body>
+</html>

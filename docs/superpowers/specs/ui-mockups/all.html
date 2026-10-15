@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>All · attn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F7F6F2; --ink:#1A1A18; --ink-2:#56544E; --muted:#8B8880; --rule:#E3E0D8; --hover:#EEECE6;
+  --accent:#C4421A; --on-accent:#FFFFFF;
+  --sb:224px;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --paper:#141413; --ink:#ECEAE4; --ink-2:#B2AFA7; --muted:#83807A; --rule:#2B2A27; --hover:#1E1D1B;
+  --accent:#F06A3F; --on-accent:#141413;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#141413; --ink:#ECEAE4; --ink-2:#B2AFA7; --muted:#83807A; --rule:#2B2A27; --hover:#1E1D1B;
+    --accent:#F06A3F; --on-accent:#141413;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"Hanken Grotesk",system-ui,sans-serif; font-size:14px; line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;text-decoration:none}
+button,input,select{font:inherit;color:inherit}
+svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.num{font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+/* app shell */
+.app{display:grid;grid-template-columns:var(--sb) minmax(0,1fr);min-height:100vh}
+html.collapsed{--sb:56px}
+.sb{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;border-right:1px solid var(--rule);padding:14px 10px}
+.sb-top{display:flex;align-items:center;justify-content:space-between;height:32px;padding-left:10px;margin-bottom:18px}
+.brand{font-weight:600;font-size:21px;letter-spacing:-.02em;line-height:1}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:6px;color:var(--ink-2)}
+.nav a:hover{background:var(--hover);color:var(--ink)}
+.nav a[aria-current="page"]{background:var(--hover);color:var(--ink);font-weight:500}
+.sb-bottom{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:8px;padding-left:6px}
+.user{display:flex;align-items:center;gap:10px;min-width:0}
+.avatar{width:28px;height:28px;border-radius:6px;background:var(--ink);color:var(--paper);display:grid;place-items:center;font-weight:600;flex:none}
+.ibtn{width:32px;height:32px;display:grid;place-items:center;border:0;background:none;border-radius:6px;color:var(--ink-2);cursor:pointer;flex:none}
+.ibtn:hover{background:var(--hover);color:var(--ink)}
+.theme .sun{display:none}
+:root[data-theme="dark"] .theme .sun{display:block}
+:root[data-theme="dark"] .theme .moon{display:none}
+
+html.collapsed .sb{padding:14px 12px}
+html.collapsed .brand,html.collapsed .label{display:none}
+html.collapsed .sb-top{padding:0;justify-content:center}
+html.collapsed .nav a{justify-content:center;padding:0}
+html.collapsed .sb-bottom{flex-direction:column-reverse;padding:0;gap:10px}
+
+/* page */
+.main{padding:32px 40px 64px;min-width:0}
+h1{font-size:21px;font-weight:600;letter-spacing:-.01em;margin:0 0 20px;line-height:32px}
+
+/* controls */
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.field{height:34px;border:1px solid var(--rule);border-radius:6px;background:transparent;display:flex;align-items:center;gap:8px;padding:0 10px;color:var(--muted)}
+.field:hover{border-color:var(--muted)}
+.field:focus-within{border-color:var(--ink)}
+.field input,.field select{border:0;background:none;outline:none;height:100%;min-width:0;width:100%;color:var(--ink)}
+.field input::placeholder{color:var(--muted)}
+.search{flex:1 1 220px}
+.ms{position:relative}
+.ms > button{cursor:pointer;width:100%;justify-content:space-between;color:var(--ink);white-space:nowrap}
+.ms > button span{overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.ms > button[data-empty] span{color:var(--muted)}
+.ms-pop{position:absolute;z-index:5;top:38px;left:0;width:280px;max-height:320px;overflow:auto;background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:4px}
+.ms-pop[hidden]{display:none}
+.ms-pop label{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:6px;cursor:pointer;color:var(--ink-2)}
+.ms-pop label:hover{background:var(--hover);color:var(--ink)}
+.ms-pop input{accent-color:var(--ink);margin:0}
+
+.btn{height:34px;padding:0 14px;border-radius:6px;border:1px solid var(--rule);background:transparent;cursor:pointer;color:var(--ink)}
+.btn:hover{background:var(--hover)}
+.btn:disabled{color:var(--muted);cursor:default;background:none}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:500}
+.btn.primary:hover{filter:brightness(1.06)}
+
+/* difficulty */
+.bars{display:inline-flex;gap:2px;align-items:flex-end;flex:none}
+.bars i{width:3px;height:10px;background:var(--rule)}
+.bars i.on{background:var(--ink-2)}
+
+@media (max-width:700px){
+  :root{--sb:56px}
+  .sb{padding:14px 12px}
+  .brand,.label,#collapse{display:none}
+  .sb-top{padding:0;justify-content:center}
+  .sb-top::before{content:"a";font-weight:600;font-size:21px;line-height:1}
+  .nav a{justify-content:center;padding:0}
+  .sb-bottom{flex-direction:column-reverse;padding:0;gap:10px}
+  .main{padding:20px 16px 48px}
+  h1,.sb-top::before{font-size:19px}
+}
+
+.search{flex:3 1 220px}
+.ms{flex:1 1 170px;min-width:0}
+.src{flex:1 1 160px;min-width:0}
+.src select{appearance:none;cursor:pointer;padding-right:4px}
+.src select option{background:var(--paper);color:var(--ink)}
+.date{flex:1 1 150px;min-width:0}
+.date span{font-size:13px;flex:none}
+.date input{font-variant-numeric:tabular-nums}
+.date input::-webkit-calendar-picker-indicator{opacity:.5;cursor:pointer}
+
+.rows{margin-top:12px;border-top:1px solid var(--rule)}
+.row{display:grid;grid-template-columns:16px 21px minmax(0,1fr) 200px 160px 48px 48px;align-items:center;column-gap:16px;height:42px;padding:0 8px;border-bottom:1px solid var(--rule)}
+.row:hover{background:var(--hover)}
+.row .ty{color:var(--muted);display:flex}
+.row .rt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .rs{color:var(--accent);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .rsrc{color:var(--ink-2);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .rm,.row .rd{color:var(--muted);font-size:13px;text-align:right;white-space:nowrap}
+.pager{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+
+@media (max-width:1100px){
+  .row{grid-template-columns:16px 21px minmax(0,1fr) 150px 48px 48px}
+  .row .rsrc{display:none}
+}
+@media (max-width:700px){
+  .search{flex-basis:100%}
+  .ms,.src{flex:1 1 calc(50% - 4px);min-width:0}
+  .date{flex:1 1 calc(50% - 4px);min-width:0}
+  .row{grid-template-columns:16px minmax(0,1fr);grid-template-rows:auto auto;height:auto;padding:10px 0;row-gap:4px;column-gap:10px}
+  .row .ty{grid-row:1/3;align-self:start;padding-top:2px}
+  .row .dl{display:flex}
+  .row .rt{grid-column:2;grid-row:1;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .row .sub{grid-column:2;grid-row:2;display:flex;flex-wrap:wrap;align-items:center;column-gap:8px;row-gap:2px;min-width:0}
+  .row .sub .rs{flex:1 1 calc(100% - 40px);min-width:0}
+  .row .sub .rsrc{display:block;flex:0 1 auto;min-width:0;color:var(--muted)}
+  .row .sub .rm,.row .sub .rd{flex:none;text-align:left}
+  .row .sub .rm::before,.row .sub .rd::before{content:"·";margin-right:8px}
+  .date{gap:6px}
+  .date input{font-size:13px}
+  .date input::-webkit-calendar-picker-indicator{display:none}
+}
+@media (min-width:701px){
+  .row .sub{display:contents}
+  .row .dl{order:1;display:flex}
+  .row .rt{order:2}
+  .row .rs,.row .rsrc,.row .rm,.row .rd{order:3}
+}
+</style>
+<script>
+const ARTICLES=[{"id":3018,"t":"[AINews] Modal’s $1B ARR, $16B Series D makes it NYC’s newest AI Infra Decacorn, 3x usage and 3x valuation in 5 months, 15x in 1 yr","u":"https://www.latent.space/p/ainews-modals-1b-arr-16b-series-d","s":"Latent Space","d":"2026-10-15","w":2190,"l":4,"y":"news","k":[["Evals",1]]},{"id":3019,"t":"Crossing the Threshold: How OpenAI and Anthropic Approach Autonomy and Safety in Financial Agents","u":"https://www.latent.space/p/crossing-the-threshold","s":"Latent Space","d":"2026-10-14","w":1008,"l":3,"y":"news","k":[["Approvals and permissions",1]]},{"id":3020,"t":"Lab-in-the-Loop at Compute Speed — Ian Quigley, Leash Bio","u":"https://www.latent.space/p/lab-in-the-loop-at-compute-speed","s":"Latent Space","d":"2026-10-14","w":574,"l":0,"y":"news","k":[["Gates and verification",1]]},{"id":640,"t":"Agentic Verification","u":"https://addyo.substack.com/p/agentic-verification","s":"Addy Osmani","d":"2026-10-14","w":2131,"l":2,"y":"deep_dive","k":[["Gates and verification",1],["Hooks",0]]},{"id":620,"t":"[AINews] AI Engineer NYC: Gemini 4 Argon, Vals AI Benchmarks","u":"https://www.latent.space/p/ainews-ai-engineer-nyc-gemini-4-argon","s":"Latent Space","d":"2026-10-14","w":2077,"l":1,"y":"news","k":[["Model and effort selection",1],["Cost and caching",0]]},{"id":591,"t":"llm-gemini 0.35","u":"https://simonwillison.net/2026/Oct/13/llm-gemini","s":"Simon Willison","d":"2026-10-13","w":315,"l":1,"y":"news","k":[["Model and effort selection",1],["Cost and caching",0]]},{"id":253,"t":"GitHub’s model for secret detection: Finding more secrets with less noise","u":"https://github.blog/ai-and-ml/githubs-model-for-secret-detection-finding-more-secrets-with-less-noise","s":"GitHub Blog - AI & ML","d":"2026-10-13","w":1843,"l":3,"y":"deep_dive","k":[["AI code review and policies",1],["Cost and caching",0]]},{"id":202,"t":"Redesigning source control at Anthropic","u":"https://www.anthropic.com/engineering/redesigning-source-control","s":"Anthropic Engineering","d":"2026-10-13","w":3684,"l":3,"y":"deep_dive","k":[["AI code review and policies",1]]},{"id":592,"t":"Quoting Geoffrey Huntley","u":"https://simonwillison.net/2026/Oct/13/geoffrey-huntley","s":"Simon Willison","d":"2026-10-13","w":172,"l":3,"y":"news","k":[["Hooks",1],["CLAUDE.md, memory, context structure",0]]},{"id":203,"t":"Building the Missing Half","u":"https://blog.mozilla.ai/building-the-missing-half","s":"mozilla-ai-blog","d":"2026-10-13","w":396,"l":3,"y":"deep_dive","k":[["Model and effort selection",1],["Cost and caching",0]]},{"id":622,"t":"[AINews] Meta Muse Wonder & Wonder Full: MSL’s Claude 5.5-tier Frontier Model","u":"https://www.latent.space/p/ainews-meta-muse-wonder-and-wonder","s":"Latent Space","d":"2026-10-13","w":6579,"l":2,"y":"news","k":[["Model and effort selection",1]]},{"id":70,"t":"Claude discovers a novel enzyme system","u":"https://www.anthropic.com/news/claude-discovers-novel-enzyme-system","s":"Anthropic News","d":"2026-10-13","w":1624,"l":2,"y":"research","k":[["Agent orchestration",1]]},{"id":623,"t":"How Anthropic’s Dynamic Workflows Coordinate Claude Agents","u":"https://www.latent.space/p/claude-dynamic-workflows","s":"Latent Space","d":"2026-10-12","w":1064,"l":3,"y":"news","k":[["Agent orchestration",1],["Cost and caching",0],["LLM tracing",0]]},{"id":254,"t":"GitHub Copilot app for Beginners: How to teach Copilot about your codebase","u":"https://github.blog/ai-and-ml/github-copilot/github-copilot-app-for-beginners-how-to-teach-copilot-about-your-codebase","s":"GitHub Blog - AI & ML","d":"2026-10-12","w":1004,"l":1,"y":"tutorial","k":[["CLAUDE.md, memory, context structure",1],["Using MCP in daily work",0],["Skills and slash commands",0],["Subagents",0]]},{"id":596,"t":"Profiling web-edit with Python 3.15: flame graphs and source heatmaps","u":"https://simonwillison.net/2026/Oct/12/python-3-15-web-edit-profiling","s":"Simon Willison","d":"2026-10-12","w":128,"l":2,"y":"research","k":[["Gates and verification",1]]},{"id":626,"t":"[AINews] TypeSafe/Jev at >$100M ARR, $7.5B valuation 3 weeks after launch","u":"https://www.latent.space/p/ainews-typesafejev-at-100m-arr-75b","s":"Latent Space","d":"2026-10-10","w":1460,"l":2,"y":"news","k":[["Structured output",1],["Model and effort selection",0],["Agent orchestration",0]]},{"id":706,"t":"Introducing Clef-omni with full multimodality, plus a faster Clef and a cheaper Clef-flash","u":"https://blog.cloudflare.com/clef-faster-cheaper-multimodal","s":"Cloudflare Blog - AI","d":"2026-10-09","w":1519,"l":3,"y":"release","k":[["Structured output",1],["Cost and caching",0]]},{"id":604,"t":"A new feature for my blog, built using my voice","u":"https://simonwillison.net/2026/Oct/9/built-using-my-voice","s":"Simon Willison","d":"2026-10-09","w":1160,"l":1,"y":"deep_dive","k":[["Spec, plan, execute",1]]},{"id":224,"t":"How Rillet ships 3× faster with AI agents on Vercel","u":"https://vercel.com/blog/how-rillet-ships-3-faster-with-ai-agents-on-vercel","s":"Vercel","d":"2026-10-09","w":1290,"l":2,"y":"news","k":[["Claude Agent SDK",1],["Model and effort selection",0],["Agent orchestration",0]]},{"id":605,"t":"ttok 1.0","u":"https://simonwillison.net/2026/Oct/9/ttok","s":"Simon Willison","d":"2026-10-09","w":126,"l":1,"y":"release","k":[["Cost and caching",1]]},{"id":628,"t":"[AINews] not much happened today","u":"https://www.latent.space/p/ainews-not-much-happened-today-60f","s":"Latent Space","d":"2026-10-08","w":5720,"l":1,"y":"news","k":[["Model and effort selection",1],["Evals",0],["Prompt injection",0]]},{"id":36,"t":"Introducing the Anthropic Cyber Mission","u":"https://www.anthropic.com/news/anthropic-cyber-mission","s":"Anthropic News","d":"2026-10-08","w":2225,"l":1,"y":"release","k":[["AI code review and policies",1]]},{"id":16,"t":"2026 Usage Policy update","u":"https://www.anthropic.com/news/2026-usage-policy-update","s":"Anthropic News","d":"2026-10-08","w":1180,"l":1,"y":"release","k":[["AI code review and policies",1],["Approvals and permissions",0]]},{"id":1,"t":"Building effective agent automations","u":"https://claude.dev/blog/building-effective-agent-automations","s":"claude.dev","d":"2026-10-08","w":2453,"l":3,"y":"tutorial","k":[["Claude Agent SDK",1],["Headless, CI, scheduling",0],["Cost and caching",0],["Prompt injection",0]]},{"id":630,"t":"[AINews] Claude Haiku 5.5 — better than GPT-6 Luna at the same pricing","u":"https://www.latent.space/p/ainews-claude-haiku-55-better-than","s":"Latent Space","d":"2026-10-08","w":1353,"l":2,"y":"news","k":[["Model and effort selection",1],["Subagents",0],["Cost and caching",0]]},{"id":609,"t":"Claude Haiku 5.5","u":"https://simonwillison.net/2026/Oct/7/claude-haiku-5-5","s":"Simon Willison","d":"2026-10-07","w":581,"l":2,"y":"release","k":[["Model and effort selection",1],["Cost and caching",0]]},{"id":255,"t":"Secret protection must scale with software","u":"https://github.blog/ai-and-ml/github-copilot/secret-protection-must-scale-with-software","s":"GitHub Blog - AI & ML","d":"2026-10-07","w":1454,"l":2,"y":"deep_dive","k":[["AI code review and policies",1]]},{"id":631,"t":"Can a Cloud-Native Harness Make Agents Reliable Beyond the Desktop?","u":"https://www.latent.space/p/stacklok","s":"Latent Space","d":"2026-10-07","w":1402,"l":3,"y":"deep_dive","k":[["Agent orchestration",1],["Using MCP in daily work",0],["Tooling adoption",0]]},{"id":100,"t":"Expanding the Cyber Verification Program","u":"https://www.anthropic.com/news/cyber-verification-program","s":"Anthropic News","d":"2026-10-07","w":1485,"l":1,"y":"release","k":[["AI code review and policies",1],["Prompt injection",0]]},{"id":632,"t":"[AINews] Quasi-Riemann-Hypothesis: OpenAI publishes 722 math papers solving 90 of the top 500 open math problems; “the most significant moment” in >100 years of mathematics","u":"https://www.latent.space/p/ainews-quasi-riemann-hypothesis-openai","s":"Latent Space","d":"2026-10-07","w":2086,"l":1,"y":"news","k":[["Model and effort selection",1],["Embeddings",0]]},{"id":612,"t":"OpenAI “rogue” agent activities found on Wikimedia projects","u":"https://simonwillison.net/2026/Oct/7/openai-rogue-agents-wikimedia","s":"Simon Willison","d":"2026-10-07","w":209,"l":2,"y":"news","k":[["Prompt injection",1]]},{"id":614,"t":"llm-openai-decisions 0.1a0","u":"https://simonwillison.net/2026/Oct/6/llm-openai-decisions","s":"Simon Willison","d":"2026-10-06","w":164,"l":2,"y":"release","k":[["Model and effort selection",1],["Structured output",0]]},{"id":616,"t":"EmbeddingGemma 2","u":"https://simonwillison.net/2026/Oct/6/hn-49983751","s":"Simon Willison","d":"2026-10-06","w":174,"l":1,"y":"news","k":[["Embeddings",1]]},{"id":617,"t":"Introducing Mistral Large 4: Le chonk","u":"https://simonwillison.net/2026/Oct/6/le-chonk","s":"Simon Willison","d":"2026-10-06","w":172,"l":1,"y":"release","k":[["Model and effort selection",1]]},{"id":618,"t":"Using Parseable with Datasette for OpenTelemetry traces","u":"https://simonwillison.net/2026/Oct/6/datasette-parseable-opentelemetry","s":"Simon Willison","d":"2026-10-06","w":116,"l":2,"y":"tutorial","k":[["LLM tracing",1]]},{"id":2,"t":"Claude Code in the cloud: a field guide to cloud sessions","u":"https://claude.dev/blog/claude-code-in-the-cloud","s":"claude.dev","d":"2026-10-06","w":4241,"l":2,"y":"tutorial","k":[["Headless, CI, scheduling",1],["Parallel sessions",0]]},{"id":633,"t":"[AINews] Reflection Beam - 501B-A23B American Open Model","u":"https://www.latent.space/p/ainews-reflection-beam-501b-a23b","s":"Latent Space","d":"2026-10-06","w":2011,"l":2,"y":"news","k":[["Model and effort selection",1]]},{"id":256,"t":"ReviewBench: An open benchmark for AI code review","u":"https://github.blog/ai-and-ml/github-copilot/reviewbench-an-open-benchmark-for-ai-code-review","s":"GitHub Blog - AI & ML","d":"2026-10-05","w":1915,"l":3,"y":"research","k":[["Evals",1],["AI code review and policies",0]]},{"id":664,"t":"v1.3: /implement-spec, /pr, /retro, and GLOSSARY.md","u":"https://www.aihero.dev/skills-changelog-v13-implement-spec-pr-retro-and-glossary-md","s":"AI Hero","d":"2026-10-05","w":1675,"l":2,"y":"release","k":[["Skills and slash commands",1],["Plugins",0],["Spec, plan, execute",0]]},{"id":205,"t":"You Don’t Just Need Better AI. You Need Better Infrastructure.","u":"https://blog.mozilla.ai/you-dont-just-need-better-ai-you-need-better-infrastructure","s":"mozilla-ai-blog","d":"2026-10-05","w":1095,"l":3,"y":"deep_dive","k":[["Approvals and permissions",1],["AI code review and policies",0],["Prompt injection",0]]}];
+
+const LEVELS=["Never touched it","Basic use","Regular practice","Advanced","Builds it / expert"];
+const TYPES={release:"Release",tutorial:"Tutorial",deep_dive:"Deep dive",news:"News",research:"Research"};
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmtDate=d=>{const[y,m,dd]=d.split("-");return MONTHS[+m-1]+" "+(+dd)};
+const mins=w=>Math.ceil(w/230);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ic=p=>`<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
+const ICON={
+  forYou:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  all:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  profile:'<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>',
+  panel:'<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  chevron:'<path d="m6 9 6 6 6-6"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  release:'<path d="M12.59 2.59A2 2 0 0 0 11.17 2H4a2 2 0 0 0-2 2v7.17a2 2 0 0 0 .59 1.42l8.7 8.7a2.43 2.43 0 0 0 3.42 0l6.58-6.58a2.43 2.43 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r="1"/>',
+  tutorial:'<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/>',
+  deep_dive:'<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>',
+  news:'<path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9a2 2 0 0 1 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8z"/>',
+  research:'<path d="M10 2v7.53a2 2 0 0 1-.21.9L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.07-10.12a2 2 0 0 1-.21-.9V2"/><path d="M8.5 2h7M7 16h10"/>'
+};
+const bars=l=>`<span class="bars" aria-hidden="true">${[0,1,2,3,4].map(i=>`<i class="${i<=l?"on":""}"></i>`).join("")}</span>`;
+
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+(function initTheme(){
+  const q=new URLSearchParams(location.search);
+  let t=q.get("theme")||store.get("attn-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+  document.documentElement.dataset.theme=t;
+  if((q.get("collapsed")??store.get("attn-collapsed"))==="1")document.documentElement.classList.add("collapsed");
+})();
+
+function sidebar(active){
+  const item=(key,href,label)=>`<a href="${href}" ${active===key?'aria-current="page"':""} title="${label}">${ic(ICON[key])}<span class="label">${label}</span></a>`;
+  return `<aside class="sb">
+    <div class="sb-top"><a class="brand" href="v2-1-for-you.html">attn</a><button class="ibtn" id="collapse" aria-label="Toggle sidebar">${ic(ICON.panel)}</button></div>
+    <nav class="nav">${item("forYou","v2-1-for-you.html","For you")}${item("all","v2-1-all.html","All")}${item("profile","#","Profile")}</nav>
+    <div class="sb-bottom">
+      <div class="user"><span class="avatar">A</span><span class="label">Arthur</span></div>
+      <button class="ibtn theme" id="theme" aria-label="Toggle theme">${ic(ICON.moon).replace('class="i"','class="i moon"')}${ic(ICON.sun).replace('class="i"','class="i sun"')}</button>
+    </div>
+  </aside>`;
+}
+function wireSidebar(){
+  document.getElementById("theme").onclick=()=>{
+    const r=document.documentElement,t=r.dataset.theme==="dark"?"light":"dark";
+    r.dataset.theme=t;store.set("attn-theme",t);
+  };
+  document.getElementById("collapse").onclick=()=>{
+    const c=document.documentElement.classList.toggle("collapsed");store.set("attn-collapsed",c?"1":"0");
+  };
+}
+
+const SKILLS=[...new Set(ARTICLES.flatMap(a=>a.k.map(s=>s[0])))].sort((a,b)=>a.localeCompare(b));
+function multiSelect(el,onChange){
+  const sel=new Set();
+  el.innerHTML=`<button type="button" class="field" aria-haspopup="true" aria-expanded="false" data-empty><span>Skills</span>${ic(ICON.chevron)}</button>
+    <div class="ms-pop" hidden>${SKILLS.map(s=>`<label><input type="checkbox" value="${esc(s)}">${esc(s)}</label>`).join("")}</div>`;
+  const btn=el.querySelector("button"),pop=el.querySelector(".ms-pop"),lab=btn.querySelector("span");
+  const open=v=>{pop.hidden=!v;btn.setAttribute("aria-expanded",v)};
+  btn.onclick=e=>{e.stopPropagation();open(pop.hidden)};
+  pop.onclick=e=>e.stopPropagation();
+  document.addEventListener("click",()=>open(false));
+  document.addEventListener("keydown",e=>{if(e.key==="Escape")open(false)});
+  pop.onchange=e=>{
+    e.target.checked?sel.add(e.target.value):sel.delete(e.target.value);
+    lab.textContent=sel.size?[...sel].join(", "):"Skills";
+    sel.size?btn.removeAttribute("data-empty"):btn.setAttribute("data-empty","");
+    onChange(sel);
+  };
+  return sel;
+}
+const matches=(a,q,skills)=>(!q||a.t.toLowerCase().includes(q))&&(!skills.size||a.k.some(s=>skills.has(s[0])));
+
+</script>
+</head>
+<body>
+<div class="app">
+<script>document.write(sidebar("all"))</script>
+<main class="main">
+  <h1>All</h1>
+  <div class="filters">
+    <label class="field search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="q" placeholder="Search titles" aria-label="Search titles"></label>
+    <div class="ms" id="skills"></div>
+    <label class="field src"><select id="src" aria-label="Source"><option value="">All sources</option></select><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></label>
+    <label class="field date"><span>From</span><input type="date" id="from" class="num"></label>
+    <label class="field date"><span>To</span><input type="date" id="to" class="num"></label>
+  </div>
+  <div class="rows" id="rows" role="list"></div>
+  <div class="pager">
+    <button class="btn" id="newer">Newer</button>
+    <button class="btn" id="older">Older</button>
+  </div>
+</main>
+</div>
+<script>
+wireSidebar();
+const PAGE=15;
+let page=0,q="",skills=new Set(),src="",from="",to="";
+const rows=document.getElementById("rows"),newer=document.getElementById("newer"),older=document.getElementById("older");
+const srcSel=document.getElementById("src");
+[...new Set(ARTICLES.map(a=>a.s))].sort((a,b)=>a.localeCompare(b)).forEach(s=>srcSel.add(new Option(s,s)));
+
+function rowHTML(a){
+  const p=(a.k.find(k=>k[1])||a.k[0])[0];
+  return `<a class="row" role="listitem" href="${esc(a.u)}" target="_blank" rel="noopener">
+    <span class="ty" title="${TYPES[a.y]}">${ic(ICON[a.y])}</span>
+    <span class="rt">${esc(a.t)}</span>
+    <span class="sub">
+      <span class="dl" title="${LEVELS[a.l]}">${bars(a.l)}</span>
+      <span class="rs">${esc(p)}</span>
+      <span class="rsrc">${esc(a.s)}</span>
+      <span class="rm num">${mins(a.w)} min</span>
+      <span class="rd num">${fmtDate(a.d)}</span>
+    </span></a>`;
+}
+function render(){
+  const list=ARTICLES.filter(a=>matches(a,q,skills)&&(!src||a.s===src)&&(!from||a.d>=from)&&(!to||a.d<=to));
+  const pages=Math.max(1,Math.ceil(list.length/PAGE));page=Math.min(page,pages-1);
+  rows.innerHTML=list.slice(page*PAGE,page*PAGE+PAGE).map(rowHTML).join("");
+  newer.disabled=page===0;older.disabled=page>=pages-1;
+}
+const reset=()=>{page=0;render()};
+document.getElementById("q").oninput=e=>{q=e.target.value.trim().toLowerCase();reset()};
+srcSel.onchange=e=>{src=e.target.value;reset()};
+document.getElementById("from").onchange=e=>{from=e.target.value;reset()};
+document.getElementById("to").onchange=e=>{to=e.target.value;reset()};
+skills=multiSelect(document.getElementById("skills"),s=>{skills=s;reset()});
+newer.onclick=()=>{page--;render();scrollTo(0,0)};
+older.onclick=()=>{page++;render();scrollTo(0,0)};
+render();
+</script>
+</body>
+</html>

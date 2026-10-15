@@ -130,6 +130,74 @@ Everything else stays neutral zinc, so the accents carry information.
   - Mobile keeps a single-column list.
 - **Streaks (future).** A streak widget will go at the top of For you. It is not part of this redesign. The page header just stays easy to extend.
 
+## Visual direction v2 (owner-approved 2026-10-15). This supersedes the look described above.
+
+The first coded For you (indigo, Geist, rounded shadow cards, pill soup, rainbow ramp) was rejected as generic and AI-looking. A round of rich mockup directions was then rejected as overloaded. Research notes are in `2026-10-15-ui-anti-slop-research.md`.
+
+The owner picked:
+- **For you:** "Clean tiles". Reference mockup: `ui-mockups/for-you.html`.
+- **All:** "Quiet rows". Reference mockup: `ui-mockups/all.html`.
+
+The structure and behaviour sections above still apply (shadcn components everywhere, sidebar, full width, behaviour kept). Anything in them about colours, fonts, badges or the level ramp is replaced by this section.
+
+**Hard rules.**
+- Show only real data and existing features. No streaks, "why for you" lines, greetings, stats panels, counts, taglines or explanatory copy. Any text that isn't data or a control label goes.
+- Bans:
+  - indigo/violet;
+  - Inter, Geist, Space Grotesk;
+  - shadows;
+  - gradients and glows;
+  - pill or badge soup;
+  - a rainbow level ramp;
+  - emoji;
+  - tracked uppercase eyebrows.
+
+**Tokens.** shadcn variables, mapped from the mockup.
+
+| Role | Light | Dark |
+|---|---|---|
+| Page (`--background`) | `#F7F7F4` | `#121211` |
+| Tile (`--card`, `--popover`) | `#FFFFFF` | `#191917` |
+| Ink (`--foreground`) | `#1B1B18` | `#ECECE6` |
+| Muted (`--muted-foreground`) | `#6B6B64` | `#9A9A91` |
+| Faint | `#9C9C94` | `#6E6E66` |
+| Hairline (`--border`, `--input`) | `#E2E2DC` | `#2B2B28` |
+| Empty difficulty segment | `#D6D6CF` | `#3A3A35` |
+| Hover (`--accent`, `--muted`) | `#EFEFEA` | `#212120` |
+| The one accent (`--primary`, `--ring`) | `#C2410C`, white text | `#FF7A45`, `#121211` text |
+
+- The accent appears only on Read and other primary actions, the primary skill, focus rings and the active nav item.
+- Destructive stays red, used only for errors.
+- The success and warning colours are kept but used sparingly: success for the "Read" check, warning for "Uncertain".
+
+**Type.**
+- Hanken Grotesk for all UI.
+- JetBrains Mono only for numbers: dates, minutes and the difficulty label.
+- Both load through `next/font/local` from `@fontsource-variable/*` files, which works offline.
+- Tabular numbers. Three or four sizes per page.
+
+**Shape.**
+- Tiles: 1px border, 8px radius, no shadow.
+- Controls: 6px radius.
+- Hairline dividers.
+- The copied shadcn components in `src/components/ui` are edited at the cva level so the look holds everywhere: no `shadow-*`, no `ring-foreground/10` card ring, and a solid accent focus outline.
+
+**Difficulty** is a 5-segment bar plus its taxonomy label: ink fill on the empty-segment colour. This replaces the coloured LevelMeter ramp.
+
+**Type** is shown as an icon plus a word in plain muted text, not as a badge.
+
+**Skills** show only the primary skill, in accent text, followed by "+N more" in muted text. They are not chips.
+
+**For you tile**, top to bottom:
+1. the type, with the difficulty on the right;
+2. the title (18px/600, clamped to 3 lines);
+3. source · date · minutes;
+4. a footer pinned to the bottom, with the primary skill and +N on the left, and the icon actions with tooltips plus a filled Read on the right.
+
+The grid is 3 columns at 1440px, 2 at about 1024px and 1 on mobile, with equal-height rows.
+
+**All row**, on one dense line with hairlines between rows and fixed right-hand columns: type icon, difficulty bars, title, primary skill, source, minutes, date. No grouping headers. On mobile the row wraps to two lines.
+
 ## Pages, one per approval cycle
 
 **1. For you** (`app/for-you/page.tsx`, `feed-card.tsx`, `feed-list.tsx`, `filter-bar.tsx`)
