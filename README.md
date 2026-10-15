@@ -51,13 +51,16 @@ Over plain http, set `COOKIE_SECURE=false` in `.env` or sign-in cookies will not
 | `pnpm attn migrate` | Apply database migrations to `DATABASE_URL` (idempotent) |
 | `pnpm attn collect [--source <id>]... [--backfill-days <n>]` | Collect new articles from all sources, or only the given ones |
 | `pnpm attn label [--limit <n>]` | Label pending articles with `LABEL_MODEL` (see Labeling) |
+| `pnpm attn exclude (--max-quality <n> \| --status failed) --reason <text> [--dry-run]` | Mark labeled articles with quality <= n (or failed ones) `excluded`; `--dry-run` prints the count and samples and changes nothing (see Source cleanup) |
+| `pnpm attn unexclude --id <id>` | Return an excluded article to `pending` so the next `attn label` handles it |
 | `pnpm attn eval --model <id>` | Measure a model against the golden set; writes nothing to the DB (see Evaluation) |
 | `pnpm attn seed-demo [--remove]` | Insert deterministic labeled demo articles so For you works without a labeling API key; `--remove` deletes them |
 | `pnpm api` | Start the API on `PORT` (default 3001); `GET /api/health`; runs the daily job |
 | `pnpm web` | Start the Next.js site in dev mode on port 3000; rewrites `/api/*` to `API_URL` (default `http://localhost:3001`) |
 
-`attn collect` prints one line per source and a totals line. A failing source is recorded in
-`source_state.last_error` and does not stop the others.
+`attn collect` prints one line per source (`seen= inserted= dup= old= skipped= filtered=`) and a totals line. A failing
+source is recorded in `source_state.last_error` and does not stop the others. Every item blocked by an exclusion rule
+(below) also gets one line before its source's summary: `filtered  <source id>  <rule>  <url>`.
 
 ## Layout
 
@@ -130,7 +133,9 @@ not published on the host; the browser reaches it only through the web proxy.
 ## Data files
 
 - `data/taxonomy.yml`: Role, Domain and Skill tree with the 0-4 level scale and a version.
-- `data/sources.yml`: the 13 first-party sources (`rss` or `sitemap`), with optional filters.
+- `data/sources.yml`: the 15 first-party sources (`rss` or `sitemap`), with optional per-source `filter` (see Source cleanup).
+  A source removed from the file (e.g. `mozilla-ai-blog`) keeps its articles and `source_state` row: nothing references
+  source ids by foreign key, and the API shows such an article with its source id as the name.
 - `data/config.yml`: the single place for tunable numbers (backfill window, label limits, thresholds, feed settings).
 - `data/quiz/dev.yml`: DRAFT question bank for role dev (32 skills x 2 situational questions with hidden option levels); needs owner review.
 - `data/golden/`: hand-labeled articles for `attn eval`. It holds `draft.yml` for now (see Evaluation).
@@ -182,9 +187,9 @@ turn it off, such as Opus 5.5, the SDK uses its lowest setting, effort `low`, an
 `typesafe-ai/jev` is not a text-generation model but a decision model (32k context, $0.042 per 1M input tokens, no
 output price), called with the AI SDK's `experimental_decide` through the Vercel AI Gateway; set `JEV_API_KEY` to a
 gateway key (`vck_...`, passed explicitly, `AI_GATEWAY_API_KEY` is not needed). One decide call per article answers
-about 36 questions against the same state (title, URL and the article text cut to `label_max_chars`): a choice for
+about 37 questions against the same state (title, URL and the article text cut to `label_max_chars`): a choice for
 `primary_skill` over all taxonomy skills, choices for `type`, `difficulty` (0-4) and `quality` (0-4) with the same
-rubrics as the other labelers, and one yes/no question per skill for `secondary_skills`, since decide has no
+rubrics as the other labelers, the `relevant` gate below, and one yes/no question per skill for `secondary_skills`, since decide has no
 multi-select. The secondary skills are those with probability at least `jev_secondary_threshold` (`data/config.yml`,
 default 0.5), highest first, at most 3, never the primary. `experimental_decide` is an experimental API and may change
 between AI SDK releases. Fatal for the run: 401/402/403/404 (bad key, no credit, a restricted model such as the
@@ -206,11 +211,43 @@ changing that article's status or attempts, `attn label` prints the provider err
 logs it at error level. `attn eval` stops the same way and exits 1 with the partial report; it also exits 1 when
 not a single article could be scored.
 
+### Source cleanup: collect rules, relevance gate, `excluded`
+
+Junk is kept out at two points. Both are owner-approved (2026-10-15, numbers in `docs/decisions.md`).
+
+**Collect-time rules.** The per-source `filter` in `data/sources.yml` takes, besides `path_prefix`, `keywords` and
+`exclude_path_prefix`:
+
+| Key | Matches |
+| --- | --- |
+| `exclude_paths` | the URL path exactly, a trailing slash ignored (`/skills` also blocks `/skills/`, not `/skills/tdd`) |
+| `exclude_path_regex` | a list of regexes tested against the URL path (case-sensitive) |
+| `exclude_title_regex` | a list of regexes tested against the title (case-insensitive) |
+
+A bad regex is a config error at load, naming the source, and stops `attn` and the API at startup. A blocked item is
+not inserted; it is logged (source id, rule name, url) and counted in `filtered=` (not in `skipped=`). Rules in use:
+ai-hero landing pages and `/workshops/`, vercel customer stories and accelerator posts, cloudflare-ai company news
+by title. `anthropic-news` deliberately has no rule: the relevance gate handles it.
+
+**Relevance gate (jev only).** The jev labeler's single decide call has one more yes/no question, `relevant`: does the
+article teach or meaningfully inform at least one skill in the skill map (every taxonomy skill is listed in the
+question; AI built into products counts; corporate news, events, marketing and unrelated topics do not). If the
+probability is below `relevance_threshold` (`data/config.yml`, default 0.5) the article is not labeled but marked
+`excluded`, with `excluded_reason` and `excluded_at`, and logged (id, title, p, url). A refused or missing answer counts
+as relevant. The Claude and Gemini labelers have no gate and treat every article as relevant.
+
+**The `excluded` status.** An excluded article stays in the table, so collect's unique-url dedup never re-inserts it.
+It is never selected for labeling and never appears in For you, All or counts (every reader filters on
+`label_status = 'labeled'`). `attn exclude --max-quality 1 --reason "q<=1 cleanup"` and
+`attn exclude --status failed --reason "too short"` exclude existing rows (take the pipeline lock; `--dry-run` takes
+none and writes nothing); `attn unexclude --id <id>` returns one article to `pending` with its attempts reset.
+
 `attn collect` and `attn label` take the same Postgres advisory lock as the daily job. If another run holds it,
 they print `another collect/label run is in progress` and exit 1.
 
-Output: one line per article, `<outcome>  <url>[  <error>]`, then
-`total: selected=<n> labeled=<n> failed=<n> rate_limited=<yes|no>`.
+Output: one line per article, `<outcome>  <url>[  <error>]` (an article excluded by the relevance gate prints
+`excluded  id=<id>  p=<probability>  <title>  <url>`), then
+`total: selected=<n> labeled=<n> excluded=<n> failed=<n> rate_limited=<yes|no>`.
 
 Privacy invariant: only the article `title`, `url` and public article text go to the model, and the `Labeler`
 type has no place for user data (quiz answers, levels, user ids). This is enforced by types and tests, and
