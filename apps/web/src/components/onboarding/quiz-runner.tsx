@@ -1,20 +1,21 @@
 'use client';
 
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Check } from 'lucide-react';
 import { profileSchema, type QuizAnswerInput, type QuizOptionDto, type QuizQuestionDto } from '@attn/shared';
 import { BrowserApiError, browserJson } from '@/lib/browser-api';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { SignalFlood, useFloodHover } from './signal-flood';
 
 type Phase = { kind: 'first' } | { kind: 'second'; first: number };
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-/** How long a picked option holds its fill before the step moves on. */
-const HOLD_MS = 240;
+/** The fill's sweep across a picked option: ease-in-out, so the travel reads instead of snapping to the end. */
+const SWEEP = { duration: 0.38, ease: [0.6, 0, 0.3, 1] as const };
+/** How long a picked option is shown (the sweep, then a short hold) before the step moves on. */
+const HOLD_MS = 540;
 
 /** One segment per question: done in the signal colour, the current one darker grey (half filled after the first
  * pick), the rest the empty-segment grey. */
@@ -36,7 +37,17 @@ function Segments({ total, index, half }: { total: number; index: number; half: 
   );
 }
 
-/** An answer option as a full-width block: a mono letter, then the text; hover floods it like the skill blocks. */
+/** The option's row layout, shared by its plain content and the fill layer drawn over it. */
+const ROW = 'grid w-full grid-cols-[28px_minmax(0,1fr)] items-start gap-x-3 px-4 py-4 sm:grid-cols-[32px_minmax(0,1fr)] sm:px-5 sm:py-[18px]';
+const LETTER = 'grid size-7 place-items-center font-mono text-[13px] leading-none sm:size-8 sm:text-sm';
+const TEXT = 'max-w-[75ch] pt-[3px] text-base leading-snug sm:pt-1 sm:text-[17px]';
+
+/**
+ * An answer option as a full-width block: a mono letter in a square, then the text. Hover stays quiet (a muted tint,
+ * the letter's square turns signal). A pick sweeps the signal fill across from the letter; the fill layer redraws the
+ * content in white under the same clip, so the text turns white exactly at the fill's edge, and the letter becomes a
+ * check. The layer stays for the hold and leaves with the step. Instant under reduced motion.
+ */
 function OptionBlock({
   option,
   letter,
@@ -47,49 +58,60 @@ function OptionBlock({
 }: {
   option: QuizOptionDto;
   letter: string;
-  /** Picked and holding its fill before the step moves on. */
+  /** Picked: the fill sweeps in and stays until the step moves on. */
   held: boolean;
   disabled: boolean;
-  onPick: (e: MouseEvent<HTMLButtonElement>) => void;
+  onPick: () => void;
   buttonRef: (el: HTMLButtonElement | null) => void;
 }) {
-  const { hover, at, setAt, pointIn, handlers } = useFloodHover();
-  const on = held || (hover && !disabled);
+  const reduce = useReducedMotion();
+  const quiet = !disabled && !held;
   return (
     <button
       ref={buttonRef}
       type="button"
       disabled={disabled}
-      onClick={(e) => {
-        setAt(e.detail > 0 ? pointIn(e) : null);
-        onPick(e);
-      }}
-      {...handlers}
-      className="group relative grid w-full grid-cols-[28px_minmax(0,1fr)] gap-x-3 overflow-hidden bg-card px-4 py-4 text-left outline-none disabled:cursor-not-allowed sm:grid-cols-[36px_minmax(0,1fr)] sm:px-5 sm:py-[18px]"
+      onClick={onPick}
+      className={cn(
+        'group relative block w-full overflow-hidden bg-card text-left outline-none transition-colors duration-150 disabled:cursor-not-allowed',
+        quiet && 'hover:bg-muted',
+      )}
     >
-      <SignalFlood on={on} at={at} />
-      <span
-        className={cn(
-          'relative pt-0.5 font-mono text-[15px] leading-snug transition-colors duration-200',
-          on ? 'text-signal-foreground' : 'text-faint',
-        )}
-      >
-        {letter}
+      <span className={ROW}>
+        <span
+          className={cn(
+            LETTER,
+            'border border-border text-faint transition-colors duration-150',
+            quiet && 'group-hover:border-signal group-hover:bg-signal group-hover:text-signal-foreground',
+          )}
+        >
+          {letter}
+        </span>
+        <span className={cn(TEXT, disabled && !held && 'opacity-50')}>{option.text}</span>
       </span>
-      <span
-        className={cn(
-          'relative max-w-[75ch] text-base leading-snug transition-colors duration-200 sm:text-[17px]',
-          on ? 'text-signal-foreground' : 'text-foreground',
-          disabled && !held && 'opacity-50',
-        )}
-      >
-        {option.text}
-      </span>
+      {/* Its own presence: the list's AnimatePresence has initial={false}, which would also skip this layer's sweep. */}
+      <AnimatePresence>
+        {held ? (
+          <motion.span
+            key="fill"
+            aria-hidden
+            initial={reduce ? false : { clipPath: 'inset(0 100% 0 0)' }}
+            animate={{ clipPath: 'inset(0 0% 0 0)' }}
+            transition={SWEEP}
+            className={cn(ROW, 'absolute inset-0 bg-signal text-signal-foreground')}
+          >
+            <span className={cn(LETTER, 'border border-signal-foreground/50')}>
+              <Check aria-hidden className="size-4" strokeWidth={2.25} />
+            </span>
+            <span className={TEXT}>{option.text}</span>
+          </motion.span>
+        ) : null}
+      </AnimatePresence>
       <span
         aria-hidden
         className={cn(
           'pointer-events-none absolute inset-0 border-2 border-transparent',
-          on ? 'group-focus-visible:border-signal-foreground' : 'group-focus-visible:border-ring',
+          held ? 'group-focus-visible:border-signal-foreground' : 'group-focus-visible:border-ring',
         )}
       />
     </button>
@@ -117,7 +139,8 @@ export function QuizRunner({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<QuizAnswerInput[] | null>(null);
-  // The option holding its fill for HOLD_MS before pick() runs; clicks are ignored meanwhile.
+  // The option showing its fill for HOLD_MS before pick() runs (and while the last answer saves); clicks are ignored
+  // meanwhile.
   const [held, setHeld] = useState<number | null>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
@@ -138,6 +161,7 @@ export function QuizRunner({
       onSubmitted();
     } catch (e) {
       setError(e instanceof BrowserApiError ? e.message : 'Could not save your answers. Please try again.');
+      setHeld(null);
       setBusy(false);
     }
   }
@@ -186,9 +210,11 @@ export function QuizRunner({
       return;
     }
     setHeld(optionId);
+    // The last answer keeps its fill while the answers are saved.
+    const last = phase.kind === 'second' && index + 1 >= questions.length;
     holdTimer.current = setTimeout(() => {
       holdTimer.current = null;
-      setHeld(null);
+      if (!last) setHeld(null);
       pick(optionId);
     }, HOLD_MS);
   }

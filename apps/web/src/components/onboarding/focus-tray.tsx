@@ -1,11 +1,20 @@
 'use client';
 
-import { useId, useState, type ReactNode } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { ArrowLeft, ArrowRight, ChevronDown, ChevronUp, X, type LucideIcon } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { animate, motion, useReducedMotion } from 'motion/react';
+import { ArrowLeft, ArrowRight, ChevronUp, X, type LucideIcon } from 'lucide-react';
 import { MAX_FOCUS } from '@attn/shared';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SortableList, useSortable } from './sortable-list';
 
@@ -95,32 +104,78 @@ function FocusSlots({ items, names, onChange }: { items: string[]; names: Record
   );
 }
 
-/** Narrow screens: numbered squares (filled = picked) and a toggle that opens the reorderable list. */
-function FocusChips({
+/**
+ * Narrow screens: one row with the numbered squares (filled = picked) and Continue. The squares open a bottom sheet with
+ * the reorderable list and the secondary action. A `nudge` change (a tap on a skill while the focus is full) shakes
+ * the squares.
+ */
+function FocusBar({
   items,
   names,
   onChange,
+  primary,
+  secondary,
+  nudge,
 }: {
   items: string[];
   names: Record<string, string>;
   onChange: (next: string[]) => void;
+  primary: ReactNode;
+  secondary: ReactNode;
+  nudge: number;
 }) {
-  const [open, setOpen] = useState(false);
-  const panel = useId();
   const reduce = useReducedMotion();
+  const squares = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (nudge === 0 || reduce || !squares.current) return;
+    const controls = animate(squares.current, { x: [0, -6, 6, -4, 4, 0] }, { duration: 0.4, ease: 'easeOut' });
+    return () => controls.stop();
+  }, [nudge, reduce]);
+
   return (
-    <div className="space-y-2.5">
-      <AnimatePresence initial={false}>
-        {open ? (
-          <motion.div
-            id={panel}
-            key="panel"
-            initial={reduce ? false : { height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={reduce ? { opacity: 0, transition: { duration: 0 } } : { height: 0, opacity: 0 }}
-            transition={{ duration: 0.22, ease: EASE }}
-            className="max-h-[45svh] overflow-y-auto"
+    <div className="flex items-center gap-3">
+      {/* Labels the tray's section (aria-labelledby resolves even while this layout is hidden). */}
+      <h2 id="focus-tray-heading" className="sr-only">
+        Your focus
+      </h2>
+      <Sheet>
+        <SheetTrigger asChild>
+          <button
+            type="button"
+            aria-label={`Your focus: ${items.length} of ${MAX_FOCUS}. Change the order`}
+            className="-m-1.5 flex items-center gap-1.5 p-1.5 outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
+            <span ref={squares} aria-hidden className="flex gap-1">
+              {SLOTS.map((n) => (
+                <span
+                  key={n}
+                  className={cn(
+                    'grid size-8 place-items-center font-mono text-[13px] transition-colors duration-200',
+                    n < items.length ? 'bg-signal text-signal-foreground' : 'border border-dashed border-faint text-faint',
+                  )}
+                >
+                  {n + 1}
+                </span>
+              ))}
+            </span>
+            <ChevronUp aria-hidden className="size-4 text-muted-foreground" />
+          </button>
+        </SheetTrigger>
+        <SheetContent
+          side="bottom"
+          className="max-h-[85svh] gap-0 rounded-none outline-none"
+          // Focus the sheet itself, not the first move button (whose tooltip would pop up on open).
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            (e.currentTarget as HTMLElement).focus();
+          }}
+        >
+          <SheetHeader className="pb-2">
+            <SheetTitle className="text-base font-semibold">Your focus</SheetTitle>
+            <SheetDescription>The first one matters most.</SheetDescription>
+          </SheetHeader>
+          <div className="min-h-0 overflow-y-auto px-4">
             <SortableList
               items={items}
               labels={names}
@@ -128,75 +183,73 @@ function FocusChips({
               onChange={onChange}
               emptyText="Nothing picked yet."
             />
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-      <div className="flex items-center gap-3">
-        <h2 className="text-sm font-semibold">Your focus</h2>
-        <span aria-hidden className="flex gap-1">
-          {SLOTS.map((n) => (
-            <span
-              key={n}
-              className={cn(
-                'grid size-7 place-items-center font-mono text-[13px] transition-colors duration-200',
-                n < items.length ? 'bg-signal text-signal-foreground' : 'border border-dashed border-faint text-faint',
-              )}
-            >
-              {n + 1}
-            </span>
-          ))}
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          aria-expanded={open}
-          aria-controls={panel}
-          onClick={() => setOpen(!open)}
-          className="ml-auto px-2 text-muted-foreground"
-        >
-          Order
-          {open ? <ChevronDown aria-hidden /> : <ChevronUp aria-hidden />}
-        </Button>
-      </div>
+          </div>
+          <SheetFooter className="pb-[max(1rem,env(safe-area-inset-bottom))]">{secondary}</SheetFooter>
+        </SheetContent>
+      </Sheet>
+      <div className="ml-auto">{primary}</div>
     </div>
   );
 }
 
+/** How long the "focus is full" hint stays after a tap on a blocked skill. */
+const HINT_MS = 2500;
+
 /**
  * The sticky bar along the bottom of the focus step: the picked skills in rank order with reorder and remove, the
- * actions, and any error. Full slots from 1024px; numbered squares with an expandable list below that.
+ * actions, and any error. Full slots from 1024px; below that one row of numbered squares and Continue, with the list
+ * and the secondary action in a bottom sheet. After a tap on a skill while the focus is full (`nudge` changes), a
+ * short hint says why nothing happened.
  */
 export function FocusTray({
   items,
   names,
   onChange,
-  actions,
+  primary,
+  secondary,
+  nudge,
   error,
 }: {
   items: string[];
   names: Record<string, string>;
   onChange: (next: string[]) => void;
-  actions: ReactNode;
+  primary: ReactNode;
+  secondary: ReactNode;
+  nudge: number;
   error: string | null;
 }) {
+  const [hint, setHint] = useState(false);
+  useEffect(() => {
+    if (nudge === 0) return;
+    setHint(true);
+    const t = setTimeout(() => setHint(false), HINT_MS);
+    return () => clearTimeout(t);
+  }, [nudge]);
+  const full = items.length >= MAX_FOCUS;
+
   return (
     <section
       aria-labelledby="focus-tray-heading"
-      className="sticky bottom-0 z-20 -mx-4 -mb-12 border-t border-border bg-background px-4 pt-3 pb-4 md:-mx-10 md:-mb-16 md:px-10"
+      className="sticky bottom-0 z-20 -mx-4 -mb-12 border-t border-border bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:-mx-10 md:-mb-16 md:px-10 lg:pb-4"
     >
+      {/* Always rendered so the live region exists before the hint text arrives. */}
+      <p aria-live="polite" className={cn('text-sm text-muted-foreground', hint && full && 'mb-2.5 lg:mb-2')}>
+        {hint && full ? 'Your focus is full. Remove a skill to add another.' : ''}
+      </p>
       <div className="hidden gap-x-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto]">
         <div className="min-w-0 space-y-2">
-          <h2 id="focus-tray-heading" className="text-sm font-semibold">
+          <h2 className="text-sm font-semibold">
             Your focus
           </h2>
           <FocusSlots items={items} names={names} onChange={onChange} />
         </div>
-        <div className="flex w-44 flex-col justify-end gap-2">{actions}</div>
+        <div className="flex w-44 flex-col justify-end gap-2">
+          {primary}
+          {secondary}
+        </div>
       </div>
-      <div className="space-y-3 lg:hidden">
-        <FocusChips items={items} names={names} onChange={onChange} />
-        <div className="flex flex-wrap gap-2 *:flex-1">{actions}</div>
+      <div className="lg:hidden">
+        <FocusBar items={items} names={names} onChange={onChange} primary={primary} secondary={secondary} nudge={nudge} />
       </div>
       {error ? (
         <p role="alert" className="mt-3 text-sm text-destructive">

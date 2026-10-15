@@ -9,19 +9,20 @@ import { SignalFlood, Sparks, useFloodHover, type FloodPoint } from './signal-fl
 
 type Skill = Taxonomy['domains'][number]['skills'][number];
 
-/** Blocks per row by the wall's width: 2 on phones, 3–4 on tablets, 5–6 on wide screens. */
+/** Blocks per row by the wall's width: full-width rows on phones, 3–4 on tablets, 5–6 on wide screens. */
 const WALL =
-  'grid grid-cols-2 gap-px @min-[600px]:auto-rows-fr @min-[600px]:grid-cols-3 @min-[860px]:grid-cols-4 @min-[1140px]:grid-cols-5 @min-[1440px]:grid-cols-6';
+  'grid grid-cols-1 gap-px @min-[600px]:auto-rows-fr @min-[600px]:grid-cols-3 @min-[860px]:grid-cols-4 @min-[1140px]:grid-cols-5 @min-[1440px]:grid-cols-6';
 
-/** One skill as a square block. Hover floods it with the signal colour from where the pointer came in; a picked block
- * holds the fill and shows its rank. When the focus is full, the rest dim and stay put (aria-disabled, still
- * focusable). */
+/** One skill as a square block (a full-width row on phones). Hover floods it with the signal colour from where the
+ * pointer came in; a picked block holds the fill and shows its rank. When the focus is full, the rest dim and stay put
+ * (aria-disabled, still focusable); activating one calls onBlocked. */
 function SkillBlock({
   skill,
   rank,
   blocked,
   index,
   onToggle,
+  onBlocked,
 }: {
   skill: Skill;
   /** 1-based position in the focus, or null. */
@@ -30,6 +31,7 @@ function SkillBlock({
   /** Position on the wall, for the first-render stagger. */
   index: number;
   onToggle: () => void;
+  onBlocked: () => void;
 }) {
   const reduce = useReducedMotion();
   const { hover, at, setAt, pointIn, handlers } = useFloodHover();
@@ -40,7 +42,10 @@ function SkillBlock({
   const on = picked || (hover && !blocked && !drained);
 
   function click(e: MouseEvent<HTMLButtonElement>) {
-    if (blocked) return;
+    if (blocked) {
+      onBlocked();
+      return;
+    }
     // detail is 0 for keyboard activation: then the fill grows from the centre.
     const p = e.detail > 0 ? pointIn(e) : null;
     setAt(p);
@@ -71,15 +76,15 @@ function SkillBlock({
           setDrained(false);
         }}
         className={cn(
-          'group relative flex h-full min-h-[128px] w-full flex-col overflow-hidden bg-card p-4 text-left outline-none @min-[600px]:min-h-[148px] @min-[600px]:p-5',
+          'group relative flex h-full w-full flex-col overflow-hidden bg-card px-4 py-3.5 text-left outline-none @min-[600px]:min-h-[148px] @min-[600px]:p-5',
           blocked ? 'cursor-not-allowed' : 'cursor-pointer',
         )}
       >
         <SignalFlood on={on} at={at} />
-        <span className={cn('relative flex h-full flex-col transition-opacity duration-200', blocked && 'opacity-40')}>
+        <span className={cn('relative flex h-full flex-col transition-opacity duration-200', blocked && 'opacity-70 @min-[600px]:opacity-40')}>
           <span
             className={cn(
-              'pr-9 text-base leading-snug font-semibold tracking-[-0.01em] transition-colors duration-200 @min-[600px]:pr-14 @min-[600px]:text-[17px]',
+              'pr-10 text-base leading-snug font-semibold tracking-[-0.01em] transition-colors duration-200 @min-[600px]:pr-14 @min-[600px]:text-[17px]',
               on ? 'text-signal-foreground' : 'text-foreground',
             )}
           >
@@ -87,7 +92,7 @@ function SkillBlock({
           </span>
           <span
             className={cn(
-              'mt-1.5 line-clamp-3 text-[13px] leading-[1.45] transition-colors duration-200',
+              'mt-1 line-clamp-2 text-[13px] @min-[600px]:mt-1.5 @min-[600px]:line-clamp-3 leading-[1.45] transition-colors duration-200',
               on ? 'text-signal-foreground/85' : 'text-muted-foreground',
             )}
           >
@@ -104,7 +109,7 @@ function SkillBlock({
               animate={{ scale: 1, opacity: 1 }}
               exit={reduce ? { opacity: 0, transition: { duration: 0 } } : { scale: 0.5, opacity: 0, transition: { duration: 0.14 } }}
               transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 20 }}
-              className="absolute top-3 right-3.5 origin-center font-mono text-[30px] leading-none font-medium text-signal-foreground @min-[600px]:top-4 @min-[600px]:right-4 @min-[600px]:text-[48px]"
+              className="absolute top-3 right-4 origin-center font-mono text-[26px] leading-none font-medium text-signal-foreground @min-[600px]:top-4 @min-[600px]:right-4 @min-[600px]:text-[48px]"
             >
               {rank}
             </motion.span>
@@ -132,11 +137,14 @@ export function FocusPicker({
   role,
   value,
   onChange,
+  onBlocked,
 }: {
   taxonomy: Taxonomy;
   role: string;
   value: string[];
   onChange: (next: string[]) => void;
+  /** A skill was activated while the focus is full. */
+  onBlocked: () => void;
 }) {
   const full = value.length >= MAX_FOCUS;
   let index = 0;
@@ -165,6 +173,7 @@ export function FocusPicker({
                     blocked={rank === null && full}
                     index={index++}
                     onToggle={() => onChange(toggleSkill(value, s.id, MAX_FOCUS))}
+                    onBlocked={onBlocked}
                   />
                 );
               })}

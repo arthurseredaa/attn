@@ -32,6 +32,8 @@ export function OnboardingFlow({
   const [questions, setQuestions] = useState<QuizQuestionDto[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Bumped when a skill is tapped while the focus is full; the tray shakes its squares and shows a hint.
+  const [nudge, setNudge] = useState(0);
 
   const skillNames = useMemo(() => skillNameMap(taxonomy), [taxonomy]);
 
@@ -85,27 +87,35 @@ export function OnboardingFlow({
     );
   }
 
-  const actions = (
-    <>
-      <Button
-        type="button"
-        className="group/continue"
-        disabled={busy || focus.length < 1 || focus.length > MAX_FOCUS}
-        onClick={() => void cont()}
-      >
-        Continue
-        <ArrowRight aria-hidden className="transition-transform duration-200 group-hover/continue:translate-x-0.5 motion-reduce:transition-none" />
-      </Button>
-      <Button type="button" variant="outline" disabled={busy || focus.length < 1} onClick={() => void skip()}>
-        Skip quiz for now
-      </Button>
-    </>
+  const primary = (
+    <Button
+      type="button"
+      className="group/continue"
+      disabled={busy || focus.length < 1 || focus.length > MAX_FOCUS}
+      onClick={() => void cont()}
+    >
+      Continue
+      <ArrowRight aria-hidden className="transition-transform duration-200 group-hover/continue:translate-x-0.5 motion-reduce:transition-none" />
+    </Button>
+  );
+  const secondary = (
+    <Button type="button" variant="outline" disabled={busy || focus.length < 1} onClick={() => void skip()}>
+      Skip quiz for now
+    </Button>
   );
 
   return (
     <div className="space-y-10">
-      <FocusPicker taxonomy={taxonomy} role={role} value={focus} onChange={setFocus} />
-      <FocusTray items={focus} names={skillNames} onChange={setFocus} actions={actions} error={error} />
+      <FocusPicker taxonomy={taxonomy} role={role} value={focus} onChange={setFocus} onBlocked={() => setNudge((n) => n + 1)} />
+      <FocusTray
+        items={focus}
+        names={skillNames}
+        onChange={setFocus}
+        primary={primary}
+        secondary={secondary}
+        nudge={nudge}
+        error={error}
+      />
     </div>
   );
 }
