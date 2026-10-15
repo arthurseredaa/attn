@@ -23,8 +23,8 @@ State at writing (main = `ef71d11` + this file):
 
 ## 1. Finish the running checks, then merge feat/ux-filters
 
-- [ ] Scoped re-review of fix round 1 (326ddf5) → Approved (else at most one more fix round).
-- [ ] Merge `feat/ux-filters` into main locally (approved by the owner as part of this plan). Then:
+- [x] Scoped re-review of fix round 1 (326ddf5) → Approved (else at most one more fix round).
+- [x] Merge `feat/ux-filters` into main locally (approved by the owner as part of this plan). Then:
   - run the full gate on main;
   - remove the worktree and delete the branch with `git branch -d`;
   - restart the API pane.
