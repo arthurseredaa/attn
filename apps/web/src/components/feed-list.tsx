@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Inbox, Loader2, SearchX } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { feedNextOffset, feedPageSchema, mergeFeedItems, type FeedPage } from '@attn/shared';
 import { BrowserApiError, browserJson } from '@/lib/browser-api';
 import { buildQueryString } from '@/lib/query';
@@ -95,45 +95,42 @@ export function FeedList({
   }
 
   return (
-    <div ref={listRef} tabIndex={-1} className="space-y-4 outline-none">
+    <div ref={listRef} tabIndex={-1} className="outline-none">
       {items.length === 0 && !hasMore && filtered ? (
-        <EmptyState icon={SearchX} title="No matches">
-          No articles in your feed match these filters. Try removing a skill or changing the search.
-        </EmptyState>
+        <EmptyState title="No matching articles" />
       ) : items.length === 0 && !hasMore ? (
-        <EmptyState icon={Inbox} title="Nothing to show right now">
-          Check your focus skills on your{' '}
-          <Link href="/profile" className="underline">
-            profile
-          </Link>
-          , or come back after the next collection run.
+        <EmptyState title="Nothing to read right now">
+          <Link href="/profile">Edit focus skills</Link>
         </EmptyState>
       ) : (
-        // One column (list) below md; from md as many >= 18rem tiles as fit (2 / 3 / 4 as the width grows). Equal-height rows.
-        <ul className="grid grid-cols-1 gap-3 md:grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]">
-          {items.map((a) => (
-            <li
-              key={a.id}
-              tabIndex={-1}
-              className="rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
-              ref={(el) => {
-                if (el) cardRefs.current.set(a.id, el);
-                else cardRefs.current.delete(a.id);
-              }}
-            >
-              <FeedCard article={a} difficultyLabel={difficultyLabels[a.difficulty] ?? `L${a.difficulty}`} onExcluded={excluded} />
-            </li>
-          ))}
-        </ul>
+        // Columns follow the content width (not the viewport), so the sidebar state counts: 1 column, 2 from 560px,
+        // 3 from 1000px, 4 from 1560px. Equal-height rows.
+        <div className="@container">
+          <ul className="grid grid-cols-1 gap-3 @min-[560px]:grid-cols-2 @min-[560px]:gap-4 @min-[1000px]:grid-cols-3 @min-[1560px]:grid-cols-4">
+            {items.map((a) => (
+              <li
+                key={a.id}
+                tabIndex={-1}
+                className="rounded-lg outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
+                ref={(el) => {
+                  if (el) cardRefs.current.set(a.id, el);
+                  else cardRefs.current.delete(a.id);
+                }}
+              >
+                <FeedCard article={a} difficultyLabel={difficultyLabels[a.difficulty] ?? `L${a.difficulty}`} onExcluded={excluded} />
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {error ? (
-        <p role="alert" className="text-center text-sm text-destructive">
+        <p role="alert" className="mt-6 text-center text-sm text-destructive">
           {error}
         </p>
       ) : null}
       {hasMore ? (
-        <div className="flex justify-center pt-2">
-          <Button type="button" variant="outline" disabled={loading} onClick={() => void loadMore()} className="min-w-36">
+        <div className="mt-8 flex justify-center">
+          <Button type="button" variant="outline" disabled={loading} onClick={() => void loadMore()} className="h-[38px] min-w-32 px-[18px]">
             {loading ? <Loader2 aria-hidden className="animate-spin" /> : null}
             {loading ? 'Loading…' : 'Load more'}
           </Button>

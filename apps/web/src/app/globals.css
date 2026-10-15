@@ -5,96 +5,90 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * shadcn/ui tokens (zinc neutrals) plus the ATTN accents. Each accent has one job: primary (deep electric indigo) for
- * actions and the active/primary state, success for read/like, warning for "uncertain", destructive for errors, and
- * the level ramp (emerald → sky → indigo → violet → rose) for difficulty and skill level.
+ * Visual direction v2: warm neutrals plus one accent (burnt orange). The accent is for Read and other primary actions,
+ * the primary skill, focus rings and nothing else. success / warning / destructive are toned to sit with the neutrals
+ * and are used sparingly (read check, "uncertain", errors).
+ *
+ * Mapping to the mockup: page = background, tile = card/popover, ink = foreground, muted = muted-foreground,
+ * faint = faint, hairline = border/input, empty difficulty segment = segment, hover = accent/muted/secondary.
  */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.985 0.002 286);
-  --foreground: oklch(0.141 0.005 285.823);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.51 0.23 277);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.955 0.003 286.35);
-  --accent-foreground: oklch(0.21 0.006 285.885);
-  --destructive: oklch(0.577 0.245 27.325);
-  --success: oklch(0.596 0.145 163.225);
-  --success-foreground: oklch(0.985 0 0);
-  --warning: oklch(0.6 0.16 58);
-  --warning-foreground: oklch(0.985 0 0);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.51 0.23 277);
-  --sidebar: oklch(0.97 0.003 286);
-  --sidebar-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-primary: oklch(0.51 0.23 277);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.925 0.006 286);
-  --sidebar-accent-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.51 0.23 277);
-
-  /* Level ramp, readable both as a fill and as text on the card background. */
-  --level-0: oklch(0.6 0.15 163);
-  --level-1: oklch(0.59 0.15 237);
-  --level-2: oklch(0.53 0.22 277);
-  --level-3: oklch(0.54 0.25 296);
-  --level-4: oklch(0.59 0.22 12);
+  --radius: 0.5rem;
+  --background: #f7f7f4;
+  --foreground: #1b1b18;
+  --card: #ffffff;
+  --card-foreground: #1b1b18;
+  --popover: #ffffff;
+  --popover-foreground: #1b1b18;
+  --primary: #c2410c;
+  --primary-foreground: #ffffff;
+  --secondary: #efefea;
+  --secondary-foreground: #1b1b18;
+  --muted: #efefea;
+  --muted-foreground: #6b6b64;
+  --faint: #9c9c94;
+  --accent: #efefea;
+  --accent-foreground: #1b1b18;
+  --segment: #d6d6cf;
+  --destructive: #b42318;
+  --success: #3d7a4f;
+  --success-foreground: #ffffff;
+  --warning: #a35f0a;
+  --warning-foreground: #ffffff;
+  --border: #e2e2dc;
+  --input: #e2e2dc;
+  --ring: #c2410c;
+  --sidebar: #f7f7f4;
+  --sidebar-foreground: #1b1b18;
+  --sidebar-primary: #c2410c;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #efefea;
+  --sidebar-accent-foreground: #1b1b18;
+  --sidebar-border: #e2e2dc;
+  --sidebar-ring: #c2410c;
 }
 
 .dark {
   color-scheme: dark;
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.18 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.2 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.68 0.18 277);
-  --primary-foreground: oklch(0.16 0.04 277);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --success: oklch(0.765 0.177 163.223);
-  --success-foreground: oklch(0.17 0.03 163);
-  --warning: oklch(0.82 0.16 80);
-  --warning-foreground: oklch(0.2 0.04 70);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.68 0.18 277);
-  --sidebar: oklch(0.165 0.005 285.823);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.68 0.18 277);
-  --sidebar-primary-foreground: oklch(0.16 0.04 277);
-  --sidebar-accent: oklch(0.245 0.006 286);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.68 0.18 277);
-
-  --level-0: oklch(0.77 0.15 163);
-  --level-1: oklch(0.75 0.13 237);
-  --level-2: oklch(0.7 0.16 277);
-  --level-3: oklch(0.72 0.18 296);
-  --level-4: oklch(0.72 0.18 12);
+  --background: #121211;
+  --foreground: #ecece6;
+  --card: #191917;
+  --card-foreground: #ecece6;
+  --popover: #191917;
+  --popover-foreground: #ecece6;
+  --primary: #ff7a45;
+  --primary-foreground: #121211;
+  --secondary: #212120;
+  --secondary-foreground: #ecece6;
+  --muted: #212120;
+  --muted-foreground: #9a9a91;
+  --faint: #6e6e66;
+  --accent: #212120;
+  --accent-foreground: #ecece6;
+  --segment: #3a3a35;
+  --destructive: #f0806f;
+  --success: #7fb88d;
+  --success-foreground: #121211;
+  --warning: #e0a54c;
+  --warning-foreground: #121211;
+  --border: #2b2b28;
+  --input: #2b2b28;
+  --ring: #ff7a45;
+  --sidebar: #121211;
+  --sidebar-foreground: #ecece6;
+  --sidebar-primary: #ff7a45;
+  --sidebar-primary-foreground: #121211;
+  --sidebar-accent: #212120;
+  --sidebar-accent-foreground: #ecece6;
+  --sidebar-border: #2b2b28;
+  --sidebar-ring: #ff7a45;
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+  --font-sans: var(--font-hanken-grotesk), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --font-heading: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-heading: var(--font-hanken-grotesk), ui-sans-serif, system-ui, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -107,8 +101,10 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-faint: var(--faint);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-segment: var(--segment);
   --color-destructive: var(--destructive);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
@@ -125,28 +121,33 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --color-level-0: var(--level-0);
-  --color-level-1: var(--level-1);
-  --color-level-2: var(--level-2);
-  --color-level-3: var(--level-3);
-  --color-level-4: var(--level-4);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* Small, fixed radii: 6px controls, 8px tiles and overlays. */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+  --radius-3xl: 12px;
+  --radius-4xl: 14px;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   html {
     @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-[15px]/normal text-foreground antialiased;
+  }
+  /* JetBrains Mono only carries numbers (dates, minutes, the difficulty label): plain zero, tabular figures. */
+  .font-mono {
+    font-feature-settings: "zero" 0;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
   }
 }

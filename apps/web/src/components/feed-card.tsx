@@ -2,18 +2,17 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { ArrowUpRight, ChevronsDown, ChevronsUp, CircleCheck, EyeOff, ThumbsUp, type LucideIcon } from 'lucide-react';
+import { Check, Dumbbell, Feather, Heart, X, type LucideIcon } from 'lucide-react';
 import { eventResponseSchema, type ArticleCard, type EventKind } from '@attn/shared';
 import { articleLinks } from '@/lib/article-links';
 import { BrowserApiError, browserJson } from '@/lib/browser-api';
 import { cn } from '@/lib/utils';
 import { ArticleMeta } from '@/components/article-meta';
+import { ArticleType } from '@/components/article-type';
 import { DifficultyMeter } from '@/components/difficulty-meter';
-import { SkillChip } from '@/components/skill-chip';
-import { TypeBadge } from '@/components/type-badge';
+import { SkillSummary } from '@/components/skill-summary';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 type FeedbackKind = Exclude<EventKind, 'read'>;
@@ -24,10 +23,10 @@ interface FeedbackButton {
   icon: LucideIcon;
 }
 const BUTTONS: FeedbackButton[] = [
-  { kind: 'like', label: 'Like', verb: 'Like', icon: ThumbsUp },
-  { kind: 'too_easy', label: 'Too easy', verb: 'Mark as too easy', icon: ChevronsDown },
-  { kind: 'too_hard', label: 'Too hard', verb: 'Mark as too hard', icon: ChevronsUp },
-  { kind: 'not_interested', label: 'Not interested', verb: 'Not interested in', icon: EyeOff },
+  { kind: 'like', label: 'Like', verb: 'Like', icon: Heart },
+  { kind: 'too_easy', label: 'Too easy', verb: 'Mark as too easy', icon: Feather },
+  { kind: 'too_hard', label: 'Too hard', verb: 'Mark as too hard', icon: Dumbbell },
+  { kind: 'not_interested', label: 'Not interested', verb: 'Not interested in', icon: X },
 ];
 // After a read the card collapses to these; not_interested is no longer offered.
 const AFTER_READ = BUTTONS.filter((b) => b.kind !== 'not_interested');
@@ -39,13 +38,9 @@ const KIND_NAME: Record<EventKind, string> = {
   not_interested: 'Not interested',
 };
 
-// Pressed buttons are also disabled (a kind is sent once); keep them fully opaque so the state reads clearly.
-const PRESSED: Record<FeedbackKind, string> = {
-  like: 'bg-success/10 text-success hover:bg-success/15 hover:text-success disabled:opacity-100',
-  too_easy: 'bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary disabled:opacity-100',
-  too_hard: 'bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary disabled:opacity-100',
-  not_interested: 'bg-muted text-foreground disabled:opacity-100',
-};
+// Pressed buttons are also disabled (a kind is sent once): an ink icon on the hover tint, fully opaque so the state
+// reads clearly. A pressed Like also fills its heart.
+const PRESSED = 'bg-accent text-foreground disabled:opacity-100';
 
 function errorText(e: unknown): string {
   if (e instanceof BrowserApiError) return e.message;
@@ -130,9 +125,9 @@ export function FeedCard({
           aria-pressed={sent.has(kind)}
           disabled={sent.has(kind) || inflight.has(kind)}
           onClick={() => void send(kind)}
-          className={cn(sent.has(kind) ? PRESSED[kind] : 'text-muted-foreground hover:text-foreground')}
+          className={cn('h-[30px] w-7', sent.has(kind) ? PRESSED : 'text-muted-foreground')}
         >
-          <Icon aria-hidden className={cn(kind === 'like' && sent.has(kind) && 'fill-current')} />
+          <Icon aria-hidden strokeWidth={1.75} className={cn(kind === 'like' && sent.has(kind) && 'fill-current')} />
         </Button>
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
@@ -155,25 +150,28 @@ export function FeedCard({
           transition={transition}
           className="overflow-hidden"
         >
+          {/* Collapsed: a quiet one-line row on the page background, the Read mark and the remaining feedback. */}
           <Card
             ref={cardRef}
             tabIndex={-1}
             role="article"
-            className="gap-2 rounded-xl border border-dashed bg-muted/40 p-3 shadow-none ring-0 outline-none focus-visible:ring-3 focus-visible:ring-ring/40 sm:px-4"
+            className="gap-0 bg-transparent py-0 pt-3.5 pr-4 pb-3 pl-5 outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring max-sm:pt-3 max-sm:pr-3.5 max-sm:pb-2.5 max-sm:pl-4"
           >
-            <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-success">
-                <CircleCheck aria-hidden className="size-4" />
+            <h2 className="line-clamp-1 text-[15px] leading-snug font-medium text-muted-foreground">
+              <a
+                {...openLink}
+                className="underline-offset-3 outline-none hover:underline focus-visible:text-foreground focus-visible:underline focus-visible:decoration-2 focus-visible:decoration-ring"
+              >
+                {article.title}
+              </a>
+            </h2>
+            <div className="flex items-center justify-between gap-3 pt-1.5">
+              <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+                <Check aria-hidden className="size-3.5" />
                 Read
               </span>
-              <div className="flex items-center gap-0.5">{AFTER_READ.map(feedbackButton)}</div>
+              <div className="flex items-center">{AFTER_READ.map(feedbackButton)}</div>
             </div>
-            <a
-              {...openLink}
-              className="line-clamp-2 text-sm text-muted-foreground outline-none hover:text-foreground hover:underline focus-visible:text-foreground focus-visible:underline"
-            >
-              {article.title}
-            </a>
             {alerts}
           </Card>
         </motion.div>
@@ -188,45 +186,36 @@ export function FeedCard({
           <Card
             tabIndex={-1}
             role="article"
-            className="h-full gap-3 rounded-xl border p-4 shadow-none ring-0 outline-none transition-colors hover:border-primary/40 focus-visible:ring-3 focus-visible:ring-ring/40"
+            className="h-full gap-0 px-[18px] py-0 pt-[18px] pb-4 outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring sm:px-6 sm:pt-[22px] sm:pb-5"
           >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <TypeBadge type={article.type} />
+            <div className="mb-2.5 flex items-center justify-between gap-3 sm:mb-3.5">
+              <ArticleType type={article.type} />
               <DifficultyMeter difficulty={article.difficulty} label={difficultyLabel} />
             </div>
 
-            <h2 className="line-clamp-3 text-[0.9375rem] leading-snug font-semibold tracking-tight text-pretty">
+            <h2 className="mb-2.5 line-clamp-3 text-[17px] leading-[1.35] font-semibold tracking-[-0.012em] text-pretty sm:text-lg">
               <a
                 {...openLink}
-                className="outline-none hover:text-primary focus-visible:text-primary focus-visible:underline focus-visible:underline-offset-4"
+                className="decoration-1 underline-offset-3 outline-none hover:underline focus-visible:underline focus-visible:decoration-2 focus-visible:decoration-ring"
               >
                 {article.title}
               </a>
             </h2>
             <ArticleMeta sourceName={article.sourceName} publishedAt={article.publishedAt} wordCount={article.wordCount} />
 
-            {article.skills.length > 0 ? (
-              <ul className="flex flex-wrap gap-1.5" aria-label="Skills">
-                {article.skills.map((s) => (
-                  <li key={s.id}>
-                    <SkillChip name={s.name} primary={s.isPrimary} />
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-
-            <div className="mt-auto space-y-3 pt-1">
-              <Separator />
-              <div className="flex items-center justify-between gap-2">
-                <Button asChild size="sm" className="px-3">
-                  <a {...readLink} aria-label={`Read ${article.title}`}>
-                    Read
-                    <ArrowUpRight aria-hidden />
-                  </a>
-                </Button>
-                <div className="flex items-center gap-0.5">{BUTTONS.map(feedbackButton)}</div>
+            <div className="mt-auto pt-4 sm:pt-[22px]">
+              <div className="flex items-center justify-between gap-3">
+                <SkillSummary skills={article.skills} />
+                <div className="ml-auto flex shrink-0 items-center">
+                  {BUTTONS.map(feedbackButton)}
+                  <Button asChild size="sm" className="ml-2 px-[13px]">
+                    <a {...readLink} aria-label={`Read ${article.title}`}>
+                      Read
+                    </a>
+                  </Button>
+                </div>
               </div>
-              {alerts.length > 0 ? <div className="space-y-1">{alerts}</div> : null}
+              {alerts.length > 0 ? <div className="mt-3 space-y-1">{alerts}</div> : null}
             </div>
           </Card>
         </motion.div>

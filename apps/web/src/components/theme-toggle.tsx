@@ -11,7 +11,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { SidebarMenuButton } from '@/components/ui/sidebar';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 const THEMES = [
   { value: 'light', label: 'Light', icon: Sun },
@@ -22,29 +22,27 @@ const THEMES = [
 // The icon follows the resolved theme through CSS, so it renders without a hydration mismatch.
 const themeIcon = (
   <>
-    <Sun className="dark:hidden" aria-hidden />
-    <Moon className="hidden dark:block" aria-hidden />
+    <Sun className="dark:hidden" aria-hidden strokeWidth={1.75} />
+    <Moon className="hidden dark:block" aria-hidden strokeWidth={1.75} />
   </>
 );
 
-/** Light / dark / system. `sidebar` renders the trigger as a sidebar menu row (icon-only with a tooltip when collapsed). */
-export function ThemeToggle({ sidebar = false }: { sidebar?: boolean }) {
+/** Light / dark / system, behind an icon button with a "Theme" tooltip. `side` places the tooltip and the menu. */
+export function ThemeToggle({ side = 'bottom' }: { side?: 'top' | 'right' | 'bottom' }) {
   const { theme, setTheme } = useTheme();
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        {sidebar ? (
-          <SidebarMenuButton tooltip="Theme" aria-label="Change theme">
-            {themeIcon}
-            <span>Theme</span>
-          </SidebarMenuButton>
-        ) : (
-          <Button variant="ghost" size="icon-sm" aria-label="Change theme" className="text-muted-foreground hover:text-foreground">
-            {themeIcon}
-          </Button>
-        )}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align={sidebar ? 'start' : 'end'} side={sidebar ? 'top' : 'bottom'} className="w-36">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Change theme" className="text-muted-foreground">
+              {themeIcon}
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent side={side}>Theme</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent align="end" side={side} className="w-36">
         <DropdownMenuLabel className="text-xs text-muted-foreground">Theme</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
           {THEMES.map(({ value, label, icon: Icon }) => (

@@ -2,11 +2,10 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { ChevronsUpDown, ListFilter, Search, X } from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import { MAX_FILTER_SKILLS, MAX_SEARCH_LENGTH, type SourceSummary, type Taxonomy } from '@attn/shared';
 import { change, clear, commit, edit, initFilterState, syncProps, type FilterBarState, type FilterValues } from '@/lib/filter-state';
 import { hasActiveFilters, toggleSkill } from '@/lib/filters';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -16,13 +15,14 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 const DEBOUNCE_MS = 300;
 // Radix Select has no empty value: this stands for "no source filter".
 const ALL_SOURCES = '__all__';
 
 /**
- * Filters shared by For you and All, kept in the URL: skills (multi-select, any-match), title search, and on All also
+ * Filters shared by For you and All, kept in the URL: title search, skills (multi-select, any-match), and on All also
  * source and dates. Every change does `router.replace` (no history entries) without `cursor`, so paging restarts, and
  * the server page re-fetches. Reloading restores the filters from the URL.
  */
@@ -90,12 +90,15 @@ export function FilterBar({
   const v = state.pending;
   const active = hasActiveFilters({ ...v, q: v.q.trim() });
 
+  const first = v.skill[0];
+  const more = v.skill.length - 1;
+
   return (
-    <div className="space-y-3" role="search" aria-label="Filter articles">
+    <div className={cn(sources ? 'space-y-3' : 'w-full sm:w-auto')} role="search" aria-label="Filter articles">
       <div className="flex flex-wrap items-center gap-2">
-        <InputGroup className="w-full bg-card sm:w-72 lg:w-80">
-          <InputGroupAddon>
-            <Search aria-hidden />
+        <InputGroup className="w-full sm:w-[260px]">
+          <InputGroupAddon className="pl-2.5">
+            <Search aria-hidden strokeWidth={1.75} />
           </InputGroupAddon>
           <InputGroupInput
             type="search"
@@ -108,24 +111,27 @@ export function FilterBar({
         </InputGroup>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="w-full justify-between gap-3 bg-card font-normal sm:w-auto sm:min-w-40">
-              <span className="inline-flex items-center gap-2">
-                <ListFilter aria-hidden className="text-muted-foreground" />
-                Skills
-                {v.skill.length > 0 ? (
-                  <Badge className="h-5 min-w-5 px-1.5 font-mono tabular-nums">
-                    <span className="sr-only">, </span>
-                    {v.skill.length}
-                    <span className="sr-only"> selected</span>
-                  </Badge>
+            <Button variant="outline" className="min-w-0 flex-1 justify-between gap-2 px-2.5 font-normal sm:max-w-60 sm:flex-none">
+              <span className="flex min-w-0 items-baseline gap-1">
+                {first ? (
+                  <>
+                    <span className="sr-only">Skills: </span>
+                    <span className="truncate">{names.get(first) ?? first}</span>
+                    {more > 0 ? (
+                      <span className="text-muted-foreground">
+                        +{more}
+                        <span className="sr-only"> more</span>
+                      </span>
+                    ) : null}
+                  </>
                 ) : (
-                  <span className="text-muted-foreground">All</span>
+                  'Skills'
                 )}
               </span>
-              <ChevronsUpDown aria-hidden className="text-muted-foreground" />
+              <ChevronDown aria-hidden strokeWidth={1.75} className="text-muted-foreground" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-(--radix-popover-trigger-width) min-w-72 gap-0 p-0">
+          <PopoverContent align={sources ? 'start' : 'end'} className="w-[min(280px,calc(100vw-2rem))] gap-0 p-0">
             <Command>
               <CommandInput placeholder="Search skills" aria-label="Search skills" />
               <CommandList className="max-h-80">
@@ -142,6 +148,7 @@ export function FilterBar({
                           aria-checked={checked}
                           disabled={!checked && v.skill.length >= MAX_FILTER_SKILLS}
                           onSelect={() => applyNow({ skill: toggleSkill(v.skill, s.id) })}
+                          className="gap-2.5"
                         >
                           {/* Visual only: the option itself is the control (aria-checked above). */}
                           <Checkbox checked={checked} tabIndex={-1} aria-hidden className="pointer-events-none" />
@@ -152,40 +159,24 @@ export function FilterBar({
                   </CommandGroup>
                 ))}
               </CommandList>
-              <Separator />
-              <p className="px-3 py-2 text-xs text-muted-foreground">
-                Up to {MAX_FILTER_SKILLS} skills; an article matches if it has any of them.
-              </p>
+              <Separator className="mt-1" />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={v.skill.length === 0}
+                onClick={() => applyNow({ skill: [] })}
+                className="mt-1 justify-start px-2 font-normal text-muted-foreground"
+              >
+                Clear
+              </Button>
             </Command>
           </PopoverContent>
         </Popover>
-        {active ? (
-          <div className="flex flex-wrap items-center gap-2 sm:ml-1">
-            {v.skill.length > 0 ? (
-              <ul className="flex flex-wrap gap-1.5" aria-label="Selected skills">
-                {v.skill.map((id) => {
-                  const name = names.get(id) ?? id;
-                  return (
-                    <li key={id}>
-                      <Badge asChild variant="secondary" className="h-6 gap-1 pr-1.5 pl-2.5 font-normal hover:bg-secondary/70">
-                        <button
-                          type="button"
-                          aria-label={`Remove skill filter: ${name}`}
-                          onClick={() => applyNow({ skill: v.skill.filter((s) => s !== id) })}
-                        >
-                          {name}
-                          <X aria-hidden className="text-muted-foreground" />
-                        </button>
-                      </Badge>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-            <Button type="button" variant="ghost" size="xs" onClick={clearAll} className="text-muted-foreground hover:text-foreground">
-              Clear filters
-            </Button>
-          </div>
+        {sources && active ? (
+          <Button type="button" variant="ghost" size="sm" onClick={clearAll} className="font-normal text-muted-foreground">
+            Clear filters
+          </Button>
         ) : null}
       </div>
 

@@ -1,27 +1,13 @@
 import type { ReactNode } from 'react';
-import type { LucideIcon } from 'lucide-react';
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 import { cn } from '@/lib/utils';
 
-/** An empty list or page: icon, title, and a short explanation (which may contain links). */
-export function EmptyState({
-  icon: Icon,
-  title,
-  children,
-  className,
-}: {
-  icon: LucideIcon;
-  title: string;
-  children?: ReactNode;
-  className?: string;
-}) {
+/** An empty list: one quiet line in muted text, optionally followed by a link or two. */
+export function EmptyState({ title, children, className }: { title: string; children?: ReactNode; className?: string }) {
   return (
-    <Empty className={cn('border bg-card/50 p-8 sm:p-10', className)}>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <Icon aria-hidden />
-        </EmptyMedia>
-        <EmptyTitle>{title}</EmptyTitle>
+    <Empty className={cn('items-start justify-start gap-0 rounded-none border-0 px-0 py-12 text-left', className)}>
+      <EmptyHeader className="max-w-none items-start gap-1">
+        <EmptyTitle className="text-[15px] font-normal text-muted-foreground">{title}</EmptyTitle>
         {children ? <EmptyDescription>{children}</EmptyDescription> : null}
       </EmptyHeader>
     </Empty>

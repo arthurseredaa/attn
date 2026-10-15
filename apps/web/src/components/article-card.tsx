@@ -1,12 +1,12 @@
 import { readingMinutes, type ArticleCard } from '@attn/shared';
-import { SkillChip } from '@/components/skill-chip';
+import { SkillSummary } from '@/components/skill-summary';
 
 const dateFormat = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'UTC' });
 
 export function ArticleCardView({ article }: { article: ArticleCard }) {
   const minutes = readingMinutes(article.wordCount);
   return (
-    <article className="rounded-xl border border-border bg-card p-4">
+    <article className="rounded-lg border border-border bg-card p-4">
       <a
         href={article.url}
         target="_blank"
@@ -19,15 +19,7 @@ export function ArticleCardView({ article }: { article: ArticleCard }) {
         {article.sourceName} · {dateFormat.format(new Date(article.publishedAt))}
         {minutes !== null ? ` · ${minutes} min read` : ''}
       </p>
-      {article.skills.length > 0 ? (
-        <ul className="mt-3 flex flex-wrap gap-2">
-          {article.skills.map((s) => (
-            <li key={s.id}>
-              <SkillChip name={s.name} primary={s.isPrimary} />
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <SkillSummary skills={article.skills} className="mt-3" />
     </article>
   );
 }

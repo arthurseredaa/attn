@@ -28,17 +28,14 @@ export default async function ForYouPage({ searchParams }: { searchParams: Promi
   const difficultyLabels = taxonomy.levels.toSorted((a, b) => a.level - b.level).map((l) => l.label);
 
   return (
-    <div className="space-y-6">
-      {/* Title block on the left; the row has room on the right for page-level widgets. */}
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">For you</h1>
-          <p className="text-sm text-muted-foreground">Ranked by your focus skills and level.</p>
-        </div>
+    <div>
+      {/* Title left, filters right on one row (they wrap under it on narrow screens). */}
+      <header className="mb-4 flex flex-wrap items-center justify-between gap-3.5 sm:mb-6 sm:gap-6">
+        <h1 className="text-2xl leading-tight font-semibold tracking-[-0.025em] sm:text-[28px]">For you</h1>
+        <FilterBar taxonomy={taxonomy} values={{ skill, q }} />
       </header>
-      <FilterBar taxonomy={taxonomy} values={{ skill, q }} />
       {problem ? (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="mb-6">
           <CircleAlert aria-hidden />
           <AlertDescription>{problem}</AlertDescription>
         </Alert>

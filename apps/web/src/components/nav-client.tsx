@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronsUpDown, LogIn, Newspaper, Sparkles, UserRound, type LucideIcon } from 'lucide-react';
+import { House, List, LogIn, UserRound, type LucideIcon } from 'lucide-react';
 import type { Me } from '@attn/shared';
 import { cn } from '@/lib/utils';
 import { isOnboardingPath, type NavItem } from '@/lib/nav-items';
@@ -36,34 +36,18 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { SignOutButton } from './sign-out-button';
 import { ThemeToggle } from './theme-toggle';
 
-const ICONS: Record<string, LucideIcon> = { '/for-you': Sparkles, '/all': Newspaper, '/profile': UserRound };
+const ICONS: Record<string, LucideIcon> = { '/for-you': House, '/all': List, '/profile': UserRound };
 
 const brandClass =
-  'flex items-center gap-2 rounded-md text-base font-semibold tracking-tight outline-none focus-visible:ring-3 focus-visible:ring-ring/50';
+  'rounded-sm text-xl leading-none font-bold tracking-[-0.03em] outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
 
-function BrandMark({ className }: { className?: string }) {
-  return (
-    <span aria-hidden className={cn('grid size-6 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground', className)}>
-      <span className="size-2 rounded-full bg-current" />
-    </span>
-  );
-}
-
-/** The brand; on onboarding it is plain text, not a link that leaves the flow. */
+/** The brand, plain text; on onboarding it is not a link, so it does not lead out of the flow. */
 export function Brand({ className }: { className?: string }) {
   const pathname = usePathname();
-  if (isOnboardingPath(pathname)) {
-    return (
-      <span className={cn(brandClass, className)}>
-        <BrandMark />
-        ATTN
-      </span>
-    );
-  }
+  if (isOnboardingPath(pathname)) return <span className={cn(brandClass, className)}>attn</span>;
   return (
     <Link href="/" className={cn(brandClass, className)}>
-      <BrandMark />
-      ATTN
+      attn
     </Link>
   );
 }
@@ -81,26 +65,23 @@ function NavUser({ me }: { me: Me }) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <SidebarMenuButton
-          size="lg"
           tooltip={displayName}
           aria-label={`Account menu for ${displayName}`}
-          className="data-[state=open]:bg-sidebar-accent"
+          className="min-w-0 flex-1 px-1 text-sidebar-foreground data-[state=open]:bg-sidebar-accent"
         >
-          <Avatar className="size-8 rounded-lg after:rounded-lg">
-            {me.avatarUrl ? <AvatarImage src={me.avatarUrl} alt="" className="rounded-lg" /> : null}
-            <AvatarFallback className="rounded-lg text-xs font-medium">{initials(displayName)}</AvatarFallback>
+          <Avatar className="size-7 rounded-full after:rounded-full">
+            {me.avatarUrl ? <AvatarImage src={me.avatarUrl} alt="" className="rounded-full" /> : null}
+            <AvatarFallback className="rounded-full bg-foreground text-[13px] font-semibold text-background">
+              {initials(displayName)}
+            </AvatarFallback>
           </Avatar>
-          <span className="grid min-w-0 flex-1 text-left leading-tight">
-            <span className="truncate text-sm font-medium">{displayName}</span>
-            <span className="truncate font-mono text-xs text-muted-foreground">@{me.login}</span>
-          </span>
-          <ChevronsUpDown aria-hidden className="ml-auto text-muted-foreground" />
+          <span className="truncate">{displayName}</span>
         </SidebarMenuButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent side={isMobile ? 'top' : 'right'} align="end" sideOffset={8} className="w-56">
         <DropdownMenuLabel className="flex flex-col gap-0.5">
           <span className="truncate text-sm font-medium text-foreground">{displayName}</span>
-          <span className="truncate font-mono text-xs font-normal text-muted-foreground">@{me.login}</span>
+          <span className="truncate text-xs font-normal text-muted-foreground">@{me.login}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
@@ -120,34 +101,31 @@ function AppSidebar({ me, items }: { me: Me | null; items: NavItem[] }) {
   const { setOpenMobile } = useSidebar();
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="h-14 flex-row items-center justify-between gap-2 border-b px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
-        <Brand className="min-w-0 group-data-[collapsible=icon]:hidden" />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            Toggle sidebar <kbd className="ml-1 font-mono text-[10px] opacity-70">⌘B</kbd>
-          </TooltipContent>
-        </Tooltip>
+      <SidebarHeader className="mb-5 px-3 pt-4 pb-0">
+        <div className="flex h-9 items-center justify-between gap-2 pr-1 pl-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0">
+          <Brand className="group-data-[collapsible=icon]:hidden" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SidebarTrigger className="text-muted-foreground" />
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              Toggle sidebar <kbd className="ml-1 font-mono text-[11px] opacity-70">⌘B</kbd>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup role="navigation" aria-label="Main">
+      <SidebarContent className="px-3">
+        <SidebarGroup role="navigation" aria-label="Main" className="p-0">
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-0.5">
               {items.map((i) => {
                 const active = pathname === i.href || (pathname?.startsWith(`${i.href}/`) ?? false);
-                const Icon = ICONS[i.href] ?? Newspaper;
+                const Icon = ICONS[i.href] ?? List;
                 return (
                   <SidebarMenuItem key={i.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={active}
-                      tooltip={i.label}
-                      className="text-muted-foreground hover:text-foreground data-[active=true]:text-foreground data-[active=true]:[&>svg]:text-primary"
-                    >
+                    <SidebarMenuButton asChild isActive={active} tooltip={i.label}>
                       <Link href={i.href} aria-current={active ? 'page' : undefined} onClick={() => setOpenMobile(false)}>
-                        <Icon aria-hidden />
+                        <Icon aria-hidden strokeWidth={1.75} />
                         <span>{i.label}</span>
                       </Link>
                     </SidebarMenuButton>
@@ -158,36 +136,33 @@ function AppSidebar({ me, items }: { me: Me | null; items: NavItem[] }) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="border-t">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <ThemeToggle sidebar />
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            {me ? (
-              <NavUser me={me} />
-            ) : (
-              <SidebarMenuButton
-                asChild
-                tooltip="Sign in with GitHub"
-                className="bg-primary font-medium text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
-              >
-                {/* Plain anchor: this is an api redirect, not a Next route. */}
-                <a href="/api/auth/github">
-                  <LogIn aria-hidden />
-                  <span>Sign in with GitHub</span>
-                </a>
-              </SidebarMenuButton>
-            )}
-          </SidebarMenuItem>
-        </SidebarMenu>
+      <SidebarFooter className="px-3 pt-2 pb-4">
+        {/* User on the left, theme on the right; stacked (theme on top) when collapsed to icons. */}
+        <div className="flex items-center justify-between gap-2 pr-1 pl-1.5 group-data-[collapsible=icon]:flex-col-reverse group-data-[collapsible=icon]:gap-3 group-data-[collapsible=icon]:p-0">
+          {me ? (
+            <NavUser me={me} />
+          ) : (
+            <SidebarMenuButton
+              asChild
+              tooltip="Sign in with GitHub"
+              className="min-w-0 flex-1 bg-primary font-semibold text-primary-foreground hover:bg-primary hover:text-primary-foreground hover:brightness-[.94] active:bg-primary active:text-primary-foreground"
+            >
+              {/* Plain anchor: this is an api redirect, not a Next route. */}
+              <a href="/api/auth/github">
+                <LogIn aria-hidden strokeWidth={1.75} />
+                <span>Sign in with GitHub</span>
+              </a>
+            </SidebarMenuButton>
+          )}
+          <ThemeToggle side="right" />
+        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );
 }
 
-const contentPadding = 'px-4 py-6 md:px-6 md:py-8 lg:px-8';
+const contentPadding = 'px-4 pt-5 pb-12 md:px-10 md:pt-8 md:pb-16';
 
 /**
  * Sidebar layout (collapsible to icons, Cmd/Ctrl+B, a sheet on mobile with a slim top bar). The onboarding flow gets
@@ -208,8 +183,8 @@ export function AppShell({
   if (isOnboardingPath(pathname)) {
     return (
       <div className="min-h-svh">
-        <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur supports-backdrop-filter:bg-background/65">
-          <div className="flex h-14 items-center justify-between gap-2 px-4 md:px-6 lg:px-8">
+        <header className="sticky top-0 z-30 border-b bg-background">
+          <div className="flex h-14 items-center justify-between gap-2 px-4 md:px-10">
             <Brand />
             <ThemeToggle />
           </div>
@@ -222,8 +197,8 @@ export function AppShell({
     <SidebarProvider defaultOpen={defaultOpen}>
       <AppSidebar me={me} items={items} />
       <SidebarInset>
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur supports-backdrop-filter:bg-background/65 md:hidden">
-          <SidebarTrigger className="-ml-1.5" />
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background px-4 md:hidden">
+          <SidebarTrigger className="-ml-1.5 text-muted-foreground" />
           <Brand />
         </header>
         <div className={cn('flex-1', contentPadding)}>{children}</div>

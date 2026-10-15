@@ -11,11 +11,12 @@
   },
   "dependencies": {
     "@attn/shared": "workspace:^",
+    "@fontsource-variable/hanken-grotesk": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "class-variance-authority": "^0.7.1",
     "cmdk": "^1.1.1",
     "cn": "^0.4.0",
     "date-fns": "^4.4.0",
-    "geist": "^1.7.2",
     "lucide-react": "^1.57.0",
     "motion": "^14.2.0",
     "next": "^16.4.0",

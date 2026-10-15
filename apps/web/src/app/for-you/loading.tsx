@@ -1,34 +1,21 @@
 import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function TileSkeleton() {
   return (
-    <Card className="h-full gap-3 rounded-xl border p-4 shadow-none ring-0">
-      <div className="flex items-center justify-between gap-2">
-        <Skeleton className="h-6 w-20 rounded-full" />
-        <Skeleton className="h-3 w-28" />
+    <Card className="h-full min-h-56 gap-0 px-[18px] py-0 pt-[18px] pb-4 sm:px-6 sm:pt-[22px] sm:pb-5">
+      <div className="mb-2.5 flex items-center justify-between gap-3 sm:mb-3.5">
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-3 w-32" />
       </div>
-      <div className="space-y-2">
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-3/4" />
+      <div className="mb-2.5 space-y-2">
+        <Skeleton className="h-5 w-full" />
+        <Skeleton className="h-5 w-2/3" />
       </div>
-      <Skeleton className="h-3 w-40" />
-      <div className="flex gap-1.5">
-        <Skeleton className="h-6 w-24 rounded-full" />
-        <Skeleton className="h-6 w-20 rounded-full" />
-      </div>
-      <div className="mt-auto space-y-3 pt-1">
-        <Separator />
-        <div className="flex items-center justify-between gap-2">
-          <Skeleton className="h-8 w-20" />
-          <div className="flex gap-1">
-            <Skeleton className="size-8" />
-            <Skeleton className="size-8" />
-            <Skeleton className="size-8" />
-            <Skeleton className="size-8" />
-          </div>
-        </div>
+      <Skeleton className="h-4 w-44" />
+      <div className="mt-auto flex items-center justify-between gap-3 pt-4 sm:pt-[22px]">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-8 w-36" />
       </div>
     </Card>
   );
@@ -36,24 +23,26 @@ function TileSkeleton() {
 
 export default function Loading() {
   return (
-    <div className="space-y-6" aria-busy="true" aria-live="polite">
+    <div aria-busy="true" aria-live="polite">
       <span className="sr-only">Loading your feed…</span>
-      <div className="space-y-2">
+      {/* Same header row as the page: title left, filters right. */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3.5 sm:mb-6 sm:gap-6">
         <Skeleton className="h-8 w-32" />
-        <Skeleton className="h-4 w-64" />
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Skeleton className="h-9 w-full sm:w-72 lg:w-80" />
-        <Skeleton className="h-9 w-full sm:w-40" />
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          <Skeleton className="h-9 w-full sm:w-[260px]" />
+          <Skeleton className="h-9 flex-1 sm:w-28 sm:flex-none" />
+        </div>
       </div>
       {/* Same grid as FeedList. */}
-      <ul className="grid grid-cols-1 gap-3 md:grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]">
-        {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-          <li key={i} className={i >= 4 ? 'hidden xl:block' : undefined}>
-            <TileSkeleton />
-          </li>
-        ))}
-      </ul>
+      <div className="@container">
+        <ul className="grid grid-cols-1 gap-3 @min-[560px]:grid-cols-2 @min-[560px]:gap-4 @min-[1000px]:grid-cols-3 @min-[1560px]:grid-cols-4">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <li key={i} className={i >= 3 ? 'hidden @min-[560px]:block' : undefined}>
+              <TileSkeleton />
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
