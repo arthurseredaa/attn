@@ -241,7 +241,7 @@ Rank already needs quality >= 2, so junk never reached a feed; it cost labeling 
   (https://blog.jetbrains.com/ai/feed/); the gate handles relevance. Feeds were fetched fine during analysis; tests use
   small saved fixtures shaped like them, never the network.
 - **Relevance gate:** one extra boolean `relevant` question inside the existing single jev decide call (no extra call,
-  negligible extra cost: the skill map adds some input tokens); below `relevance_threshold` 0.5 the article is `excluded` instead of labeled. A refusal or missing
+  negligible extra cost: the skill map adds some input tokens); below `relevance_threshold` 0.3 (lowered by the owner on 2026-10-15 after the first run excluded a useful live blog; code default stays 0.5) the article is `excluded` instead of labeled. A refusal or missing
   answer = relevant (never exclude on doubt). Other labelers have no gate. Recall bias is deliberate: sample-audit the
   `excluded` log lines now and then.
 - **`excluded` status instead of deleting:** the foreign keys of `article_events` and `article_skills` cascade, so a

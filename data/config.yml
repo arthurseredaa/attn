@@ -20,7 +20,7 @@ jev_secondary_threshold: 0.5
 # Label (typesafe-ai/jev only): relevance gate. jev also answers "is this article useful: does it teach or meaningfully
 # inform at least one skill in our skill map?". When its probability of "yes" is below this value (0-1], the article is
 # marked excluded instead of labeled. A refused or missing answer counts as relevant. Claude/Gemini labelers have no gate.
-relevance_threshold: 0.5
+relevance_threshold: 0.3
 # Pipeline: cron expression for the daily collect + label job.
 schedule_cron: "0 6 * * *"
 # Quiz: a skill is uncertain when the mean |first-choice level - second-choice level| over its quiz questions is >= this value.

@@ -54,6 +54,6 @@ describe('real data files', () => {
     const c = loadConfig();
     expect(c).toMatchObject({ points_per_level: 5, interest_decay: 0.8, interest_min: 0.2,
       quality_min: 2, background_quality_min: 4, fresh_days: 14, page_size: 20,
-      label_overload_backoff_ms: [2000, 5000, 10000], jev_secondary_threshold: 0.5, relevance_threshold: 0.5 });
+      label_overload_backoff_ms: [2000, 5000, 10000], jev_secondary_threshold: 0.5, relevance_threshold: 0.3 });
   });
 });
