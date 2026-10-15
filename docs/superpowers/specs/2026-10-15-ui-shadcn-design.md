@@ -72,6 +72,11 @@ Everything else stays neutral zinc, so the accents carry information.
 - `motion` (motion/react) only for the landing animation and small enter/collapse transitions, such as the read card collapsing.
 - Everything respects `prefers-reduced-motion`.
 
+**shadcn components everywhere (owner rule).**
+- Every hand-rolled control is replaced by its shadcn equivalent, not restyled: buttons and link-buttons (`Button asChild`), inputs, selects, checkboxes, the multi-select (Popover + Command), menus, tooltips, cards, alerts, badges and skeletons.
+- Local class-string constants (`btn`, `primary`, `ghostBtn`, `control`, `focusRing`, the copy-pasted alert and chip markup) are deleted in each migrated file.
+- Custom components exist only where shadcn has no equivalent (LevelMeter, the sortable list).
+
 **Behaviour stays as is.**
 - Logic in `src/lib/*` is untouched (filters, filter-state, query, reorder, article-links, nav-items, api, browser-api, guards).
 - Client components keep their state, refs, focus management, aria labels, inflight guards and error handling. Only markup and classes change.
@@ -110,6 +115,20 @@ Everything else stays neutral zinc, so the accents carry information.
    - ThemeToggle;
    - Avatar with a DropdownMenu (Profile, Sign out).
    - `HideOnOnboarding` is kept.
+
+## Layout changes (owner, 2026-10-15). These override the sections above where they conflict.
+
+- **Sidebar instead of a top header.**
+  - The shadcn `Sidebar` with `collapsible="icon"`: it expands and collapses dynamically, has a Cmd/Ctrl+B shortcut and keeps its state in a cookie.
+  - Header: the brand. Content: nav items with icons. Footer: theme toggle and the user menu.
+  - On mobile it becomes a Sheet opened from a slim top bar.
+  - No sidebar on /onboarding.
+- **Full width.** There is no `max-w-4xl` container. Content fills the `SidebarInset`.
+- **For you as a grid of tiles.**
+  - Desktop shows a responsive grid of cards: 2 columns at md, 3 at xl, 4 at 2xl.
+  - Each tile is laid out top to bottom: type + difficulty, title, metadata, skills, then actions pinned to the bottom.
+  - Mobile keeps a single-column list.
+- **Streaks (future).** A streak widget will go at the top of For you. It is not part of this redesign. The page header just stays easy to extend.
 
 ## Pages, one per approval cycle
 
