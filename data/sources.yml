@@ -34,6 +34,8 @@
   url: https://github.blog/ai-and-ml/feed/
 # openai-news is intentionally absent: openai.com article pages are behind a Cloudflare managed challenge
 # (HTTP 403) for our honest attn-collector User-Agent, and its RSS blurbs are shorter than label_min_chars.
+# jetbrains-ai is intentionally absent: blog.jetbrains.com (pages and feed) sits behind an AWS WAF bot challenge
+# (HTTP 202, x-amzn-waf-action: challenge) as of 2026-10-15.
 # Simon Willison: tag feeds instead of the full feed (which is mostly quotes and release notes). Both feeds overlap;
 # url uniqueness dedups. The id simon-willison stays with the first feed so existing articles keep their source.
 - id: simon-willison
@@ -75,7 +77,3 @@
   name: Philipp Schmid
   type: rss
   url: https://www.philschmid.de/rss
-- id: jetbrains-ai
-  name: JetBrains AI blog
-  type: rss
-  url: https://blog.jetbrains.com/ai/feed/

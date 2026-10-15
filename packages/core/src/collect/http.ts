@@ -15,6 +15,17 @@ export const USER_AGENT = 'attn-collector/0.1 (+https://github.com/arthursereda/
 const ACCEPT = 'application/xml, text/xml, application/rss+xml, application/atom+xml, */*';
 const DEFAULT_TIMEOUT_MS = 20000;
 
+/** Reason string when the response is a bot challenge instead of content, else null. */
+export function botBlockReason(res: Response): string | null {
+  const waf = res.headers.get('x-amzn-waf-action');
+  const cf = res.headers.get('cf-mitigated');
+  if (res.status !== 202 && waf === null && cf === null) return null;
+  const parts = [`HTTP ${res.status}`];
+  if (waf !== null) parts.push(`x-amzn-waf-action: ${waf}`);
+  if (cf !== null) parts.push(`cf-mitigated: ${cf}`);
+  return `bot-blocked (${parts.join(', ')})`;
+}
+
 export async function conditionalGet(
   url: string,
   state: CachedState | null,
@@ -38,6 +49,8 @@ export async function conditionalGet(
       lastModified: state?.lastModified ?? null,
     };
   }
+  const blocked = botBlockReason(res);
+  if (blocked) throw new Error(`${blocked} for ${url}`);
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
   return {
     status: 'ok',
@@ -57,6 +70,8 @@ export async function getText(
     redirect: 'follow',
     signal: AbortSignal.timeout(timeoutMs),
   });
+  const blocked = botBlockReason(res);
+  if (blocked) throw new Error(`${blocked} for ${url}`);
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
   return res.text();
 }

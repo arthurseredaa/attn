@@ -452,6 +452,8 @@ Owner hand-off:
 - OpenAI News is not a source. openai.com article pages sit behind a Cloudflare managed challenge (HTTP 403) for
   the honest `attn-collector` User-Agent, and spoofing a browser is not an option. Its RSS blurbs (median 149
   characters) are also below `label_min_chars` (500), so they could not be labeled.
+- JetBrains AI blog is not a source. blog.jetbrains.com (pages and feed) answers the honest `attn-collector`
+  User-Agent with an AWS WAF bot challenge (HTTP 202, `x-amzn-waf-action: challenge`) as of 2026-10-15.
 
 ## License
 

@@ -13,11 +13,11 @@ describe('real data files', () => {
     const text = JSON.stringify(t);
     expect(text).not.toMatch(/[Ѐ-ӿ]/); // no Cyrillic left
   });
-  it('sources: exactly the 15 ids (mozilla-ai-blog dropped, simon-willison tag feeds, philschmid, jetbrains-ai added)', () => {
+  it('sources: exactly the 14 ids (mozilla-ai-blog and jetbrains-ai dropped, simon-willison tag feeds, philschmid added)', () => {
     const ids = loadSources().map((s) => s.id).sort();
     expect(ids).toEqual([
       'addy-osmani','ai-hero','anthropic-engineering','anthropic-news','claude-dev','cloudflare-ai',
-      'github-blog-ai','hamel-evals','jetbrains-ai','latent-space','mcp-blog','philschmid',
+      'github-blog-ai','hamel-evals','latent-space','mcp-blog','philschmid',
       'simon-willison','simon-willison-claude-code','vercel',
     ]);
   });
@@ -26,8 +26,8 @@ describe('real data files', () => {
     expect(by.get('simon-willison')?.url).toBe('https://simonwillison.net/tags/ai-assisted-programming.atom');
     expect(by.get('simon-willison-claude-code')?.url).toBe('https://simonwillison.net/tags/claude-code.atom');
     expect(by.get('philschmid')?.url).toBe('https://www.philschmid.de/rss');
-    expect(by.get('jetbrains-ai')?.url).toBe('https://blog.jetbrains.com/ai/feed/');
-    for (const id of ['anthropic-news', 'philschmid', 'jetbrains-ai']) expect(by.get(id)?.filter).toBeUndefined();
+    expect(by.has('jetbrains-ai')).toBe(false);
+    for (const id of ['anthropic-news', 'philschmid']) expect(by.get(id)?.filter).toBeUndefined();
   });
   it('sources: the owner-approved exclusion rules block exactly the intended urls', () => {
     const by = new Map(loadSources().map((s) => [s.id, s]));

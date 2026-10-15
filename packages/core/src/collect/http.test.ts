@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { startServer, type TestServer } from '../test/server';
 import { conditionalGet, getText, USER_AGENT } from './http';
 
@@ -65,5 +65,29 @@ describe('getText', () => {
     server = await startServer({ '/ok': { body: 'hello' } });
     expect(await getText(`${server.baseUrl}/ok`)).toBe('hello');
     await expect(getText(`${server.baseUrl}/missing`)).rejects.toThrow(/404/);
+  });
+});
+
+describe('bot-blocked responses', () => {
+  beforeEach(async () => {
+    server = await startServer({});
+  });
+  const mk = (init: ResponseInit) => (async () => new Response('<html>challenge</html>', init)) as typeof fetch;
+
+  it('conditionalGet rejects a 202 WAF challenge', async () => {
+    const f = mk({ status: 202, headers: { 'x-amzn-waf-action': 'challenge' } });
+    await expect(conditionalGet('https://example.invalid/feed', null, f)).rejects.toThrow(
+      /bot-blocked \(HTTP 202, x-amzn-waf-action: challenge\)/,
+    );
+  });
+
+  it('conditionalGet rejects cf-mitigated even on 200', async () => {
+    const f = mk({ status: 200, headers: { 'cf-mitigated': 'challenge' } });
+    await expect(conditionalGet('https://example.invalid/feed', null, f)).rejects.toThrow(/bot-blocked/);
+  });
+
+  it('getText rejects a 202 and passes a normal 200', async () => {
+    await expect(getText('https://example.invalid/s', mk({ status: 202 }))).rejects.toThrow(/bot-blocked/);
+    expect(await getText('https://example.invalid/s', mk({ status: 200 }))).toBe('<html>challenge</html>');
   });
 });
