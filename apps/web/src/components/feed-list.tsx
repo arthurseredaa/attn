@@ -4,9 +4,20 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { feedNextOffset, feedPageSchema, mergeFeedItems, type FeedPage } from '@attn/shared';
 import { BrowserApiError, browserJson } from '@/lib/browser-api';
+import { buildQueryString } from '@/lib/query';
 import { FeedCard } from '@/components/feed-card';
 
-export function FeedList({ initial }: { initial: FeedPage }) {
+export function FeedList({
+  initial,
+  filters,
+  filtered,
+}: {
+  initial: FeedPage;
+  /** The skill/title filters `initial` was fetched with; "load more" repeats them so the offset stays in the same list. */
+  filters: { skill: string[]; q: string };
+  /** Any filter is set: an empty list then means "no match", not "nothing to read". */
+  filtered: boolean;
+}) {
   const [items, setItems] = useState(initial.items);
   const [hasMore, setHasMore] = useState(initial.nextOffset !== null);
   const [loading, setLoading] = useState(false);
@@ -55,7 +66,11 @@ export function FeedList({ initial }: { initial: FeedPage }) {
     setLoading(true);
     setError(null);
     try {
-      const page = await browserJson('GET', `/feed?offset=${feedNextOffset(servedRef.current, excludedRef.current)}`, feedPageSchema);
+      const page = await browserJson(
+        'GET',
+        `/feed${buildQueryString({ offset: feedNextOffset(servedRef.current, excludedRef.current), skill: filters.skill, q: filters.q })}`,
+        feedPageSchema,
+      );
       // merge into the current items, not the ones captured at click time
       itemsRef.current = mergeFeedItems(itemsRef.current, page.items).items;
       servedRef.current += page.items.length;
@@ -75,7 +90,9 @@ export function FeedList({ initial }: { initial: FeedPage }) {
 
   return (
     <div ref={listRef} tabIndex={-1} className="space-y-4 outline-none">
-      {items.length === 0 && !hasMore ? (
+      {items.length === 0 && !hasMore && filtered ? (
+        <p className="text-sm text-muted">No articles in your feed match these filters. Try removing a skill or changing the search.</p>
+      ) : items.length === 0 && !hasMore ? (
         <p className="text-sm text-muted">
           Nothing to show right now. Check your focus skills on your{' '}
           <Link href="/profile" className="underline">

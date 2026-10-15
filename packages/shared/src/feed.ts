@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { articleCardSchema, type ArticleCard } from './api';
+import { articleCardSchema, searchTextSchema, skillFilterSchema, type ArticleCard } from './api';
 import { eventKindSchema, type EventKind } from './enums';
 
 export const FEED_MAX_OFFSET = 10_000;
@@ -11,7 +11,10 @@ export const feedQuerySchema = z.object({
     .transform(Number)
     .pipe(z.number().int().max(FEED_MAX_OFFSET))
     .default(0),
+  skill: skillFilterSchema,
+  q: searchTextSchema,
 });
+export type FeedQuery = z.infer<typeof feedQuerySchema>;
 
 export const feedPageSchema = z.object({
   items: z.array(articleCardSchema),

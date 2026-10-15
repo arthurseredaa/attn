@@ -99,7 +99,9 @@ All routes are under `/api`; errors are JSON `{ "error", "message" }`.
 - `GET /api/auth/github/callback`: finish sign-in, set the session cookie, redirect to the site
 - `POST /api/auth/logout`: delete the session (204)
 - `GET /api/me`: the signed-in user (401 without a session)
-- `GET /api/articles?source=&skill=&from=&to=&cursor=&limit=`: labeled articles, newest first, cursor pagination
+- `GET /api/articles?source=&skill=&q=&from=&to=&cursor=&limit=`: labeled articles, newest first, cursor pagination;
+  `skill` repeats (`skill=a&skill=b`, any-match on primary or secondary, up to 10, each a taxonomy id) and `q` is a
+  case-insensitive title search (up to 100 characters); both are 400 when invalid
 - `GET /api/sources`
 - `GET /api/taxonomy`
 - `GET /api/quiz?skills=`: quiz questions (no answers) for the signed-in user's role, for the given skills
@@ -107,7 +109,9 @@ All routes are under `/api`; errors are JSON `{ "error", "message" }`.
 - `PUT /api/focus`: replace the ordered focus skills (onboarded users only)
 - `GET /api/profile`: the signed-in user's skill levels and focus, reading history (latest 20, plus the total) and
   the 👍 share among read articles
-- `GET /api/feed?offset=`: the For you page (20 cards, `{ items, nextOffset }`), ranked for the signed-in user
+- `GET /api/feed?offset=&skill=&q=`: the For you page (20 cards, `{ items, nextOffset }`), ranked for the signed-in
+  user; `skill` and `q` work as on `/api/articles` and narrow the ranked list before paging, so repeat them with
+  every `offset`
 - `POST /api/articles/:id/events`: record feedback with `{ kind }` (`read`, `like`, `too_easy`, `too_hard`,
   `not_interested`); 200 `{ kind, recorded }`, a repeated click is a no-op (`recorded: false`)
 
@@ -360,7 +364,8 @@ counts.
 Feedback applies to the article's primary skill, only to skills that exist after onboarding (a user who has not
 onboarded has events recorded but no skill effects).
 
-- **Read** (the title and the Read link both open the article in a new tab and record it): the article leaves the
+- **Read** (only the Read button records it, and it opens the article in a new tab; clicking the title just opens the
+  article and records nothing): the article leaves the
   feed. On screen the card collapses to a strip "Read ✓ · 👍 · Too easy · Too hard", so feedback can still be given
   after reading; it is gone on the next page load. If the article's difficulty is at or above the user's level,
   the skill gets +1 point; `points_per_level` (5) points give +1 level (cap 4) and reset points.

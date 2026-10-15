@@ -19,7 +19,6 @@ export class FeedController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<FeedPage> {
     res.setHeader('Cache-Control', 'no-store');
-    const { offset } = parseWith(feedQuerySchema, raw, 'query');
-    return this.feed.get(user, offset);
+    return this.feed.get(user, parseWith(feedQuerySchema, raw, 'query'));
   }
 }

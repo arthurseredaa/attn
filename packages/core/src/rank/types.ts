@@ -3,6 +3,10 @@ import type { ArticleCard, Config, Source, Taxonomy } from '@attn/shared';
 export interface RankParams {
   limit: number;
   offset: number;
+  /** Any-match: keep articles that have ANY of these skills (primary or secondary). Empty or absent: no filter. */
+  skills?: string[];
+  /** Case-insensitive substring match on the article title (literal text, not a pattern). Empty or absent: no filter. */
+  q?: string;
 }
 
 export interface Ranker {

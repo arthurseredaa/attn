@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { eventResponseSchema, readingMinutes, type ArticleCard, type EventKind } from '@attn/shared';
+import { articleLinks } from '@/lib/article-links';
 import { BrowserApiError, browserJson } from '@/lib/browser-api';
 
 const dateFormat = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'UTC' });
@@ -92,16 +93,7 @@ export function FeedCard({
     }
   }
 
-  // Title and Read link both open the article and record `read`: click (also ctrl/cmd-click and Enter) and middle click.
-  const readLink = {
-    href: article.url,
-    target: '_blank',
-    rel: 'noopener noreferrer',
-    onClick: () => void send('read'),
-    onAuxClick: (e: MouseEvent) => {
-      if (e.button === 1) void send('read');
-    },
-  };
+  const { openLink, readLink } = articleLinks(article.url, () => void send('read'));
 
   const feedbackButton = ({ kind, label, verb }: { kind: FeedbackKind; label: string; verb: string }) => (
     <button
@@ -128,7 +120,7 @@ export function FeedCard({
       <article ref={cardRef} tabIndex={-1} className="rounded-xl border border-line bg-card px-4 py-2 outline-none">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium">Read ✓</span>
-          <a {...readLink} className="min-w-0 flex-1 truncate text-sm text-muted hover:underline">
+          <a {...openLink} className="min-w-0 flex-1 truncate text-sm text-muted hover:underline">
             {article.title}
           </a>
           {AFTER_READ.map(feedbackButton)}
@@ -140,7 +132,7 @@ export function FeedCard({
 
   return (
     <article ref={cardRef} tabIndex={-1} className="rounded-xl border border-line bg-card p-4 outline-none">
-      <a {...readLink} className="font-semibold hover:underline">
+      <a {...openLink} className="font-semibold hover:underline">
         {article.title}
       </a>
       <p className="mt-1 text-sm text-muted">

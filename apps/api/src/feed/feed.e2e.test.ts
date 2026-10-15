@@ -139,6 +139,68 @@ describe('GET /api/feed', () => {
     expect(ids(await feed(b.headers))).toEqual([y]);
   });
 
+  describe('skill and q filters', () => {
+    it('any-match on primary or secondary, title search, combined', async () => {
+      const me = await signIn(ctx);
+      await onboard(me.user.id, [S1, S2], [
+        { skillId: S1, level: 2, uncertain: false },
+        { skillId: S2, level: 2, uncertain: false },
+      ]);
+      const a = await seed({ primary: S1, title: 'Agents 101' });
+      const b = await seed({ primary: S2, secondary: [S1], title: 'Evals 100%' });
+      const c = await seed({ primary: S2, title: 'Agents at scale' });
+      const sorted = async (qs: string) => ids(await feed(me.headers, qs)).sort((x, y) => x - y);
+      expect(await sorted('')).toEqual([a, b, c]);
+      expect(await sorted(`?skill=${S1}`)).toEqual([a, b]); // b via its secondary skill
+      expect(await sorted(`?skill=${S1}&skill=${S2}`)).toEqual([a, b, c]);
+      expect(await sorted('?q=AGENTS')).toEqual([a, c]);
+      expect(await sorted('?q=%25')).toEqual([b]);
+      expect(await sorted(`?skill=${S2}&q=agents`)).toEqual([c]);
+      expect(await sorted('?q=%20')).toEqual([a, b, c]);
+    });
+
+    it('400 for an unknown skill, an over-long q or more than 10 skills', async () => {
+      const me = await signIn(ctx);
+      await onboard(me.user.id);
+      for (const [qs, field] of [
+        ['?skill=nope', 'skill'],
+        [`?skill=${S1}&skill=nope`, 'skill'],
+        [`?q=${'x'.repeat(101)}`, 'q'],
+        [`?${Array.from({ length: 11 }, (_, i) => `skill=s${i}`).join('&')}`, 'skill'],
+      ] as const) {
+        const r = await getFeed(me.headers, qs);
+        expect(r.res.status).toBe(400);
+        expect(errorBodySchema.parse(r.body).message).toContain(field);
+      }
+    });
+
+    it('offset paging with filters continues the same filtered list (served minus excluded)', async () => {
+      const me = await signIn(ctx);
+      await onboard(me.user.id, [S1, S2], [
+        { skillId: S1, level: 2, uncertain: false },
+        { skillId: S2, level: 2, uncertain: false },
+      ]);
+      const pageSize = 3;
+      ctx.moduleRef.get<Config>(APP_CONFIG, { strict: false }).page_size = pageSize;
+      const total = pageSize + 3;
+      for (let i = 0; i < total; i++) {
+        await seed({ primary: S1, title: `Match ${i}`, publishedAt: new Date(Date.UTC(2026, 0, 1, 0, i)) });
+        await seed({ primary: S2, title: `Match other ${i}`, publishedAt: new Date(Date.UTC(2026, 0, 2, 0, i)) });
+      }
+      const qs = `skill=${S1}&q=match`;
+      const p1 = await feed(me.headers, `?${qs}`);
+      expect(p1.items).toHaveLength(pageSize);
+      expect(p1.nextOffset).toBe(pageSize);
+      // the user reads one served card: the next offset is served - excluded
+      await ctx.db.insert(articleEvents).values({ userId: me.user.id, articleId: p1.items[0]!.id, kind: 'read' });
+      const p2 = await feed(me.headers, `?${qs}&offset=${pageSize - 1}`);
+      expect(p2.items).toHaveLength(3);
+      expect(new Set([...ids(p1), ...ids(p2)]).size).toBe(pageSize + 3);
+      expect(p2.items.every((i) => i.skills.some((s) => s.id === S1))).toBe(true);
+      expect(p2.nextOffset).toBeNull();
+    });
+  });
+
   it('exposes no user data keys anywhere', async () => {
     const me = await signIn(ctx);
     await onboard(me.user.id);

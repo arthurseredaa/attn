@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { articleSkills, articles, type Db } from '@attn/core';
-import { articlesPageSchema, resolveDateRange, type ArticleCard, type ArticlesPage, type ArticlesQuery, type Config, type Source, type Taxonomy } from '@attn/shared';
+import { articlesPageSchema, escapeLike, resolveDateRange, taxonomySkillIds, type ArticleCard, type ArticlesPage, type ArticlesQuery, type Config, type Source, type Taxonomy } from '@attn/shared';
 import { and, desc, eq, gte, inArray, lt, sql, type SQL } from 'drizzle-orm';
+import { assertKnownSkills } from '../common/skill-filter';
 import { APP_CONFIG, DB, SOURCES, TAXONOMY } from '../tokens';
 import { decodeCursor, encodeCursor } from './cursor';
 
@@ -9,6 +10,7 @@ import { decodeCursor, encodeCursor } from './cursor';
 export class ArticlesService {
   private readonly sourceNames: Map<string, string>;
   private readonly skillNames: Map<string, string>;
+  private readonly skillIds: ReadonlySet<string>;
 
   constructor(
     @Inject(DB) private readonly db: Db,
@@ -17,6 +19,7 @@ export class ArticlesService {
     @Inject(APP_CONFIG) private readonly config: Config,
   ) {
     this.sourceNames = new Map(sources.map((s) => [s.id, s.name]));
+    this.skillIds = new Set(taxonomySkillIds(taxonomy));
     this.skillNames = new Map(taxonomy.domains.flatMap((d) => d.skills.map((s) => [s.id, s.name] as const)));
   }
 
@@ -26,9 +29,12 @@ export class ArticlesService {
     // Only http(s) urls are served (the card schema rejects anything else); filtering in SQL keeps page sizes and cursors exact.
     const conds: SQL[] = [eq(articles.labelStatus, 'labeled'), sql`${articles.url} ~* '^https?://'`];
     if (query.source) conds.push(eq(articles.sourceId, query.source));
-    if (query.skill) {
-      conds.push(sql`exists (select 1 from ${articleSkills} where ${articleSkills.articleId} = ${articles.id} and ${articleSkills.skillId} = ${query.skill})`);
+    assertKnownSkills(query.skill, this.skillIds);
+    if (query.skill?.length) {
+      // any-match on primary or secondary
+      conds.push(sql`exists (select 1 from ${articleSkills} where ${articleSkills.articleId} = ${articles.id} and ${inArray(articleSkills.skillId, query.skill)})`);
     }
+    if (query.q) conds.push(sql`${articles.title} ilike ${`%${escapeLike(query.q)}%`}`);
     if (from) conds.push(gte(articles.publishedAt, from));
     if (toExclusive) conds.push(lt(articles.publishedAt, toExclusive));
     if (query.cursor) {
