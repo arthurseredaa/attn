@@ -29,7 +29,7 @@ export default async function ProfilePage() {
     <div className="space-y-8">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold tracking-tight">Your profile</h1>
-        <Link href="/onboarding" className="rounded-md border border-line px-3 py-1 text-sm hover:bg-accent-soft">
+        <Link href="/onboarding" className="rounded-md border border-border px-3 py-1 text-sm hover:bg-primary/10">
           Redo onboarding
         </Link>
       </header>
@@ -42,7 +42,7 @@ export default async function ProfilePage() {
       />
 
       {unquizzed.length > 0 && (
-        <div className="rounded-lg border border-line bg-card p-3 text-sm">
+        <div className="rounded-lg border border-border bg-card p-3 text-sm">
           <Link href={quizHref(unquizzed.slice(0, QUIZ_LINK_CAP).map((s) => s.id))} className="font-medium underline">
             {quizAllLabel(unquizzed.length)}
           </Link>
@@ -73,7 +73,7 @@ export default async function ProfilePage() {
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Reading history</h2>
         {history.items.length === 0 ? (
-          <p className="text-sm text-muted">Nothing read yet. Articles you open from For you will appear here.</p>
+          <p className="text-sm text-muted-foreground">Nothing read yet. Articles you open from For you will appear here.</p>
         ) : (
           <ul className="space-y-2">
             {history.items.map((h) => (
@@ -81,7 +81,7 @@ export default async function ProfilePage() {
                 <a href={h.url} target="_blank" rel="noopener noreferrer" className="font-medium underline">
                   {h.title}
                 </a>
-                <span className="text-muted">
+                <span className="text-muted-foreground">
                   {' '}
                   · {h.sourceName} · {h.readAt.slice(0, 10)}
                 </span>
@@ -94,7 +94,7 @@ export default async function ProfilePage() {
       <section className="space-y-1">
         <h2 className="text-lg font-semibold">👍 share</h2>
         {likes.share === null ? (
-          <p className="text-sm text-muted">No reads yet</p>
+          <p className="text-sm text-muted-foreground">No reads yet</p>
         ) : (
           <p className="text-sm">
             {Math.round(likes.share * 100)}% ({likes.liked} of {likes.read} read)

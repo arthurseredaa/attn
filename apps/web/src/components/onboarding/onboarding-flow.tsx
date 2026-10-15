@@ -16,8 +16,8 @@ import { FocusPicker } from './focus-picker';
 import { QuizRunner } from './quiz-runner';
 
 const primary =
-  'rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-fg disabled:cursor-not-allowed disabled:opacity-50';
-const secondary = 'rounded-md border border-line px-4 py-2 text-sm text-muted hover:text-fg disabled:opacity-50';
+  'rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50';
+const secondary = 'rounded-md border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50';
 
 export function OnboardingFlow({
   taxonomy,
@@ -90,7 +90,7 @@ export function OnboardingFlow({
     <div className="space-y-6">
       <FocusPicker taxonomy={taxonomy} role={role} names={skillNames} value={focus} onChange={setFocus} />
       {error ? (
-        <p role="alert" className="rounded-lg border border-line bg-accent-soft px-4 py-3 text-sm">
+        <p role="alert" className="rounded-lg border border-border bg-primary/10 px-4 py-3 text-sm">
           {error}
         </p>
       ) : null}

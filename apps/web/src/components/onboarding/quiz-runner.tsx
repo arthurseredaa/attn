@@ -8,8 +8,8 @@ import { BrowserApiError, browserJson } from '@/lib/browser-api';
 type Phase = { kind: 'first' } | { kind: 'second'; first: number };
 
 const optionBtn =
-  'w-full rounded-lg border border-line bg-card px-4 py-3 text-left text-sm hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-50';
-const ghostBtn = 'rounded-md border border-line px-3 py-1.5 text-sm text-muted hover:text-fg disabled:opacity-50';
+  'w-full rounded-lg border border-border bg-card px-4 py-3 text-left text-sm hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50';
+const ghostBtn = 'rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50';
 
 export function QuizRunner({
   questions,
@@ -82,7 +82,7 @@ export function QuizRunner({
   return (
     <div className="space-y-5">
       <div className="space-y-1">
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted-foreground">
           Question {index + 1} of {questions.length}
         </p>
         <h2 className="text-lg font-semibold">{skillNames[question.skillId] ?? question.skillId}</h2>
@@ -99,7 +99,7 @@ export function QuizRunner({
         ))}
       </div>
       {error ? (
-        <div role="alert" className="space-y-2 rounded-lg border border-line bg-accent-soft px-4 py-3 text-sm">
+        <div role="alert" className="space-y-2 rounded-lg border border-border bg-primary/10 px-4 py-3 text-sm">
           <p>{error}</p>
           <button type="button" className={ghostBtn} disabled={busy} onClick={() => pending && void submit(pending)}>
             Try again

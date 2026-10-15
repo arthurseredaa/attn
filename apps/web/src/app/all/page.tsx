@@ -27,26 +27,26 @@ export default async function AllPage({ searchParams }: { searchParams: Promise<
       <h1 className="text-2xl font-bold tracking-tight">All articles</h1>
       <FilterBar taxonomy={taxonomy} sources={sources} values={rest} />
       {problem ? (
-        <p role="alert" className="rounded-lg border border-line bg-accent-soft px-4 py-3 text-sm">
+        <p role="alert" className="rounded-lg border border-border bg-primary/10 px-4 py-3 text-sm">
           {problem}
         </p>
       ) : null}
       {page && page.items.length === 0 ? (
-        <p className="text-muted">
+        <p className="text-muted-foreground">
           {hasActiveFilters(rest) ? 'No articles match these filters. Try removing a skill or changing the search.' : 'No articles yet.'}
         </p>
       ) : null}
       <div className="space-y-3">{page?.items.map((a) => <ArticleCardView key={a.id} article={a} />)}</div>
       <div className="flex gap-4 text-sm">
         {cursor ? (
-          <Link href={`/all${buildQueryString(filterParams(rest))}`} className="text-muted hover:text-fg">
+          <Link href={`/all${buildQueryString(filterParams(rest))}`} className="text-muted-foreground hover:text-foreground">
             Back to newest
           </Link>
         ) : null}
         {page?.nextCursor ? (
           <Link
             href={`/all${buildQueryString({ ...filterParams(rest), cursor: page.nextCursor })}`}
-            className="font-medium text-accent"
+            className="font-medium text-primary"
           >
             Older articles
           </Link>

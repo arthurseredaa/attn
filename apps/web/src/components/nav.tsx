@@ -1,43 +1,20 @@
-import Link from 'next/link';
+import type { ReactNode } from 'react';
+import { cookies } from 'next/headers';
 import { getMe } from '@/lib/api';
 import { NAV_ITEMS } from '@/lib/nav-items';
-import { Brand, HideOnOnboarding } from './nav-client';
-import { SignOutButton } from './sign-out-button';
+import { AppShell } from './nav-client';
 
-export async function Nav() {
-  const me = await getMe();
+/** The shadcn Sidebar's own cookie: the expanded/collapsed state survives reloads. */
+const SIDEBAR_COOKIE = 'sidebar_state';
+
+/** App chrome: the sidebar nav (a sheet on mobile) around the page; on onboarding only a slim brand bar. */
+export async function Nav({ children }: { children: ReactNode }) {
+  const [me, cookieStore] = await Promise.all([getMe(), cookies()]);
   const items = NAV_ITEMS.filter((i) => i.auth === 'any' || me);
+  const sidebarOpen = cookieStore.get(SIDEBAR_COOKIE)?.value !== 'false';
   return (
-    <header className="border-b border-line bg-card">
-      <div className="mx-auto flex max-w-4xl items-center gap-6 px-4 py-3">
-        <Brand />
-        <nav className="flex flex-1 gap-4 text-sm">
-          <HideOnOnboarding>
-            {items.map((i) => (
-              <Link key={i.href} href={i.href} className="text-muted hover:text-fg">
-                {i.label}
-              </Link>
-            ))}
-          </HideOnOnboarding>
-        </nav>
-        {me ? (
-          <HideOnOnboarding>
-            <div className="flex items-center gap-3 text-sm">
-              {me.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- small GitHub avatar, no optimizer needed
-                <img src={me.avatarUrl} alt="" width={28} height={28} className="rounded-full" />
-              ) : null}
-              <span className="hidden sm:inline">{me.name ?? me.login}</span>
-              <SignOutButton />
-            </div>
-          </HideOnOnboarding>
-        ) : (
-          // Plain anchor: this is an api redirect, not a Next route.
-          <a href="/api/auth/github" className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg">
-            Sign in with GitHub
-          </a>
-        )}
-      </div>
-    </header>
+    <AppShell me={me} items={items} defaultOpen={sidebarOpen}>
+      {children}
+    </AppShell>
   );
 }

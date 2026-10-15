@@ -62,7 +62,7 @@ export function FocusEditor({
           onChange={(e) => {
             if (e.target.value) setValue(toggleSkill(value, e.target.value, MAX_FOCUS));
           }}
-          className="rounded-md border border-line bg-card px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-md border border-border bg-card px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40"
         >
           <option value="">Add a skill…</option>
           {domains.map((d) => (
@@ -81,7 +81,7 @@ export function FocusEditor({
           type="button"
           onClick={save}
           disabled={!changed || !valid || saving}
-          className="rounded-md bg-accent px-3 py-1 text-sm font-medium text-accent-fg disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-md bg-primary px-3 py-1 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40"
         >
           {saving ? 'Saving…' : 'Save focus'}
         </button>
@@ -92,13 +92,13 @@ export function FocusEditor({
             setError(null);
           }}
           disabled={!changed || saving}
-          className="rounded-md border border-line px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-md border border-border px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40"
         >
           Reset
         </button>
       </div>
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}

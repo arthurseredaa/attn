@@ -28,7 +28,7 @@ export default async function QuizPage({ searchParams }: { searchParams: Promise
       <h1 className="text-2xl font-bold tracking-tight">Quiz</h1>
       {quiz.questions.length === 0 ? (
         <div className="space-y-2">
-          <p className="text-muted">No quiz is available for these skills yet.</p>
+          <p className="text-muted-foreground">No quiz is available for these skills yet.</p>
           <Link href="/profile" className="text-sm underline">
             Back to your profile
           </Link>

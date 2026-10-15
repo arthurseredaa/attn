@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { moveItem } from '@/lib/reorder';
 
 const btn =
-  'rounded-md border border-line px-2 py-1 text-xs text-muted hover:text-fg disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted';
+  'rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-muted-foreground';
 
 type Refocus = { kind: 'move'; id: string; dir: 'up' | 'down' } | { kind: 'remove'; index: number };
 
@@ -70,7 +70,7 @@ export function SortableList({
 
   if (items.length === 0) {
     return (
-      <p ref={empty} tabIndex={-1} className="text-sm text-muted outline-none">
+      <p ref={empty} tabIndex={-1} className="text-sm text-muted-foreground outline-none">
         {emptyText}
       </p>
     );
@@ -91,12 +91,12 @@ export function SortableList({
               if (dragFrom !== null) onChange(moveItem(items, dragFrom, i));
               setDragFrom(null);
             }}
-            className={`flex items-center gap-3 rounded-lg border border-line bg-card px-3 py-2 ${dragFrom === i ? 'opacity-50' : ''}`}
+            className={`flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 ${dragFrom === i ? 'opacity-50' : ''}`}
           >
-            <span aria-hidden className="cursor-grab select-none text-muted">
+            <span aria-hidden className="cursor-grab select-none text-muted-foreground">
               ⠿
             </span>
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold">
               {i + 1}
             </span>
             <span className="min-w-0 flex-1">{renderLabel(id)}</span>

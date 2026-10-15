@@ -22,7 +22,7 @@ export function FocusPicker({
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-muted">{`Pick 1 to ${MAX_FOCUS} skills, then drag to order them. The first one matters most.`}</p>
+      <p className="text-sm text-muted-foreground">{`Pick 1 to ${MAX_FOCUS} skills, then drag to order them. The first one matters most.`}</p>
       {taxonomy.domains.map((d) => {
         const skills = d.skills.filter((s) => s.roles.includes(role));
         if (skills.length === 0) return null;
@@ -41,7 +41,7 @@ export function FocusPicker({
                     title={s.description}
                     onClick={() => onChange(toggleSkill(value, s.id, MAX_FOCUS))}
                     className={`rounded-full border px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40 ${
-                      on ? 'border-transparent bg-accent text-accent-fg' : 'border-line bg-card hover:bg-accent-soft'
+                      on ? 'border-transparent bg-primary text-primary-foreground' : 'border-border bg-card hover:bg-primary/10'
                     }`}
                   >
                     {s.name}
