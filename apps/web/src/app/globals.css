@@ -159,3 +159,14 @@
     letter-spacing: -0.01em;
   }
 }
+
+/*
+ * Landing (/): one section per swipe. The landing component puts this class on <html> (the scroller) and removes it on
+ * unmount, so no other page snaps; reduced motion keeps normal scrolling. The sections carry the bar's height as their
+ * scroll margin.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  html.landing-snap {
+    scroll-snap-type: y mandatory;
+  }
+}
