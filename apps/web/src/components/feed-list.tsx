@@ -2,21 +2,27 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { Inbox, Loader2, SearchX } from 'lucide-react';
 import { feedNextOffset, feedPageSchema, mergeFeedItems, type FeedPage } from '@attn/shared';
 import { BrowserApiError, browserJson } from '@/lib/browser-api';
 import { buildQueryString } from '@/lib/query';
+import { EmptyState } from '@/components/empty-state';
 import { FeedCard } from '@/components/feed-card';
+import { Button } from '@/components/ui/button';
 
 export function FeedList({
   initial,
   filters,
   filtered,
+  difficultyLabels,
 }: {
   initial: FeedPage;
   /** The skill/title filters `initial` was fetched with; "load more" repeats them so the offset stays in the same list. */
   filters: { skill: string[]; q: string };
   /** Any filter is set: an empty list then means "no match", not "nothing to read". */
   filtered: boolean;
+  /** Taxonomy labels of the difficulty scale, indexed 0–4. */
+  difficultyLabels: string[];
 }) {
   const [items, setItems] = useState(initial.items);
   const [hasMore, setHasMore] = useState(initial.nextOffset !== null);
@@ -91,46 +97,47 @@ export function FeedList({
   return (
     <div ref={listRef} tabIndex={-1} className="space-y-4 outline-none">
       {items.length === 0 && !hasMore && filtered ? (
-        <p className="text-sm text-muted">No articles in your feed match these filters. Try removing a skill or changing the search.</p>
+        <EmptyState icon={SearchX} title="No matches">
+          No articles in your feed match these filters. Try removing a skill or changing the search.
+        </EmptyState>
       ) : items.length === 0 && !hasMore ? (
-        <p className="text-sm text-muted">
-          Nothing to show right now. Check your focus skills on your{' '}
+        <EmptyState icon={Inbox} title="Nothing to show right now">
+          Check your focus skills on your{' '}
           <Link href="/profile" className="underline">
             profile
           </Link>
           , or come back after the next collection run.
-        </p>
+        </EmptyState>
       ) : (
-        <ul className="space-y-3">
+        // One column (list) below md; from md as many >= 18rem tiles as fit (2 / 3 / 4 as the width grows). Equal-height rows.
+        <ul className="grid grid-cols-1 gap-3 md:grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]">
           {items.map((a) => (
             <li
               key={a.id}
               tabIndex={-1}
-              className="outline-none"
+              className="rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
               ref={(el) => {
                 if (el) cardRefs.current.set(a.id, el);
                 else cardRefs.current.delete(a.id);
               }}
             >
-              <FeedCard article={a} onExcluded={excluded} />
+              <FeedCard article={a} difficultyLabel={difficultyLabels[a.difficulty] ?? `L${a.difficulty}`} onExcluded={excluded} />
             </li>
           ))}
         </ul>
       )}
       {error ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-center text-sm text-destructive">
           {error}
         </p>
       ) : null}
       {hasMore ? (
-        <button
-          type="button"
-          disabled={loading}
-          onClick={() => void loadMore()}
-          className="rounded-md border border-line px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {loading ? 'Loading…' : 'Load more'}
-        </button>
+        <div className="flex justify-center pt-2">
+          <Button type="button" variant="outline" disabled={loading} onClick={() => void loadMore()} className="min-w-36">
+            {loading ? <Loader2 aria-hidden className="animate-spin" /> : null}
+            {loading ? 'Loading…' : 'Load more'}
+          </Button>
+        </div>
       ) : null}
     </div>
   );

@@ -1,14 +1,25 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { ChevronsUpDown, ListFilter, Search, X } from 'lucide-react';
 import { MAX_FILTER_SKILLS, MAX_SEARCH_LENGTH, type SourceSummary, type Taxonomy } from '@attn/shared';
 import { change, clear, commit, edit, initFilterState, syncProps, type FilterBarState, type FilterValues } from '@/lib/filter-state';
 import { hasActiveFilters, toggleSkill } from '@/lib/filters';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Input } from '@/components/ui/input';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const DEBOUNCE_MS = 300;
-const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
-const control = `w-full rounded-lg border border-line bg-card px-3 py-2 text-sm ${focusRing}`;
+// Radix Select has no empty value: this stands for "no source filter".
+const ALL_SOURCES = '__all__';
 
 /**
  * Filters shared by For you and All, kept in the URL: skills (multi-select, any-match), title search, and on All also
@@ -30,8 +41,7 @@ export function FilterBar({
   const [state, setState] = useState(() => initFilterState(values));
   const stateRef = useRef(state);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const summaryRef = useRef<HTMLElement>(null);
-  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const id = useId();
   const names = new Map(taxonomy.domains.flatMap((d) => d.skills.map((s) => [s.id, s.name] as const)));
 
   // Server props caught up with this bar's own writes (keep what the user did meanwhile) or the URL changed from
@@ -82,131 +92,153 @@ export function FilterBar({
 
   return (
     <div className="space-y-3" role="search" aria-label="Filter articles">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="grid gap-1 text-sm">
-          <span className="text-muted">Search titles</span>
-          <input
+      <div className="flex flex-wrap items-center gap-2">
+        <InputGroup className="w-full bg-card sm:w-72 lg:w-80">
+          <InputGroupAddon>
+            <Search aria-hidden />
+          </InputGroupAddon>
+          <InputGroupInput
             type="search"
+            aria-label="Search titles"
             value={v.q}
             maxLength={MAX_SEARCH_LENGTH}
             onChange={(e) => applyLater({ q: e.target.value })}
             placeholder="Search titles"
-            className={control}
           />
-        </label>
-        <details
-          ref={detailsRef}
-          className="group relative text-sm"
-          onKeyDown={(e) => {
-            if (e.key === 'Escape' && detailsRef.current?.open) {
-              detailsRef.current.open = false;
-              summaryRef.current?.focus();
-            }
-          }}
-        >
-          <summary ref={summaryRef} className={`flex cursor-pointer list-none flex-col gap-1 rounded-lg ${focusRing}`}>
-            <span className="text-muted">Skills</span>
-            <span className="rounded-lg border border-line bg-card px-3 py-2">
-              {v.skill.length === 0 ? 'All skills' : `${v.skill.length} selected`}
-            </span>
-          </summary>
-          <div className="mt-1 max-h-80 space-y-3 overflow-y-auto rounded-lg border border-line bg-card p-3 shadow-sm sm:absolute sm:inset-x-0 sm:z-10">
-            {taxonomy.domains.map((d) => (
-              <fieldset key={d.id}>
-                <legend className="mb-1 font-medium">{d.name}</legend>
-                <ul className="space-y-1">
-                  {d.skills.map((s) => {
-                    const checked = v.skill.includes(s.id);
-                    return (
-                      <li key={s.id}>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={!checked && v.skill.length >= MAX_FILTER_SKILLS}
-                            onChange={() => applyNow({ skill: toggleSkill(v.skill, s.id) })}
-                            className={focusRing}
-                          />
-                          <span>{s.name}</span>
-                        </label>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </fieldset>
-            ))}
-            <p className="text-xs text-muted">Up to {MAX_FILTER_SKILLS} skills; an article matches if it has any of them.</p>
+        </InputGroup>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-full justify-between gap-3 bg-card font-normal sm:w-auto sm:min-w-40">
+              <span className="inline-flex items-center gap-2">
+                <ListFilter aria-hidden className="text-muted-foreground" />
+                Skills
+                {v.skill.length > 0 ? (
+                  <Badge className="h-5 min-w-5 px-1.5 font-mono tabular-nums">
+                    <span className="sr-only">, </span>
+                    {v.skill.length}
+                    <span className="sr-only"> selected</span>
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground">All</span>
+                )}
+              </span>
+              <ChevronsUpDown aria-hidden className="text-muted-foreground" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-(--radix-popover-trigger-width) min-w-72 gap-0 p-0">
+            <Command>
+              <CommandInput placeholder="Search skills" aria-label="Search skills" />
+              <CommandList className="max-h-80">
+                <CommandEmpty>No skills found.</CommandEmpty>
+                {taxonomy.domains.map((d) => (
+                  <CommandGroup key={d.id} heading={d.name}>
+                    {d.skills.map((s) => {
+                      const checked = v.skill.includes(s.id);
+                      return (
+                        <CommandItem
+                          key={s.id}
+                          value={s.id}
+                          keywords={[s.name, d.name]}
+                          aria-checked={checked}
+                          disabled={!checked && v.skill.length >= MAX_FILTER_SKILLS}
+                          onSelect={() => applyNow({ skill: toggleSkill(v.skill, s.id) })}
+                        >
+                          {/* Visual only: the option itself is the control (aria-checked above). */}
+                          <Checkbox checked={checked} tabIndex={-1} aria-hidden className="pointer-events-none" />
+                          <span className="truncate">{s.name}</span>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                ))}
+              </CommandList>
+              <Separator />
+              <p className="px-3 py-2 text-xs text-muted-foreground">
+                Up to {MAX_FILTER_SKILLS} skills; an article matches if it has any of them.
+              </p>
+            </Command>
+          </PopoverContent>
+        </Popover>
+        {active ? (
+          <div className="flex flex-wrap items-center gap-2 sm:ml-1">
+            {v.skill.length > 0 ? (
+              <ul className="flex flex-wrap gap-1.5" aria-label="Selected skills">
+                {v.skill.map((id) => {
+                  const name = names.get(id) ?? id;
+                  return (
+                    <li key={id}>
+                      <Badge asChild variant="secondary" className="h-6 gap-1 pr-1.5 pl-2.5 font-normal hover:bg-secondary/70">
+                        <button
+                          type="button"
+                          aria-label={`Remove skill filter: ${name}`}
+                          onClick={() => applyNow({ skill: v.skill.filter((s) => s !== id) })}
+                        >
+                          {name}
+                          <X aria-hidden className="text-muted-foreground" />
+                        </button>
+                      </Badge>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+            <Button type="button" variant="ghost" size="xs" onClick={clearAll} className="text-muted-foreground hover:text-foreground">
+              Clear filters
+            </Button>
           </div>
-        </details>
+        ) : null}
       </div>
 
       {sources ? (
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="grid gap-1 text-sm">
-            <span className="text-muted">Source</span>
-            <select
-              value={v.source ?? ''}
-              onChange={(e) => applyNow({ source: e.target.value || undefined })}
-              className={control}
+        <div className="grid gap-3 sm:grid-cols-3 lg:max-w-3xl">
+          <div className="grid gap-1.5">
+            <Label htmlFor={`${id}-source`} className="text-xs text-muted-foreground">
+              Source
+            </Label>
+            <Select
+              value={v.source ?? ALL_SOURCES}
+              onValueChange={(value) => applyNow({ source: value === ALL_SOURCES ? undefined : value })}
             >
-              <option value="">All sources</option>
-              {sources.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1 text-sm">
-            <span className="text-muted">From</span>
-            <input
+              <SelectTrigger id={`${id}-source`} className="w-full bg-card">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_SOURCES}>All sources</SelectItem>
+                {sources.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor={`${id}-from`} className="text-xs text-muted-foreground">
+              From
+            </Label>
+            <Input
+              id={`${id}-from`}
               type="date"
               value={v.from ?? ''}
               onChange={(e) => applyLater({ from: e.target.value || undefined })}
-              className={control}
+              className="bg-card"
             />
-          </label>
-          <label className="grid gap-1 text-sm">
-            <span className="text-muted">To</span>
-            <input
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor={`${id}-to`} className="text-xs text-muted-foreground">
+              To
+            </Label>
+            <Input
+              id={`${id}-to`}
               type="date"
               value={v.to ?? ''}
               onChange={(e) => applyLater({ to: e.target.value || undefined })}
-              className={control}
+              className="bg-card"
             />
-          </label>
+          </div>
         </div>
       ) : null}
 
-      {v.skill.length > 0 ? (
-        <ul className="flex flex-wrap gap-2" aria-label="Selected skills">
-          {v.skill.map((id) => {
-            const name = names.get(id) ?? id;
-            return (
-              <li key={id}>
-                <button
-                  type="button"
-                  aria-label={`Remove skill filter: ${name}`}
-                  onClick={() => applyNow({ skill: v.skill.filter((s) => s !== id) })}
-                  className={`rounded-full bg-accent-soft px-2.5 py-0.5 text-xs hover:underline ${focusRing}`}
-                >
-                  {name} <span aria-hidden="true">×</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
-
-      {active ? (
-        <button
-          type="button"
-          onClick={clearAll}
-          className={`text-sm text-muted hover:text-fg ${focusRing}`}
-        >
-          Clear filters
-        </button>
-      ) : null}
     </div>
   );
 }
