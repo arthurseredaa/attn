@@ -231,10 +231,23 @@ The grid is 3 columns at 1440px, 2 at about 1024px and 1 on mobile, with equal-h
 - **Reading history:** quiet rows (title link in a new tab, source, read date in mono); "Nothing read yet" when empty. The like share sits beside the heading as `Liked 40% · 4 of 10`, omitted when nothing was read.
 - The guard runs in `app/profile/layout.tsx`, so `loading.tsx` skeletons keep the signed-out 307.
 
-**4. Onboarding** (`onboarding/*.tsx`, `app/onboarding/**/page.tsx`)
-- A step indicator: 1 Focus → 2 Quiz.
-- FocusPicker: skill pills become Toggle buttons with a counter against `MAX_FOCUS`.
-- QuizRunner: a Progress bar for the question count. Options are large selectable cards (`role=radio` semantics kept as they are). Back and Retry buttons.
+**4. Onboarding** (`app/onboarding/page.tsx`, `app/onboarding/quiz/page.tsx`, `onboarding/onboarding-flow.tsx`, `focus-picker.tsx`, `focus-tray.tsx`, `flip-title.tsx`, `signal-flood.tsx`, `quiz-runner.tsx`, `sortable-list.tsx`, `lib/flood.ts`). No sidebar here (brand bar only), so the page uses the whole viewport width minus the usual gutter. The orange is the interaction colour: hover and picked fills use `--signal`, Continue uses `primary`.
+- **Title:** "Choose your focus" ("Redo onboarding" once onboarded), 36/44/52px, tight tracking. Its letters flip once on mount (Obsidian UI's `flip-text` technique, loop off, redrawn with motion; static under reduced motion; the plain text is in an sr-only span). One control hint line under it on the focus step: "Pick up to 5 skills. The first one matters most."
+- **Skill wall:** per domain (the role's skills only), the domain name as an h2, then the skills as square-cornered blocks butted together on 1px hairlines (1px outlines on 1px gaps). Container-query columns: 2 → 3 (600px) → 4 (860px) → 5 (1140px) → 6 (1440px); from 600px all rows of a band share one height. Each block is a plain `button` with `aria-pressed`, `title` = taxonomy description: the name (16–17px semibold) and the description (13px muted, clamped to 3 lines).
+  - **Fill:** Obsidian UI's `interactive-hover-button` expanding-dot technique: a signal circle centred where the mouse came in grows until it floods the block (~340ms ease-out) and shrinks back toward where it left; text flips to white. Keyboard activation grows it from the centre, a tap from the tap point. Touch/pen do not trigger hover. After un-picking with the mouse still inside, the fill drains.
+  - **Picked:** held fill, the rank in JetBrains Mono (30px, 48px from 600px) top-right with a spring pop (no pop for ranks present on load), plus a short burst of eight white sparks from the click point inside the block (Obsidian UI's `click-spark`, scoped to the block and drawn with motion instead of a full-window canvas).
+  - **Full (5 picked):** the other blocks dim to 40% and do not fill on hover; they stay focusable with `aria-disabled`.
+  - Focus indicator: a 2px inset border above the fill, white on orange, accent on a plain block. Blocks stagger in on mount (20ms each).
+- **Focus tray:** a sticky bar along the bottom edge spanning the full width, with "Your focus", the slots, Continue (primary, arrow nudges on hover) and "Skip quiz for now" (outline) with the existing enable rules, and errors inline (`role=alert`, destructive text).
+  - From 1024px: five numbered slots in a row, butted on hairlines. A filled slot shows the rank (accent mono), the skill name (2-line clamp) and ghost icon buttons Move left / Move right / Remove with tooltips (`Move <name> left` etc.); empty slots are quiet placeholders with a faint number. Slots glide into place on reorder (motion `layout`), drag and drop works too. The logic is `useSortable`, extracted from SortableList (keyboard focus kept after move and remove; Profile's SortableList markup and behaviour are unchanged).
+  - Below 1024px: five numbered squares (filled = signal) and an "Order" toggle (`aria-expanded`) that opens Profile's vertical SortableList above them; the two buttons share a row.
+- **Quiz step** (QuizRunner, also `/onboarding/quiz` retakes):
+  - A full-width segmented progress bar, one segment per question: done = signal, current = darker grey (half signal after the first pick), rest = segment grey; "Question n of N" in small mono under it.
+  - Skill name small and muted, the situation 22/26px at ~65ch, then the existing prompt line.
+  - Options are full-width blocks butted on hairlines: a mono letter (A, B, …) and the text (16/17px); the same signal flood on hover. A picked option holds its fill for 240ms, then the step moves on. In the second phase the picked option leaves and the rest close the gap (motion `layout`, `popLayout`). Questions slide/fade between each other. Keyboard focus moves to the first option of the next step when the pick came from an option.
+  - Unchanged behaviour: two-phase pick, answers, submit on the last answer, busy states, error with "Try again" (outline Button), Back / "Back to focus" (ghost Button), `onExit`, `QuizRetake`.
+- **`/onboarding/quiz`:** "Quiz" at the same title size; the empty state is the muted line plus "Back to your profile" as an outline Button link.
+- Reduced motion: no flip, flood, pop, sparks, stagger or slides; state changes are instant and a pick moves on without the hold.
 
 **5. Landing** (`app/page.tsx`, `error.tsx`, `not-found.tsx`)
 - Hero with an impressive animation in motion/react, made to explain the product rather than generic decoration.

@@ -12,12 +12,11 @@ import {
   type Taxonomy,
 } from '@attn/shared';
 import { BrowserApiError, browserJson } from '@/lib/browser-api';
+import { ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { FocusPicker } from './focus-picker';
+import { FocusTray } from './focus-tray';
 import { QuizRunner } from './quiz-runner';
-
-const primary =
-  'rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50';
-const secondary = 'rounded-md border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50';
 
 export function OnboardingFlow({
   taxonomy,
@@ -86,22 +85,27 @@ export function OnboardingFlow({
     );
   }
 
+  const actions = (
+    <>
+      <Button
+        type="button"
+        className="group/continue"
+        disabled={busy || focus.length < 1 || focus.length > MAX_FOCUS}
+        onClick={() => void cont()}
+      >
+        Continue
+        <ArrowRight aria-hidden className="transition-transform duration-200 group-hover/continue:translate-x-0.5 motion-reduce:transition-none" />
+      </Button>
+      <Button type="button" variant="outline" disabled={busy || focus.length < 1} onClick={() => void skip()}>
+        Skip quiz for now
+      </Button>
+    </>
+  );
+
   return (
-    <div className="space-y-6">
-      <FocusPicker taxonomy={taxonomy} role={role} names={skillNames} value={focus} onChange={setFocus} />
-      {error ? (
-        <p role="alert" className="rounded-lg border border-border bg-primary/10 px-4 py-3 text-sm">
-          {error}
-        </p>
-      ) : null}
-      <div className="flex gap-3">
-        <button type="button" className={primary} disabled={busy || focus.length < 1 || focus.length > MAX_FOCUS} onClick={() => void cont()}>
-          Continue
-        </button>
-        <button type="button" className={secondary} disabled={busy || focus.length < 1} onClick={() => void skip()}>
-          Skip quiz for now
-        </button>
-      </div>
+    <div className="space-y-10">
+      <FocusPicker taxonomy={taxonomy} role={role} value={focus} onChange={setFocus} />
+      <FocusTray items={focus} names={skillNames} onChange={setFocus} actions={actions} error={error} />
     </div>
   );
 }

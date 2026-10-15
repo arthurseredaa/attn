@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { ArrowDown, ArrowUp, GripVertical, X, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -9,21 +9,12 @@ import { cn } from '@/lib/utils';
 
 type Refocus = { kind: 'move'; id: string; dir: 'up' | 'down' } | { kind: 'remove'; index: number };
 
-export function SortableList({
-  items,
-  renderLabel,
-  labels,
-  onChange,
-  emptyText,
-}: {
-  items: string[];
-  renderLabel: (id: string) => ReactNode;
-  /** Human-readable names for the aria-labels; falls back to the id. */
-  labels?: Record<string, string>;
-  onChange: (next: string[]) => void;
-  /** Shown instead of the list when it is empty; it takes keyboard focus when the last item is removed. */
-  emptyText: string;
-}) {
+/**
+ * The reorder logic behind a focus list: move and remove with keyboard focus kept on the list, HTML drag and drop
+ * between positions, and stable refs for the control buttons (keyed `${id}:up`, `${id}:down`, `${id}:remove`). Shared
+ * by SortableList (Profile, the onboarding tray on narrow screens) and the onboarding tray's slots.
+ */
+export function useSortable(items: string[], onChange: (next: string[]) => void) {
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const refCallbacks = useRef(new Map<string, (el: HTMLButtonElement | null) => void>());
@@ -69,6 +60,37 @@ export function SortableList({
     return cb;
   };
 
+  const dragProps = (i: number) => ({
+    draggable: true,
+    onDragStart: () => setDragFrom(i),
+    onDragEnd: () => setDragFrom(null),
+    onDragOver: (e: DragEvent) => e.preventDefault(),
+    onDrop: () => {
+      if (dragFrom !== null) onChange(moveItem(items, dragFrom, i));
+      setDragFrom(null);
+    },
+  });
+
+  return { dragFrom, dragProps, move, remove, setRef, empty };
+}
+
+export function SortableList({
+  items,
+  renderLabel,
+  labels,
+  onChange,
+  emptyText,
+}: {
+  items: string[];
+  renderLabel: (id: string) => ReactNode;
+  /** Human-readable names for the aria-labels; falls back to the id. */
+  labels?: Record<string, string>;
+  onChange: (next: string[]) => void;
+  /** Shown instead of the list when it is empty; it takes keyboard focus when the last item is removed. */
+  emptyText: string;
+}) {
+  const { dragFrom, dragProps, move, remove, setRef, empty } = useSortable(items, onChange);
+
   if (items.length === 0) {
     return (
       <p ref={empty} tabIndex={-1} className="text-sm text-muted-foreground outline-none">
@@ -105,14 +127,7 @@ export function SortableList({
         return (
           <li
             key={id}
-            draggable
-            onDragStart={() => setDragFrom(i)}
-            onDragEnd={() => setDragFrom(null)}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => {
-              if (dragFrom !== null) onChange(moveItem(items, dragFrom, i));
-              setDragFrom(null);
-            }}
+            {...dragProps(i)}
             className={cn('flex h-11 items-center gap-2.5 border-b border-border pr-1 pl-1', dragFrom === i && 'opacity-50')}
           >
             <GripVertical aria-hidden className="size-4 shrink-0 cursor-grab text-faint" />
