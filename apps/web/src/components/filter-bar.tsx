@@ -3,10 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { MAX_FILTER_SKILLS, MAX_SEARCH_LENGTH, type SourceSummary, type Taxonomy } from '@attn/shared';
-import { filterParams, hasActiveFilters, toggleSkill, type PickedFilters } from '@/lib/filters';
-import { buildQueryString } from '@/lib/query';
-
-type Values = Pick<PickedFilters, 'skill' | 'q' | 'source' | 'from' | 'to'>;
+import { change, clear, commit, edit, initFilterState, syncProps, type FilterBarState, type FilterValues } from '@/lib/filter-state';
+import { hasActiveFilters, toggleSkill } from '@/lib/filters';
 
 const DEBOUNCE_MS = 300;
 const focusRing = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
@@ -23,39 +21,64 @@ export function FilterBar({
   sources,
 }: {
   taxonomy: Taxonomy;
-  values: Values;
+  values: FilterValues;
   /** All only: adds the source and date controls. */
   sources?: SourceSummary[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [q, setQ] = useState(values.q);
-  const [prevUrlQ, setPrevUrlQ] = useState(values.q);
-  const latest = useRef(values);
-  latest.current = values;
+  const [state, setState] = useState(() => initFilterState(values));
+  const stateRef = useRef(state);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const summaryRef = useRef<HTMLElement>(null);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
   const names = new Map(taxonomy.domains.flatMap((d) => d.skills.map((s) => [s.id, s.name] as const)));
 
-  // The URL changed from outside the box (Clear filters, back/forward): show it.
-  if (values.q !== prevUrlQ) {
-    setPrevUrlQ(values.q);
-    if (values.q !== q.trim()) setQ(values.q);
-  }
-
-  function apply(change: Partial<Values>) {
-    const next = { ...latest.current, ...change };
-    router.replace(`${pathname}${buildQueryString(filterParams(next))}`, { scroll: false });
-  }
-  const applyRef = useRef(apply);
-  applyRef.current = apply;
-
-  // Debounced search: wait for a pause in typing before touching the URL.
+  // Server props caught up with this bar's own writes (keep what the user did meanwhile) or the URL changed from
+  // outside (back/forward, a link): then show it.
+  const synced = syncProps(state, values);
+  if (synced !== state) setState(synced);
   useEffect(() => {
-    if (q.trim() === latest.current.q) return;
-    const t = setTimeout(() => applyRef.current({ q: q.trim() }), DEBOUNCE_MS);
-    return () => clearTimeout(t);
-  }, [q]);
+    stateRef.current = state;
+  });
+  useEffect(() => () => cancelTimer(), []);
 
-  const active = hasActiveFilters(values) || q.trim() !== '';
+  function cancelTimer() {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  }
+
+  function push(next: { state: FilterBarState; query: string | null }) {
+    stateRef.current = next.state;
+    setState(next.state);
+    if (next.query !== null) router.replace(`${pathname}${next.query}`, { scroll: false });
+  }
+
+  /** Applies at once (checkbox, chip, select). */
+  function applyNow(patch: Partial<FilterValues>) {
+    cancelTimer(); // the commit carries any unsent search text too
+    push(change(stateRef.current, patch));
+  }
+
+  /** Updates the control now and the URL after a pause in typing (search text, dates). */
+  function applyLater(patch: Partial<FilterValues>) {
+    const next = edit(stateRef.current, patch);
+    stateRef.current = next;
+    setState(next);
+    cancelTimer();
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      push(commit(stateRef.current));
+    }, DEBOUNCE_MS);
+  }
+
+  function clearAll() {
+    cancelTimer();
+    push(clear(stateRef.current));
+  }
+
+  const v = state.pending;
+  const active = hasActiveFilters({ ...v, q: v.q.trim() });
 
   return (
     <div className="space-y-3" role="search" aria-label="Filter articles">
@@ -64,18 +87,27 @@ export function FilterBar({
           <span className="text-muted">Search titles</span>
           <input
             type="search"
-            value={q}
+            value={v.q}
             maxLength={MAX_SEARCH_LENGTH}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => applyLater({ q: e.target.value })}
             placeholder="Search titles"
             className={control}
           />
         </label>
-        <details className="group relative text-sm">
-          <summary className={`flex cursor-pointer list-none flex-col gap-1 rounded-lg ${focusRing}`}>
+        <details
+          ref={detailsRef}
+          className="group relative text-sm"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && detailsRef.current?.open) {
+              detailsRef.current.open = false;
+              summaryRef.current?.focus();
+            }
+          }}
+        >
+          <summary ref={summaryRef} className={`flex cursor-pointer list-none flex-col gap-1 rounded-lg ${focusRing}`}>
             <span className="text-muted">Skills</span>
             <span className="rounded-lg border border-line bg-card px-3 py-2">
-              {values.skill.length === 0 ? 'All skills' : `${values.skill.length} selected`}
+              {v.skill.length === 0 ? 'All skills' : `${v.skill.length} selected`}
             </span>
           </summary>
           <div className="mt-1 max-h-80 space-y-3 overflow-y-auto rounded-lg border border-line bg-card p-3 shadow-sm sm:absolute sm:inset-x-0 sm:z-10">
@@ -84,15 +116,15 @@ export function FilterBar({
                 <legend className="mb-1 font-medium">{d.name}</legend>
                 <ul className="space-y-1">
                   {d.skills.map((s) => {
-                    const checked = values.skill.includes(s.id);
+                    const checked = v.skill.includes(s.id);
                     return (
                       <li key={s.id}>
                         <label className="flex items-center gap-2">
                           <input
                             type="checkbox"
                             checked={checked}
-                            disabled={!checked && values.skill.length >= MAX_FILTER_SKILLS}
-                            onChange={() => apply({ skill: toggleSkill(values.skill, s.id) })}
+                            disabled={!checked && v.skill.length >= MAX_FILTER_SKILLS}
+                            onChange={() => applyNow({ skill: toggleSkill(v.skill, s.id) })}
                             className={focusRing}
                           />
                           <span>{s.name}</span>
@@ -113,8 +145,8 @@ export function FilterBar({
           <label className="grid gap-1 text-sm">
             <span className="text-muted">Source</span>
             <select
-              value={values.source ?? ''}
-              onChange={(e) => apply({ source: e.target.value || undefined })}
+              value={v.source ?? ''}
+              onChange={(e) => applyNow({ source: e.target.value || undefined })}
               className={control}
             >
               <option value="">All sources</option>
@@ -129,8 +161,8 @@ export function FilterBar({
             <span className="text-muted">From</span>
             <input
               type="date"
-              value={values.from ?? ''}
-              onChange={(e) => apply({ from: e.target.value || undefined })}
+              value={v.from ?? ''}
+              onChange={(e) => applyLater({ from: e.target.value || undefined })}
               className={control}
             />
           </label>
@@ -138,24 +170,24 @@ export function FilterBar({
             <span className="text-muted">To</span>
             <input
               type="date"
-              value={values.to ?? ''}
-              onChange={(e) => apply({ to: e.target.value || undefined })}
+              value={v.to ?? ''}
+              onChange={(e) => applyLater({ to: e.target.value || undefined })}
               className={control}
             />
           </label>
         </div>
       ) : null}
 
-      {values.skill.length > 0 ? (
+      {v.skill.length > 0 ? (
         <ul className="flex flex-wrap gap-2" aria-label="Selected skills">
-          {values.skill.map((id) => {
+          {v.skill.map((id) => {
             const name = names.get(id) ?? id;
             return (
               <li key={id}>
                 <button
                   type="button"
                   aria-label={`Remove skill filter: ${name}`}
-                  onClick={() => apply({ skill: values.skill.filter((s) => s !== id) })}
+                  onClick={() => applyNow({ skill: v.skill.filter((s) => s !== id) })}
                   className={`rounded-full bg-accent-soft px-2.5 py-0.5 text-xs hover:underline ${focusRing}`}
                 >
                   {name} <span aria-hidden="true">×</span>
@@ -169,10 +201,7 @@ export function FilterBar({
       {active ? (
         <button
           type="button"
-          onClick={() => {
-            setQ('');
-            router.replace(pathname, { scroll: false });
-          }}
+          onClick={clearAll}
           className={`text-sm text-muted hover:text-fg ${focusRing}`}
         >
           Clear filters

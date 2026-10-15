@@ -11,16 +11,18 @@ export const dynamic = 'force-dynamic';
 export default async function ForYouPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const { skill, q } = pickFilters(await searchParams);
   await requireProfile();
-  const taxonomy = await getTaxonomy();
-
   let page: FeedPage | null = null;
   let problem: string | null = null;
+  const taxonomyP = getTaxonomy();
+  taxonomyP.catch(() => undefined); // awaited below; avoids an unhandled rejection if the feed throws first
   try {
     page = await signedIn(getFeed(0, { skill, q }));
   } catch (e) {
     if (e instanceof ApiError && e.status === 400) problem = e.message; // hand-edited URL: show it, do not crash
     else throw e;
   }
+
+  const taxonomy = await taxonomyP;
 
   return (
     <div className="space-y-6">

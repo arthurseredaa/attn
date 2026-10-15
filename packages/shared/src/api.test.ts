@@ -47,6 +47,7 @@ describe('articlesQuerySchema', () => {
     expect(articlesQuerySchema.parse({ skill: ['a', 'b', 'a'] }).skill).toEqual(['a', 'b']);
     const eleven = Array.from({ length: 11 }, (_, i) => `s${i}`);
     expect(articlesQuerySchema.safeParse({ skill: eleven }).success).toBe(false);
+    expect(articlesQuerySchema.parse({ skill: Array(11).fill('a') }).skill).toEqual(['a']); // the cap counts distinct ids
     expect(articlesQuerySchema.safeParse({ skill: eleven.slice(0, 10) }).success).toBe(true);
   });
 

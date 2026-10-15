@@ -81,8 +81,10 @@ export const MAX_SEARCH_LENGTH = 100;
  * ANY of the skills as primary or secondary. Whether each id is a taxonomy skill is checked by the api.
  */
 export const skillFilterSchema = z
-  .preprocess((v) => (v === undefined || Array.isArray(v) ? v : [v]), z.array(z.string().min(1)).max(MAX_FILTER_SKILLS))
-  .transform((a) => [...new Set(a)])
+  .preprocess(
+    (v) => (v === undefined ? v : [...new Set(Array.isArray(v) ? v : [v])]),
+    z.array(z.string().min(1)).max(MAX_FILTER_SKILLS),
+  )
   .optional();
 
 /** `q`: trimmed; empty means no filter. */
