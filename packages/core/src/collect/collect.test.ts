@@ -126,6 +126,19 @@ describe('rss', () => {
     expect((await rows())[0]!.title).toBe('AI Gateway GA');
   });
 
+  it('counts and lists items blocked by exclusion rules in filtered, not skipped, and does not insert them', async () => {
+    server.setRoute('/f.xml', fixtureRoute('filter.xml'));
+    const r = await run(rss('f', '/f.xml', { exclude_paths: ['/blog/new-office/'], exclude_title_regex: ['^ai thing'] }));
+    expect(r.inserted).toBe(1);
+    expect(r.filtered).toBe(2);
+    expect(r.skipped).toBe(0);
+    expect(r.filteredItems).toEqual([
+      { rule: 'exclude_paths', url: `${server.baseUrl}/blog/new-office` },
+      { rule: 'exclude_title_regex', url: `${server.baseUrl}/other/ai-thing` },
+    ]);
+    expect((await rows()).map((a) => a.title)).toEqual(['AI Gateway GA']);
+  });
+
   it('broken xml is an error with no rows and no etag', async () => {
     server.setRoute('/b.xml', fixtureRoute('broken.xml', { ...xml, ETag: '"b"' }));
     const r = await run(rss('b', '/b.xml'));
@@ -215,7 +228,8 @@ describe('sitemap', () => {
   it('applies the source filter to sitemap sources', async () => {
     const r = await run(sitemap('s', '/sitemap.xml', { exclude_path_prefix: ['/news/beta'] }));
     expect(r.inserted).toBe(1);
-    expect(r.skipped).toBe(2);
+    expect(r.skipped).toBe(1);
+    expect(r.filtered).toBe(1); // an exclude_path_prefix hit is a rule block, not a plain skip
     expect((await rows()).map((a) => a.title)).toEqual(['Alpha OG']);
   });
 });
@@ -281,5 +295,32 @@ describe('failure isolation', () => {
     });
     expect(reports.map((r) => r.status)).toEqual(['error', 'error']);
     expect(reports[0]!.error).toContain('failed to record failure');
+  });
+});
+
+describe('new cleanup sources (saved fixtures, no network)', () => {
+  const feeds: [string, string, string[]][] = [
+    ['philschmid', 'philschmid.xml', ['How to build an agent with Gemini and function calling', 'Context engineering & evals']],
+    ['jetbrains-ai', 'jetbrains-ai.xml', ['Using Claude Agent in your IDE', 'Agent skills in practice']],
+    ['simon-willison', 'simon-tag.atom', ['Vibe engineering', 'Claude Code tips']],
+  ];
+  it.each(feeds)('%s feed parses and collects through the normal path', async (id, file, titles) => {
+    server.setRoute('/feed', fixtureRoute(file));
+    const r = await run(rss(id, '/feed'));
+    expect(r).toMatchObject({ status: 'ok', seen: 2, inserted: 2, filtered: 0 });
+    expect((await rows()).map((a) => a.title).sort()).toEqual([...titles].sort());
+  });
+
+  it('two overlapping tag feeds dedup by url', async () => {
+    server.setRoute('/a', fixtureRoute('simon-tag.atom'));
+    server.setRoute('/b', fixtureRoute('simon-tag.atom'));
+    const reports = await collectAll({
+      db,
+      sources: [rss('simon-willison', '/a'), rss('simon-willison-claude-code', '/b')],
+      config,
+      now,
+    });
+    expect(reports.map((r) => r.inserted)).toEqual([2, 0]);
+    expect(reports[1]!.duplicates).toBe(2);
   });
 });

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>AI | The JetBrains Blog</title>
+    <atom:link href="{{BASE}}/ai/feed/" rel="self" type="application/rss+xml"/>
+    <link>{{BASE}}/ai</link>
+    <item>
+      <title><![CDATA[Using Claude Agent in your IDE]]></title>
+      <link>{{BASE}}/ai/2026/10/claude-agent-ide/</link>
+      <dc:creator><![CDATA[Jane Doe]]></dc:creator>
+      <pubDate>Thu, 08 Oct 2026 09:30:00 +0000</pubDate>
+      <guid isPermaLink="false">{{BASE}}/ai/?p=1001</guid>
+      <description><![CDATA[<p>Short summary.</p>]]></description>
+      <content:encoded><![CDATA[<p>Long body.</p>]]></content:encoded>
+    </item>
+    <item>
+      <title><![CDATA[Agent skills in practice]]></title>
+      <link>{{BASE}}/ai/2026/09/agent-skills/</link>
+      <dc:creator><![CDATA[John Doe]]></dc:creator>
+      <pubDate>Fri, 25 Sep 2026 09:30:00 +0000</pubDate>
+      <guid isPermaLink="false">{{BASE}}/ai/?p=1000</guid>
+      <description><![CDATA[<p>Summary.</p>]]></description>
+    </item>
+  </channel>
+</rss>
