@@ -27,6 +27,7 @@ const config = {
   label_max_attempts: 3,
   label_overload_backoff_ms: [2000, 5000, 10000],
   jev_secondary_threshold: 0.5,
+  relevance_threshold: 0.5,
   schedule_cron: '0 * * * *',
   uncertain_spread: 1.5,
   points_per_level: 5,
@@ -89,6 +90,25 @@ describe('sourcesSchema', () => {
       expect(sourceSchema.safeParse({ ...base, filter }).success).toBe(false);
     }
   });
+  it('accepts the exclusion keys and rejects empty or non-absolute ones', () => {
+    const base = { id: 'a', name: 'A', type: 'rss', url: 'https://x.test/f' };
+    const filter = { exclude_paths: ['/skills'], exclude_path_regex: ['^/a$'], exclude_title_regex: ['birthday'] };
+    expect(sourcesSchema.safeParse([{ ...base, filter }]).success).toBe(true);
+    for (const bad of [{ exclude_paths: [] }, { exclude_paths: ['skills'] }, { exclude_path_regex: [] }, { exclude_title_regex: [''] }]) {
+      expect(sourcesSchema.safeParse([{ ...base, filter: bad }]).success).toBe(false);
+    }
+  });
+  it('rejects an invalid regex with an error naming the source and the key', () => {
+    const base = { id: 'my-source', name: 'A', type: 'rss', url: 'https://x.test/f' };
+    for (const key of ['exclude_path_regex', 'exclude_title_regex']) {
+      const r = sourcesSchema.safeParse([{ ...base, filter: { [key]: ['ok', '(unclosed'] } }]);
+      expect(r.success).toBe(false);
+      const message = r.success ? '' : r.error.message;
+      expect(message).toContain('my-source');
+      expect(message).toContain(key);
+      expect(message).toContain('(unclosed');
+    }
+  });
   it('accepts a filter on rss and sitemap', () => {
     const filter = { path_prefix: ['/blog/'], keywords: ['ai'] };
     expect(sourceSchema.safeParse({ id: 'a', name: 'A', type: 'rss', url: 'https://x.test/f', filter }).success).toBe(true);
@@ -115,6 +135,13 @@ describe('configSchema', () => {
     const rest: Partial<typeof config> = { ...config };
     delete rest.fit_next;
     expect(configSchema.safeParse(rest).success).toBe(false);
+  });
+  it('defaults relevance_threshold to 0.5 and rejects values outside (0, 1]', () => {
+    const rest: Record<string, unknown> = { ...config };
+    delete rest.relevance_threshold;
+    expect(configSchema.parse(rest).relevance_threshold).toBe(0.5);
+    expect(configSchema.safeParse({ ...config, relevance_threshold: 0 }).success).toBe(false);
+    expect(configSchema.safeParse({ ...config, relevance_threshold: 1.5 }).success).toBe(false);
   });
   it('rejects a missing jev_secondary_threshold', () => {
     const rest: Partial<typeof config> = { ...config };

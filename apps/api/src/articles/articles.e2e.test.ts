@@ -39,6 +39,7 @@ describe('GET /api/articles', () => {
     const ok = await seed();
     await seed({ status: 'pending' });
     await seed({ status: 'failed' });
+    await seed({ status: 'excluded' });
     const r = await get();
     expect(r.status).toBe(200);
     expect(ids(articlesPageSchema.parse(r.body))).toEqual([ok]);

@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { articles } from '../db/schema';
 import { isDuplicate, urlExists, type Candidate } from './dedup';
-import { passesFilter, passesPathFilter } from './filter';
+import { exclusionRule, passesFilter, passesPathFilter } from './filter';
 import { conditionalGet, getText, type FetchFn } from './http';
 import { normalizeUrl, titleHash } from './normalize';
 import { parseFeed } from './parse-feed';
@@ -22,6 +22,9 @@ export interface SourceReport {
   tooOld: number;
   /** invalid/non-http url, missing title (rss), failed filter, undated sitemap url on the first run */
   skipped: number;
+  /** entries blocked by an exclusion rule of the source filter (not counted in `skipped`), with the rule that blocked each; counted per fetch, so a blocked entry that stays in the feed is counted again on every run */
+  filtered: number;
+  filteredItems: { rule: string; url: string }[];
   error?: string;
 }
 
@@ -99,14 +102,20 @@ export async function collectSource(
     duplicates: 0,
     tooOld: 0,
     skipped: 0,
+    filtered: 0,
+    filteredItems: [],
+  };
+  const block = (rule: string, url: string): void => {
+    report.filtered++;
+    report.filteredItems.push({ rule, url });
   };
 
   try {
-    const state = await getState(db, source.id);
+    const state = await getState(db, source.id, source.url);
     let pageFetchFailed = false;
     const res = await conditionalGet(source.url, state, fetchFn, timeoutMs);
     if (res.status === 'not_modified') {
-      await recordSuccess(db, source.id, { etag: res.etag, lastModified: res.lastModified }, now);
+      await recordSuccess(db, source.id, { etag: res.etag, lastModified: res.lastModified }, now, source.url);
       report.status = 'not_modified';
       return report;
     }
@@ -129,6 +138,11 @@ export async function collectSource(
       let title = entry.title?.trim() || null;
       if (!isSitemap && title === null) {
         report.skipped++;
+        continue;
+      }
+      const early = exclusionRule({ url, title }, source.filter);
+      if (early !== null) {
+        block(early, url);
         continue;
       }
       if (!passesPathFilter(url, source.filter)) {
@@ -165,6 +179,11 @@ export async function collectSource(
         }
         // Page fetched but has no title: fall back to the URL slug.
         title = title || slugTitle(url);
+        const late = exclusionRule({ url, title }, source.filter);
+        if (late !== null) {
+          block(late, url);
+          continue;
+        }
         if (!passesFilter({ url, title }, source.filter)) {
           report.skipped++;
           continue;
@@ -195,7 +214,7 @@ export async function collectSource(
     const validators = pageFetchFailed
       ? { etag: state?.etag ?? null, lastModified: state?.lastModified ?? null }
       : { etag: res.etag, lastModified: res.lastModified };
-    await recordSuccess(db, source.id, validators, now);
+    await recordSuccess(db, source.id, validators, now, source.url);
     return report;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

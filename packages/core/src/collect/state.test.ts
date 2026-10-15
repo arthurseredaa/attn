@@ -47,3 +47,16 @@ describe('source_state', () => {
     expect(await getState(db, 'y')).toEqual({ etag: null, lastModified: null });
   });
 });
+
+describe('validators and a changed feed url', () => {
+  it('returns the stored validators for the same url and none for another one', async () => {
+    await recordSuccess(db, 'x', { etag: '"a"', lastModified: 'lm' }, t1, 'https://e.test/old');
+    expect(await getState(db, 'x', 'https://e.test/old')).toEqual({ etag: '"a"', lastModified: 'lm' });
+    expect(await getState(db, 'x', 'https://e.test/new')).toEqual({ etag: null, lastModified: null });
+  });
+
+  it('ignores validators stored before feed_url existed (null url)', async () => {
+    await recordSuccess(db, 'x', { etag: '"a"', lastModified: 'lm' }, t1);
+    expect(await getState(db, 'x', 'https://e.test/new')).toEqual({ etag: null, lastModified: null });
+  });
+});

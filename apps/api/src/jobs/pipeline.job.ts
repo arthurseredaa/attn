@@ -21,6 +21,9 @@ export class PipelineJob {
     const locked = await withAdvisoryLock(this.env.databaseUrl, PIPELINE_LOCK_KEY, async () => {
       this.logger.log('pipeline started');
       const collect = await this.steps.collect();
+      for (const r of collect) {
+        for (const f of r.filteredItems) this.logger.log(`filtered ${r.sourceId} ${f.rule} ${f.url}`);
+      }
       const inserted = collect.reduce((n, r) => n + r.inserted, 0);
       const failed = collect.filter((r) => r.status === 'error').length;
       this.logger.log(`collect: ${collect.length} sources, ${inserted} inserted, ${failed} failed`);
@@ -29,7 +32,7 @@ export class PipelineJob {
         this.logger.error(`label stopped: provider error: ${label.fatal}`);
       } else if (label.status === 'done') {
         this.logger.log(
-          `label: ${label.labeled} labeled, ${label.failed} failed of ${label.selected}${label.rateLimited ? ' (rate limited)' : ''}`,
+          `label: ${label.labeled} labeled, ${label.excluded} excluded, ${label.failed} failed of ${label.selected}${label.rateLimited ? ' (rate limited)' : ''}`,
         );
       } else {
         this.logger.warn(`label skipped: ${label.reason}`);

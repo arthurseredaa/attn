@@ -7,7 +7,7 @@ import {
 import { buildLabelOutputSchema, taxonomySkillIds, type LabelOutput, type Taxonomy } from '@attn/shared';
 import { mapProviderError } from './ai-sdk';
 import { DIFFICULTY_RUBRIC, QUALITY_RUBRIC, TYPE_RUBRIC, buildUserPrompt } from './prompt';
-import type { LabelTokenUsage, Labeler, PublicArticle } from './types';
+import type { LabelTokenUsage, Labeler, PublicArticle, RelevanceVerdict } from './types';
 
 /** The default of `jev_secondary_threshold` in data/config.yml, used when a caller does not pass one. */
 export const DEFAULT_JEV_SECONDARY_THRESHOLD = 0.5;
@@ -27,6 +27,7 @@ export const JEV_QUESTION_IDS = {
   type: 'type',
   difficulty: 'difficulty',
   quality: 'quality',
+  relevant: 'relevant',
   secondaryPrefix: 'secondary:',
 } as const;
 
@@ -47,7 +48,7 @@ type DecisionModelObject = Extract<DecisionModel, { doDecide: unknown }>;
 
 /**
  * Every question for one article, all answered in a single decide call against the same state:
- * `primary_skill`, `type`, `difficulty` and `quality` are choices, and each taxonomy skill has a boolean
+ * `primary_skill`, `type`, `difficulty` and `quality` are choices, `relevant` is the relevance gate (a boolean), and each taxonomy skill has a boolean
  * `secondary:<id>` question because decide has no multi-select.
  */
 export function buildJevQuestions(taxonomy: Taxonomy): Questions {
@@ -78,6 +79,10 @@ export function buildJevQuestions(taxonomy: Taxonomy): Questions {
       criteria: Object.fromEntries(LEVELS.map((l) => [l, null])),
     },
   };
+  questions[JEV_QUESTION_IDS.relevant] = {
+    type: 'boolean',
+    instructions: `Is this article useful: does it teach or meaningfully inform at least one skill in the skill map below? Articles about building AI features into products count. When unsure, answer yes. Corporate news (funding, hires, offices, partnerships, policy statements), events, marketing and unrelated topics are NOT relevant. Skill map:\n${skills.map((s) => `- ${s.id}: ${s.name} - ${s.description}`).join('\n')}\n${ARTICLE_NOTE}`,
+  };
   for (const s of skills) {
     questions[`${JEV_QUESTION_IDS.secondaryPrefix}${s.id}`] = {
       type: 'boolean',
@@ -105,11 +110,11 @@ export class InvalidJevOutputError extends Error {
 /**
  * Wraps a decision model so that (1) the tokens of every call that returns are counted before `decide` validates the
  * answers, which can still throw for a call that was billed, and (2) a refusal on a secondary-skill question becomes
- * probability 0, because `decide` fails the whole call on any refusal. A refusal on primary_skill, type, difficulty
+ * probability 0 and a refusal on `relevant` becomes probability 1 (never exclude on doubt), because `decide` fails the whole call on any refusal. A refusal on primary_skill, type, difficulty
  * or quality is left alone: `decide` then throws and the article fails. Properties are copied one by one because the
  * gateway model keeps `provider` behind a getter.
  */
-function withUsageAndSecondaryRefusals(inner: DecisionModelObject, usage: LabelTokenUsage): DecisionModelObject {
+function withUsageAndLenientRefusals(inner: DecisionModelObject, usage: LabelTokenUsage): DecisionModelObject {
   return {
     specificationVersion: inner.specificationVersion,
     provider: inner.provider,
@@ -121,10 +126,12 @@ function withUsageAndSecondaryRefusals(inner: DecisionModelObject, usage: LabelT
       usage.outputTokens += result.usage?.outputTokens ?? 0;
       const answers = { ...result.answers };
       for (const [id, a] of Object.entries(answers)) {
-        if (a.type === 'refusal' && id.startsWith(JEV_QUESTION_IDS.secondaryPrefix)) {
-          answers[id] = { type: 'boolean', probability: 0 };
-        }
+        if (a.type !== 'refusal') continue;
+        if (id.startsWith(JEV_QUESTION_IDS.secondaryPrefix)) answers[id] = { type: 'boolean', probability: 0 };
+        else if (id === JEV_QUESTION_IDS.relevant) answers[id] = { type: 'boolean', probability: 1 };
       }
+      // A missing relevance answer counts as relevant too; decide would otherwise fail the whole article.
+      if (!(JEV_QUESTION_IDS.relevant in answers)) answers[JEV_QUESTION_IDS.relevant] = { type: 'boolean', probability: 1 };
       return { ...result, answers };
     },
   };
@@ -169,6 +176,12 @@ export function mapJevAnswers(
   return parsed.data;
 }
 
+/** The relevance verdict from decide's answers; a missing or non-boolean answer gives probability null (= relevant). */
+export function relevanceFrom(answers: Readonly<Record<string, JevAnswer | undefined>>): RelevanceVerdict {
+  const a = answers[JEV_QUESTION_IDS.relevant];
+  return { probability: a?.type === 'boolean' ? a.probability : null };
+}
+
 export interface JevLabelerOptions {
   /** The gateway model id, e.g. `typesafe-ai/jev`. */
   model: string;
@@ -196,7 +209,7 @@ export function createJevLabeler(opts: JevLabelerOptions): Labeler {
   const threshold = opts.secondaryThreshold ?? DEFAULT_JEV_SECONDARY_THRESHOLD;
   const maxRetries = opts.maxRetries ?? 1;
   const usage: LabelTokenUsage = { inputTokens: 0, outputTokens: 0 };
-  const model = withUsageAndSecondaryRefusals(inner, usage);
+  const model = withUsageAndLenientRefusals(inner, usage);
   return {
     model: opts.model,
     usage: () => ({ ...usage }),
@@ -207,7 +220,9 @@ export function createJevLabeler(opts: JevLabelerOptions): Labeler {
       } catch (e) {
         throw mapProviderError(e, { gateway: true });
       }
-      return mapJevAnswers(result.answers as Readonly<Record<string, JevAnswer | undefined>>, opts.taxonomy, threshold);
+      const answers = result.answers as Readonly<Record<string, JevAnswer | undefined>>;
+      const relevance = relevanceFrom(answers);
+      return { ...mapJevAnswers(answers, opts.taxonomy, threshold), relevance };
     },
   };
 }

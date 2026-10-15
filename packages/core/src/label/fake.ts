@@ -1,5 +1,5 @@
 import type { LabelOutput } from '@attn/shared';
-import type { Labeler, PublicArticle } from './types';
+import type { LabelResult, Labeler, PublicArticle } from './types';
 
 export interface FakeLabeler extends Labeler {
   readonly calls: PublicArticle[];
@@ -14,7 +14,7 @@ export const DEFAULT_FAKE_LABEL: LabelOutput = {
 };
 
 export function createFakeLabeler(
-  respond: (article: PublicArticle, callIndex: number) => LabelOutput | Promise<LabelOutput> = () =>
+  respond: (article: PublicArticle, callIndex: number) => LabelResult | Promise<LabelResult> = () =>
     DEFAULT_FAKE_LABEL,
   model = 'fake-model',
 ): FakeLabeler {

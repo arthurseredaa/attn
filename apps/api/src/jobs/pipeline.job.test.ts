@@ -18,11 +18,14 @@ const report: SourceReport = {
   duplicates: 0,
   tooOld: 0,
   skipped: 0,
+  filtered: 0,
+  filteredItems: [],
 };
 const labelResult: LabelStepResult = {
   status: 'done',
   selected: 1,
   labeled: 1,
+  excluded: 0,
   failed: 0,
   rateLimited: false,
   items: [],

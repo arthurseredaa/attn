@@ -13,7 +13,7 @@ import { articleTypeSchema, taxonomySkillIds } from '@attn/shared';
 import { loadTaxonomy } from '../data';
 import { DIFFICULTY_RUBRIC, QUALITY_RUBRIC, TYPE_RUBRIC } from './prompt';
 import { FatalLabelerError, OverloadedError, RateLimitError } from './errors';
-import { InvalidJevOutputError, buildJevQuestions, createJevLabeler, mapJevAnswers } from './jev';
+import { InvalidJevOutputError, buildJevQuestions, createJevLabeler, mapJevAnswers, relevanceFrom } from './jev';
 import { makePublicArticle } from './types';
 
 const taxonomy = loadTaxonomy();
@@ -23,15 +23,16 @@ const article = makePublicArticle({ title: 'Hooks deep dive', url: 'https://e.co
 type DecisionResult = Awaited<ReturnType<DecisionMockModel['doDecide']>>;
 type Answers = DecisionResult['answers'];
 
-/** Answers for the four choice questions plus a probability per skill (default 0.01). */
+/** Answers for the four choice questions, `relevant` (default 0.9) plus a probability per skill (default 0.01). */
 function answers(
-  over: { primary?: string; probs?: Record<string, number>; difficulty?: string; quality?: string; type?: string } = {},
+  over: { primary?: string; probs?: Record<string, number>; difficulty?: string; quality?: string; type?: string; relevant?: number } = {},
 ): Answers {
   const a: Answers = {
     primary_skill: { type: 'choice', choice: over.primary ?? 'cc-hooks' },
     type: { type: 'choice', choice: over.type ?? 'deep_dive' },
     difficulty: { type: 'choice', choice: over.difficulty ?? '3' },
     quality: { type: 'choice', choice: over.quality ?? '4' },
+    relevant: { type: 'boolean', probability: over.relevant ?? 0.9 },
   };
   for (const id of skillIds) a[`secondary:${id}`] = { type: 'boolean', probability: over.probs?.[id] ?? 0.01 };
   return a;
@@ -64,10 +65,21 @@ function labeler(respond: (call: number) => DecisionResult | Promise<DecisionRes
 describe('buildJevQuestions', () => {
   const questions = buildJevQuestions(taxonomy);
 
-  it('has one boolean question per taxonomy skill and the four choice questions', () => {
-    expect(Object.keys(questions)).toHaveLength(4 + skillIds.length);
+  it('has one boolean question per taxonomy skill, the four choice questions and the relevance gate', () => {
+    expect(Object.keys(questions)).toHaveLength(5 + skillIds.length);
     for (const id of skillIds) expect(questions[`secondary:${id}`]?.type).toBe('boolean');
     for (const id of ['primary_skill', 'type', 'difficulty', 'quality']) expect(questions[id]?.type).toBe('choice');
+  });
+
+  it('asks the relevance gate as a boolean that lists every skill and names what is not relevant', () => {
+    const q = questions.relevant!;
+    expect(q.type).toBe('boolean');
+    for (const skill of taxonomy.domains.flatMap((d) => d.skills)) {
+      expect(q.instructions).toContain(`${skill.id}: ${skill.name} - ${skill.description}`);
+    }
+    expect(q.instructions).toMatch(/corporate news \(funding, hires, offices, partnerships, policy statements\)/i);
+    expect(q.instructions).toMatch(/events, marketing and unrelated topics are NOT relevant/);
+    expect(q.instructions).toMatch(/building AI features into products count/);
   });
 
   it('offers every skill id as a primary choice, with its description', () => {
@@ -178,9 +190,10 @@ describe('createJevLabeler', () => {
       difficulty: 3,
       type: 'deep_dive',
       quality: 4,
+      relevance: { probability: 0.9 },
     });
     expect(calls).toBe(1);
-    expect(Object.keys(seen!.questions)).toHaveLength(4 + skillIds.length);
+    expect(Object.keys(seen!.questions)).toHaveLength(5 + skillIds.length);
     const state = JSON.stringify(seen!.state);
     expect(state).toContain('Hooks deep dive');
     expect(state).toContain('https://e.com/hooks');
@@ -210,6 +223,28 @@ describe('createJevLabeler', () => {
     expect(err).not.toBeInstanceOf(FatalLabelerError);
     expect(err).not.toBeInstanceOf(RateLimitError);
     expect(err).not.toBeInstanceOf(OverloadedError);
+  });
+
+  it('reports the relevance probability', async () => {
+    expect((await labeler(() => ok(answers({ relevant: 0.12 }))).label(article)).relevance).toEqual({ probability: 0.12 });
+    expect(relevanceFrom(answers())).toEqual({ probability: 0.9 });
+    expect(relevanceFrom({})).toEqual({ probability: null });
+  });
+
+  it('treats a missing relevant answer as relevant and still labels the article', async () => {
+    const a = answers();
+    delete a.relevant;
+    const r = await labeler(() => ok(a)).label(article);
+    expect(r.primary_skill).toBe('cc-hooks');
+    expect(r.relevance).toEqual({ probability: 1 });
+  });
+
+  it('turns a refused relevance question into "relevant" (probability 1) and still labels the article', async () => {
+    const a = answers();
+    a.relevant = { type: 'refusal' };
+    const r = await labeler(() => ok(a)).label(article);
+    expect(r.primary_skill).toBe('cc-hooks');
+    expect(r.relevance).toEqual({ probability: 1 });
   });
 
   it('turns a refused secondary question into probability 0 and still labels the article', async () => {
