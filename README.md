@@ -99,7 +99,9 @@ All routes are under `/api`; errors are JSON `{ "error", "message" }`.
 - `GET /api/auth/github/callback`: finish sign-in, set the session cookie, redirect to the site
 - `POST /api/auth/logout`: delete the session (204)
 - `GET /api/me`: the signed-in user (401 without a session)
-- `GET /api/articles?source=&skill=&from=&to=&cursor=&limit=`: labeled articles, newest first, cursor pagination
+- `GET /api/articles?source=&skill=&q=&from=&to=&cursor=&limit=`: labeled articles, newest first, cursor pagination;
+  `skill` repeats (`skill=a&skill=b`, any-match on primary or secondary, up to 10, each a taxonomy id) and `q` is a
+  case-insensitive title search (up to 100 characters); both are 400 when invalid
 - `GET /api/sources`
 - `GET /api/taxonomy`
 - `GET /api/quiz?skills=`: quiz questions (no answers) for the signed-in user's role, for the given skills
@@ -107,7 +109,9 @@ All routes are under `/api`; errors are JSON `{ "error", "message" }`.
 - `PUT /api/focus`: replace the ordered focus skills (onboarded users only)
 - `GET /api/profile`: the signed-in user's skill levels and focus, reading history (latest 20, plus the total) and
   the 👍 share among read articles
-- `GET /api/feed?offset=`: the For you page (20 cards, `{ items, nextOffset }`), ranked for the signed-in user
+- `GET /api/feed?offset=&skill=&q=`: the For you page (20 cards, `{ items, nextOffset }`), ranked for the signed-in
+  user; `skill` and `q` work as on `/api/articles` and narrow the ranked list before paging, so repeat them with
+  every `offset`
 - `POST /api/articles/:id/events`: record feedback with `{ kind }` (`read`, `like`, `too_easy`, `too_hard`,
   `not_interested`); 200 `{ kind, recorded }`, a repeated click is a no-op (`recorded: false`)
 

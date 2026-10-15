@@ -39,7 +39,22 @@ describe('articlesQuerySchema', () => {
   it('rejects empty strings and unknown shapes for text params', () => {
     expect(articlesQuerySchema.safeParse({ source: '' }).success).toBe(false);
     expect(articlesQuerySchema.safeParse({ cursor: '' }).success).toBe(false);
-    expect(articlesQuerySchema.safeParse({ skill: ['a', 'b'] }).success).toBe(false);
+    expect(articlesQuerySchema.safeParse({ skill: [''] }).success).toBe(false);
+  });
+
+  it('takes skill as a single value or a repeated list, de-duplicated, max 10', () => {
+    expect(articlesQuerySchema.parse({ skill: 'a' }).skill).toEqual(['a']);
+    expect(articlesQuerySchema.parse({ skill: ['a', 'b', 'a'] }).skill).toEqual(['a', 'b']);
+    const eleven = Array.from({ length: 11 }, (_, i) => `s${i}`);
+    expect(articlesQuerySchema.safeParse({ skill: eleven }).success).toBe(false);
+    expect(articlesQuerySchema.safeParse({ skill: eleven.slice(0, 10) }).success).toBe(true);
+  });
+
+  it('trims q, treats blank as no filter, caps it at 100 characters', () => {
+    expect(articlesQuerySchema.parse({ q: '  rag  ' }).q).toBe('rag');
+    expect(articlesQuerySchema.parse({ q: '   ' }).q).toBeUndefined();
+    expect(articlesQuerySchema.safeParse({ q: 'x'.repeat(100) }).success).toBe(true);
+    expect(articlesQuerySchema.safeParse({ q: 'x'.repeat(101) }).success).toBe(false);
   });
 
   it('validates date bounds and ordering', () => {

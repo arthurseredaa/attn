@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { MAX_FOCUS, type ArticleCard, type ArticleType } from '@attn/shared';
+import { escapeLike, MAX_FOCUS, type ArticleCard, type ArticleType } from '@attn/shared';
 import type { Db } from '../db/client';
 import { MAX_LEVEL, UNASSESSED_LEVEL } from '../levels/scale';
 import type { RankDeps, RankParams, Ranker, ScoredCard } from './types';
@@ -47,11 +47,18 @@ export class SqlRanker implements Ranker {
     return (await this.rankScored(userId, p)).map((s) => s.card);
   }
 
-  async rankScored(userId: string, { limit, offset }: RankParams): Promise<ScoredCard[]> {
+  async rankScored(userId: string, { limit, offset, skills, q }: RankParams): Promise<ScoredCard[]> {
     assertPaging(limit, offset);
     const c = this.deps.config;
     const now = (this.deps.now ?? (() => new Date()))();
     const freshSince = new Date(now.getTime() - c.fresh_days * 86_400_000).toISOString();
+    // Filters sit in the eligibility WHERE, before scoring, ordering and paging, so offsets stay consistent.
+    // Values are bind parameters; the only raw SQL is fixed text.
+    const skillFilter = skills?.length
+      ? sql`and exists (select 1 from article_skills f where f.article_id = a.id
+                        and f.skill_id = any(array[${sql.join(skills.map((k) => sql`${k}`), sql`, `)}]::text[]))`
+      : sql``;
+    const titleFilter = q ? sql`and a.title ilike ${`%${escapeLike(q)}%`}` : sql``;
     const rows = (await this.db.execute(sql`
       with cand as (
         select a.id, a.source_id, a.url, a.title, a.published_at, a.word_count,
@@ -67,6 +74,8 @@ export class SqlRanker implements Ranker {
           and a.quality >= ${c.quality_min}::int
           and (us.focus_rank is not null or a.quality >= ${c.background_quality_min}::int)
           and (a.type not in ('release', 'news') or a.published_at >= ${freshSince}::timestamptz)
+          ${skillFilter}
+          ${titleFilter}
           and not exists (
             select 1 from article_events e
             where e.user_id = ${userId}::uuid and e.article_id = a.id and e.kind in ('read', 'not_interested'))

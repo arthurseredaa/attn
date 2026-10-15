@@ -204,3 +204,13 @@ skills, and ATTN ranks existing articles by their priorities and level.
   `label_min_chars` were marked failed. Of the 389: 154 news, 104 deep_dive, 96 release, 21 research, only 14
   tutorial; 147 have quality 0–1 (mostly company news and vendor product posts outside the skill map), which points
   at sources worth pruning in `data/sources.yml`.
+
+## Filters and search (2026-10-15)
+
+- **Skill filters and title search on For you and All**, kept in the URL (`?skill=a&skill=b&q=text`, plus All's
+  `source`, `from`, `to`). Owner request. `skill` is any-match over primary and secondary skills; `q` is a
+  case-insensitive substring of the title (`%`, `_` and `\` escaped). Both endpoints validate the same way (unknown
+  skill, more than 10 skills or a `q` over 100 characters is a 400). In the feed the filters sit in the ranking
+  query's eligibility `WHERE`, before scoring, ordering and paging, so offsets stay consistent: a next page repeats
+  the filters, and the web computes the offset (served minus excluded) per filtered list. Full-text search over the
+  article body is not part of this. Revert: drop the two `and` fragments in `rank/sql.ts` and the filter bar.
