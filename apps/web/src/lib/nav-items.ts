@@ -10,3 +10,8 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/all', label: 'All', auth: 'any' },
   { href: '/profile', label: 'Profile', auth: 'user' },
 ];
+
+/** The onboarding flow (/onboarding, /onboarding/quiz): the header shows only the brand, so the user stays in the flow. */
+export function isOnboardingPath(pathname: string | null): boolean {
+  return pathname === '/onboarding' || (pathname?.startsWith('/onboarding/') ?? false);
+}
