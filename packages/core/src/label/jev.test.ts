@@ -225,20 +225,18 @@ describe('createJevLabeler', () => {
     expect(err).not.toBeInstanceOf(OverloadedError);
   });
 
-  it('reports the relevance probability, and null when the answer is missing', async () => {
+  it('reports the relevance probability', async () => {
     expect((await labeler(() => ok(answers({ relevant: 0.12 }))).label(article)).relevance).toEqual({ probability: 0.12 });
+    expect(relevanceFrom(answers())).toEqual({ probability: 0.9 });
+    expect(relevanceFrom({})).toEqual({ probability: null });
+  });
+
+  it('treats a missing relevant answer as relevant and still labels the article', async () => {
     const a = answers();
     delete a.relevant;
-    const l = createJevLabeler({
-      model: 'typesafe-ai/jev',
-      taxonomy,
-      decisionModel: mockModel(() => ok(a)),
-      maxRetries: 0,
-    });
-    // decide itself rejects a missing answer, so a label is never produced without one...
-    await expect(l.label(article)).rejects.toThrow();
-    // ...and relevanceFrom, the second line of defense, treats it as no verdict.
-    expect(relevanceFrom(a)).toEqual({ probability: null });
+    const r = await labeler(() => ok(a)).label(article);
+    expect(r.primary_skill).toBe('cc-hooks');
+    expect(r.relevance).toEqual({ probability: 1 });
   });
 
   it('turns a refused relevance question into "relevant" (probability 1) and still labels the article', async () => {

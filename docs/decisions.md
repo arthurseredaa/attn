@@ -241,12 +241,15 @@ Rank already needs quality >= 2, so junk never reached a feed; it cost labeling 
   (https://blog.jetbrains.com/ai/feed/); the gate handles relevance. Feeds were fetched fine during analysis; tests use
   small saved fixtures shaped like them, never the network.
 - **Relevance gate:** one extra boolean `relevant` question inside the existing single jev decide call (no extra call,
-  no extra cost); below `relevance_threshold` 0.5 the article is `excluded` instead of labeled. A refusal or missing
+  negligible extra cost: the skill map adds some input tokens); below `relevance_threshold` 0.5 the article is `excluded` instead of labeled. A refusal or missing
   answer = relevant (never exclude on doubt). Other labelers have no gate. Recall bias is deliberate: sample-audit the
   `excluded` log lines now and then.
 - **`excluded` status instead of deleting:** the foreign keys of `article_events` and `article_skills` cascade, so a
   delete would destroy user events and remove the dedup anchor (the url would be re-collected and re-labeled within the
   backfill window). Excluded rows stay, are skipped by labeling and every reader, and can be restored with
-  `attn unexclude`. Columns `excluded_reason` and `excluded_at` are nullable.
+  `attn unexclude`, which also sets `relevance_override` so the gate cannot exclude that article again. Columns
+  `excluded_reason` and `excluded_at` are nullable.
+- **Stale HTTP validators:** `source_state.feed_url` records which url an etag/last-modified belongs to; validators are ignored
+  when a source's url changed (Simon Willison moved to a tag feed). `filtered=` counts per fetch.
 - **Existing junk** is excluded with `attn exclude --max-quality 1` and `--status failed` after a DB backup, run by the
   owner or orchestrator, not by the migration.

@@ -324,3 +324,16 @@ describe('new cleanup sources (saved fixtures, no network)', () => {
     expect(reports[1]!.duplicates).toBe(2);
   });
 });
+
+describe('repointed source', () => {
+  it('does not send the validators stored for the old url', async () => {
+    server.setRoute('/old.xml', fixtureRoute('rss.xml', { ...xml, ETag: '"old"' }));
+    server.setRoute('/new.xml', fixtureRoute('rss.xml'));
+    await run(rss('s', '/old.xml'));
+    await run(rss('s', '/old.xml'));
+    expect(server.requests.filter((q) => q.path === '/old.xml').at(-1)!.headers['if-none-match']).toBe('"old"');
+    await run(rss('s', '/new.xml'));
+    expect(server.requests.filter((q) => q.path === '/new.xml')[0]!.headers['if-none-match']).toBeUndefined();
+    expect((await stateOf('s'))!.feedUrl).toBe(`${server.baseUrl}/new.xml`);
+  });
+});

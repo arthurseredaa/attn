@@ -81,7 +81,7 @@ export function buildJevQuestions(taxonomy: Taxonomy): Questions {
   };
   questions[JEV_QUESTION_IDS.relevant] = {
     type: 'boolean',
-    instructions: `Is this article useful: does it teach or meaningfully inform at least one skill in the skill map below? Articles about building AI features into products count. Corporate news (funding, hires, offices, partnerships, policy statements), events, marketing and unrelated topics are NOT relevant. Skill map:\n${skills.map((s) => `- ${s.id}: ${s.name} - ${s.description}`).join('\n')}\n${ARTICLE_NOTE}`,
+    instructions: `Is this article useful: does it teach or meaningfully inform at least one skill in the skill map below? Articles about building AI features into products count. When unsure, answer yes. Corporate news (funding, hires, offices, partnerships, policy statements), events, marketing and unrelated topics are NOT relevant. Skill map:\n${skills.map((s) => `- ${s.id}: ${s.name} - ${s.description}`).join('\n')}\n${ARTICLE_NOTE}`,
   };
   for (const s of skills) {
     questions[`${JEV_QUESTION_IDS.secondaryPrefix}${s.id}`] = {
@@ -130,6 +130,8 @@ function withUsageAndLenientRefusals(inner: DecisionModelObject, usage: LabelTok
         if (id.startsWith(JEV_QUESTION_IDS.secondaryPrefix)) answers[id] = { type: 'boolean', probability: 0 };
         else if (id === JEV_QUESTION_IDS.relevant) answers[id] = { type: 'boolean', probability: 1 };
       }
+      // A missing relevance answer counts as relevant too; decide would otherwise fail the whole article.
+      if (!(JEV_QUESTION_IDS.relevant in answers)) answers[JEV_QUESTION_IDS.relevant] = { type: 'boolean', probability: 1 };
       return { ...result, answers };
     },
   };

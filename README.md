@@ -240,7 +240,8 @@ as relevant. The Claude and Gemini labelers have no gate and treat every article
 It is never selected for labeling and never appears in For you, All or counts (every reader filters on
 `label_status = 'labeled'`). `attn exclude --max-quality 1 --reason "q<=1 cleanup"` and
 `attn exclude --status failed --reason "too short"` exclude existing rows (take the pipeline lock; `--dry-run` takes
-none and writes nothing); `attn unexclude --id <id>` returns one article to `pending` with its attempts reset.
+none and writes nothing); `attn unexclude --id <id>` returns one article to `pending` with its attempts reset and marks it so the relevance gate
+never excludes it again (the rescue path for a gate mistake).
 
 `attn collect` and `attn label` take the same Postgres advisory lock as the daily job. If another run holds it,
 they print `another collect/label run is in progress` and exit 1.

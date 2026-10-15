@@ -1,5 +1,5 @@
 {
-  "id": "19bc1642-5d9f-4ea7-a1db-91d621575252",
+  "id": "303905e9-cd74-4385-a7f8-2936e3fd1f04",
   "prevId": "23b2a072-5ead-4e19-8429-01bdc0982447",
   "version": "7",
   "dialect": "postgresql",
@@ -313,6 +313,13 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "relevance_override": {
+          "name": "relevance_override",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         }
       },
       "indexes": {
@@ -561,6 +568,12 @@
         },
         "last_error": {
           "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "feed_url": {
+          "name": "feed_url",
           "type": "text",
           "primaryKey": false,
           "notNull": false

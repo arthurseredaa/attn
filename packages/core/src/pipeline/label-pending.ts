@@ -52,7 +52,7 @@ export async function labelPending(opts: LabelOptions): Promise<LabelReport> {
   const batch = Math.min(config.label_batch, opts.limit ?? config.label_batch);
 
   const rows = await db
-    .select({ id: articles.id, url: articles.url, title: articles.title })
+    .select({ id: articles.id, url: articles.url, title: articles.title, relevanceOverride: articles.relevanceOverride })
     .from(articles)
     .where(
       or(
@@ -110,9 +110,10 @@ export async function labelPending(opts: LabelOptions): Promise<LabelReport> {
     }
 
     // Relevance gate: exclude when the labeler gave a probability below the threshold. No answer = relevant.
-    if (relevance?.probability != null && relevance.probability < config.relevance_threshold) {
+    if (!row.relevanceOverride && relevance?.probability != null && relevance.probability < config.relevance_threshold) {
       const p = relevance.probability;
       try {
+        await db.delete(articleSkills).where(eq(articleSkills.articleId, row.id));
         await db
           .update(articles)
           .set({ labelStatus: 'excluded', excludedReason: `not relevant (p=${p.toFixed(2)})`, excludedAt: now, labelModel: labeler.model })

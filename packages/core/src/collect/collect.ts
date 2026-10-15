@@ -22,7 +22,7 @@ export interface SourceReport {
   tooOld: number;
   /** invalid/non-http url, missing title (rss), failed filter, undated sitemap url on the first run */
   skipped: number;
-  /** entries blocked by an exclusion rule of the source filter (not counted in `skipped`), with the rule that blocked each */
+  /** entries blocked by an exclusion rule of the source filter (not counted in `skipped`), with the rule that blocked each; counted per fetch, so a blocked entry that stays in the feed is counted again on every run */
   filtered: number;
   filteredItems: { rule: string; url: string }[];
   error?: string;
@@ -111,11 +111,11 @@ export async function collectSource(
   };
 
   try {
-    const state = await getState(db, source.id);
+    const state = await getState(db, source.id, source.url);
     let pageFetchFailed = false;
     const res = await conditionalGet(source.url, state, fetchFn, timeoutMs);
     if (res.status === 'not_modified') {
-      await recordSuccess(db, source.id, { etag: res.etag, lastModified: res.lastModified }, now);
+      await recordSuccess(db, source.id, { etag: res.etag, lastModified: res.lastModified }, now, source.url);
       report.status = 'not_modified';
       return report;
     }
@@ -214,7 +214,7 @@ export async function collectSource(
     const validators = pageFetchFailed
       ? { etag: state?.etag ?? null, lastModified: state?.lastModified ?? null }
       : { etag: res.etag, lastModified: res.lastModified };
-    await recordSuccess(db, source.id, validators, now);
+    await recordSuccess(db, source.id, validators, now, source.url);
     return report;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

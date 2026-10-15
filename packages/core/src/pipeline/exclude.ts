@@ -48,11 +48,11 @@ export async function excludeArticles(opts: ExcludeOptions): Promise<ExcludeRepo
   return { count: updated.length, samples };
 }
 
-/** Returns an excluded article to `pending` (attempts reset) so the next label run handles it. False if it is not excluded. */
+/** Returns an excluded article to `pending` (attempts reset, relevance gate bypassed from now on) so the next label run handles it. False if it is not excluded. */
 export async function unexcludeArticle(db: Db, id: number): Promise<boolean> {
   const updated = await db
     .update(articles)
-    .set({ labelStatus: 'pending', labelAttempts: 0, excludedReason: null, excludedAt: null })
+    .set({ labelStatus: 'pending', labelAttempts: 0, excludedReason: null, excludedAt: null, relevanceOverride: true })
     .where(and(eq(articles.id, id), eq(articles.labelStatus, 'excluded')))
     .returning({ id: articles.id });
   return updated.length > 0;

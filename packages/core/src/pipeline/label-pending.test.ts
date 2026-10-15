@@ -5,6 +5,7 @@ import { articleHtml } from '../extract/fixtures/html';
 import { createFakeLabeler, DEFAULT_FAKE_LABEL, FatalLabelerError, OverloadedError, RateLimitError } from '../label';
 import { resetDb, testDb } from '../test/db';
 import { startServer, type TestServer } from '../test/server';
+import { unexcludeArticle } from './exclude';
 import { labelPending, type LabelOptions } from './label-pending';
 
 const config = {
@@ -145,6 +146,16 @@ describe('labelPending', () => {
       const a = await insertArticle(1);
       await run(createFakeLabeler(verdict(0.6)), { config: { ...config, relevance_threshold: 0.7 } });
       expect((await getRow(a.id)).labelStatus).toBe('excluded');
+    });
+
+    it('unexclude rescues a gate-excluded article: the next run labels it even with p below the threshold', async () => {
+      const a = await insertArticle(1);
+      await run(createFakeLabeler(verdict(0.1)));
+      expect((await getRow(a.id)).labelStatus).toBe('excluded');
+      expect(await unexcludeArticle(db, a.id)).toBe(true);
+      const report = await run(createFakeLabeler(verdict(0.1)));
+      expect(report).toMatchObject({ labeled: 1, excluded: 0 });
+      expect(await getRow(a.id)).toMatchObject({ labelStatus: 'labeled', relevanceOverride: true });
     });
 
     it('never selects an excluded article again', async () => {

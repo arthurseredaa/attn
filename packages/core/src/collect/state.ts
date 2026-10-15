@@ -4,9 +4,12 @@ import { sourceState } from '../db/schema';
 import type { CachedState } from './http';
 
 /** null when the source has no source_state row at all (i.e. it has never run). */
-export async function getState(db: Db, sourceId: string): Promise<CachedState | null> {
+export async function getState(db: Db, sourceId: string, feedUrl?: string): Promise<CachedState | null> {
   const [row] = await db.select().from(sourceState).where(eq(sourceState.sourceId, sourceId));
-  return row ? { etag: row.etag, lastModified: row.lastModified } : null;
+  if (!row) return null;
+  // Validators of another url (the source was repointed) must never be sent: that could return a false 304.
+  if (feedUrl !== undefined && row.feedUrl !== feedUrl) return { etag: null, lastModified: null };
+  return { etag: row.etag, lastModified: row.lastModified };
 }
 
 export async function recordSuccess(
@@ -14,8 +17,15 @@ export async function recordSuccess(
   sourceId: string,
   v: CachedState,
   now: Date,
+  feedUrl?: string,
 ): Promise<void> {
-  const values = { etag: v.etag, lastModified: v.lastModified, lastRunAt: now, lastError: null };
+  const values = {
+    etag: v.etag,
+    lastModified: v.lastModified,
+    lastRunAt: now,
+    lastError: null,
+    ...(feedUrl !== undefined ? { feedUrl } : {}),
+  };
   await db
     .insert(sourceState)
     .values({ sourceId, ...values })
