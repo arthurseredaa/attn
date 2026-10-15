@@ -1,3 +1,4 @@
+import type { LabelOutput } from '@attn/shared';
 import { describe, it, expect, vi } from 'vitest';
 import { APICallError } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
@@ -6,13 +7,14 @@ import { createGeminiLabeler } from './gemini';
 import { createComboLabeler, mergeSecondarySkills, parseLabelModel } from './combo';
 import { createLabeler, labelProvidersFor, labelerConfigError } from './factory';
 import { FatalLabelerError, OverloadedError, RateLimitError } from './errors';
-import { makePublicArticle } from './types';
+import { createFakeLabeler } from './fake';
+import { makePublicArticle, type Labeler } from './types';
 
 const taxonomy = loadTaxonomy();
 const article = makePublicArticle({ title: 'Hooks', url: 'https://e.com/h', text: 'Body.' });
 
-const mainOut = { primary_skill: 'cc-hooks', secondary_skills: ['cc-plugins'], difficulty: 3, type: 'deep_dive', quality: 4 };
-const secOut = {
+const mainOut: LabelOutput = { primary_skill: 'cc-hooks', secondary_skills: ['cc-plugins'], difficulty: 3, type: 'deep_dive', quality: 4 };
+const secOut: LabelOutput = {
   primary_skill: 'context-engineering',
   secondary_skills: ['cc-hooks', 'cc-mcp-usage', 'cc-plugins'],
   difficulty: 1,
@@ -157,5 +159,39 @@ describe('createComboLabeler', () => {
     const { labeler } = combo(okModel(mainOut, 10), failingModel(api(429)));
     await labeler.label(article);
     expect(labeler.usage?.()).toEqual({ inputTokens: 10, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0 });
+  });
+
+  describe('relevance verdict', () => {
+    const mainJev = (p: number | null) => createFakeLabeler(() => ({ ...mainOut, relevance: { probability: p } }), 'main-m');
+    const secJev = (p: number | null) => createFakeLabeler(() => ({ ...secOut, relevance: { probability: p } }), 'sec-m');
+    const make = (main: Labeler, secondary: Labeler) =>
+      createComboLabeler({ model: 'main-m+sec-m', main, secondary, onSecondaryFallback: () => {} });
+
+    it("returns main's verdict unchanged and ignores the secondary's", async () => {
+      const out = await make(mainJev(0.2), secJev(0.9)).label(article);
+      expect(out.relevance).toEqual({ probability: 0.2 });
+      expect(out.secondary_skills).toEqual(['cc-mcp-usage', 'cc-plugins']);
+      expect((await make(mainJev(null), secJev(0.1)).label(article)).relevance).toEqual({ probability: null });
+    });
+
+    it('has no verdict when main has none, even if the secondary gives one', async () => {
+      const out = await make(createFakeLabeler(() => mainOut, 'main-m'), secJev(0.1)).label(article);
+      expect(out.relevance).toBeUndefined();
+    });
+
+    it("keeps main's verdict when the secondary fails", async () => {
+      const fallbacks: string[] = [];
+      const failing = createFakeLabeler(() => {
+        throw new Error('boom');
+      }, 'sec-m');
+      const labeler = createComboLabeler({
+        model: 'main-m+sec-m',
+        main: mainJev(0.2),
+        secondary: failing,
+        onSecondaryFallback: (r) => fallbacks.push(r),
+      });
+      expect(await labeler.label(article)).toEqual({ ...mainOut, relevance: { probability: 0.2 } });
+      expect(fallbacks).toHaveLength(1);
+    });
   });
 });

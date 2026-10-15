@@ -2,7 +2,7 @@ import { eq, getTableColumns, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { articleSkills, articles, type Db } from '../db';
 import { articleHtml } from '../extract/fixtures/html';
-import { createFakeLabeler, DEFAULT_FAKE_LABEL, FatalLabelerError, OverloadedError, RateLimitError } from '../label';
+import { createComboLabeler, createFakeLabeler, DEFAULT_FAKE_LABEL, FatalLabelerError, OverloadedError, RateLimitError } from '../label';
 import { resetDb, testDb } from '../test/db';
 import { startServer, type TestServer } from '../test/server';
 import { unexcludeArticle } from './exclude';
@@ -129,6 +129,34 @@ describe('labelPending', () => {
       expect(row.labeledAt).toBeNull();
       expect(await db.select().from(articleSkills).where(eq(articleSkills.articleId, a.id))).toEqual([]);
       expect(lines).toEqual([`excluded  id=${a.id}  p=0.20  Title 1  ${a.url}`]);
+    });
+
+    it("a combo labeler uses main's verdict: below threshold excludes, secondary's verdict is ignored, fallback still gates", async () => {
+      const a = await insertArticle(1);
+      const b = await insertArticle(2);
+      const main = createFakeLabeler((art) => ({ ...DEFAULT_FAKE_LABEL, relevance: { probability: art.url.endsWith('p1') ? 0.2 : 0.9 } }), 'm');
+      const secondary = createFakeLabeler(() => ({ ...DEFAULT_FAKE_LABEL, secondary_skills: ['cc-mcp-usage'], relevance: { probability: 0.99 } }), 's');
+      const labeler = createComboLabeler({ model: 'm+s', main, secondary, onSecondaryFallback: () => {} });
+      const report = await run(labeler);
+      expect(report).toMatchObject({ labeled: 1, excluded: 1, failed: 0 });
+      expect((await getRow(a.id)).labelStatus).toBe('excluded');
+      expect((await getRow(b.id)).labelStatus).toBe('labeled');
+    });
+
+    it('a combo whose secondary fails still excludes by the main verdict', async () => {
+      const a = await insertArticle(1);
+      const fallbacks: string[] = [];
+      const labeler = createComboLabeler({
+        model: 'm+s',
+        main: createFakeLabeler(() => ({ ...DEFAULT_FAKE_LABEL, relevance: { probability: 0.2 } }), 'm'),
+        secondary: createFakeLabeler(() => {
+          throw new Error('down');
+        }, 's'),
+        onSecondaryFallback: (r) => fallbacks.push(r),
+      });
+      expect(await run(labeler)).toMatchObject({ excluded: 1, failed: 0 });
+      expect((await getRow(a.id)).labelStatus).toBe('excluded');
+      expect(fallbacks).toHaveLength(1);
     });
 
     it('labels at exactly the threshold, and when the verdict is missing, null or absent', async () => {
