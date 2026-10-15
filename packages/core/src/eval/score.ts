@@ -39,6 +39,8 @@ export interface EvalReport {
   disagreements: Disagreement[];
   /** Provider token totals for the run, when the labeler reports them. */
   usage?: LabelTokenUsage;
+  /** Per-model token totals, for a combo labeler. */
+  usageByModel?: Record<string, LabelTokenUsage>;
 }
 
 export function jaccard(a: readonly string[], b: readonly string[]): number {
@@ -84,6 +86,7 @@ export function buildReport(args: {
   rateLimited: boolean;
   fatal?: string;
   usage?: LabelTokenUsage;
+  usageByModel?: Record<string, LabelTokenUsage>;
 }): EvalReport {
   const { scored } = args;
   const scores = scored.map((s) => scoreItem(s.expected, s.actual));
@@ -109,6 +112,7 @@ export function buildReport(args: {
     metrics,
     disagreements: scored.flatMap((s) => findDisagreements(s.url, s.expected, s.actual)),
     ...(args.usage !== undefined ? { usage: args.usage } : {}),
+    ...(args.usageByModel !== undefined ? { usageByModel: args.usageByModel } : {}),
   };
 }
 
@@ -149,5 +153,8 @@ export function formatEvalReport(report: EvalReport): string {
   if (report.rateLimited) lines.push('rate limited: evaluation stopped early');
   if (report.fatal) lines.push(`provider error: ${report.fatal}; evaluation stopped early`);
   if (report.usage) lines.push(formatUsage(report.usage));
+  if (report.usageByModel) {
+    for (const [model, u] of Object.entries(report.usageByModel)) lines.push(`  ${model}  ${formatUsage(u)}`);
+  }
   return lines.join('\n');
 }

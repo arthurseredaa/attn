@@ -20,6 +20,8 @@ export interface Labeler {
   label(article: PublicArticle): Promise<LabelOutput>;
   /** Optional: a labeler that sees provider token counts reports their running totals. */
   usage?(): LabelTokenUsage;
+  /** Optional: a combo labeler also reports the running totals of each underlying model. */
+  usageByModel?(): Record<string, LabelTokenUsage>;
 }
 
 export function makePublicArticle(input: { title: string; url: string; text: string }): PublicArticle {

@@ -172,3 +172,7 @@ skills, and ATTN ranks existing articles by their priorities and level.
 ## jev labeler (2026-10-14)
 
 - **`typesafe-ai/jev` is a third labeler, chosen by the `typesafe-ai/` prefix.** It is a decision model on the Vercel AI Gateway (`JEV_API_KEY`, paid per input token), called with the experimental `experimental_decide`: one call per article, choices for primary skill, type, difficulty and quality, and a yes/no question per skill for secondary skills (kept when probability >= `jev_secondary_threshold`, default 0.5, at most 3, never the primary); gateway auth, billing, restricted-model and non-input 400/422 errors stop the run, since they would repeat for every article; 409/5xx are retried and input-caused 4xx fail only that article.
+
+## Combo labeler (2026-10-15)
+
+- **`LABEL_MODEL=<main>+<secondary>` combines two labelers.** Golden eval: `claude-haiku-5-5` is best on primary skill, type and difficulty, `gemini-3.5-flash-lite` on secondary skills, so the owner chose `claude-haiku-5-5+gemini-3.5-flash-lite`: main's label with the secondary model's secondary skills (minus main's primary, deduped, at most 3). A secondary failure of any kind keeps main's own secondary skills with one warning line and never stops the run; main failures behave as before. The stored `label_model` is the full combo string. `.env.example` keeps `LABEL_MODEL` empty (no default is named there).

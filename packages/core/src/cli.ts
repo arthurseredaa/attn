@@ -28,8 +28,8 @@ const USAGE = `usage: attn <migrate | collect | label | eval | seed-demo>
 commands:
   migrate                                              apply database migrations
   collect [--source <id>]... [--backfill-days <n>]    collect new articles from sources
-  label [--limit <n>]                                  label pending articles with LABEL_MODEL (claude-*, gemini-* or typesafe-ai/*)
-  eval --model <id>                                    measure a model (claude-*, gemini-* or typesafe-ai/*) against data/golden/*.yml
+  label [--limit <n>]                                  label pending articles with LABEL_MODEL (claude-*, gemini-*, typesafe-ai/* or <main>+<secondary>)
+  eval --model <id>                                    measure a model (claude-*, gemini-*, typesafe-ai/* or <main>+<secondary>) against data/golden/*.yml
   seed-demo [--remove]                                 add (or remove) demo articles for local use without a labeling key
 `;
 

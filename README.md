@@ -165,6 +165,15 @@ model id prefix:
 Without the model or its key, or with any other prefix (`unknown LABEL_MODEL provider`), it exits 1 before touching
 anything and names the problem.
 
+**Combo.** `LABEL_MODEL=<main>+<secondary>` (e.g. `claude-haiku-5-5+gemini-3.5-flash-lite`) labels each article with
+both models in parallel. The result is the main model's label (primary skill, type, difficulty, quality) with its
+secondary skills replaced by the secondary model's, minus the main primary skill, deduped, at most 3. Both parts go
+through the same checks (each needs its own key; an empty part or a second `+` exits 1 at startup). If the secondary
+call fails for any reason (429, overload, invalid output, a fatal error of that provider), the article keeps the main
+model's own secondary skills, one `warning: secondary labeler ...` line is logged, and the run continues; only a main
+model failure behaves as before (fatal or 429 stops the run). The stored `label_model` is the full combo string, and
+`eval` token totals cover both calls with a per-model breakdown.
+
 To label with Claude, set `LABEL_MODEL=claude-haiku-5-5` and `ANTHROPIC_API_KEY` (from
 https://console.anthropic.com). Every call is billed per input and output token. Input is dominated by the article
 text, which is cut to `label_max_chars` (`data/config.yml`, default 20000 characters), so that setting is the main
@@ -328,6 +337,9 @@ pnpm attn eval --model gemini-3.5-flash-lite
 ```
 
 Claude Haiku (`claude-haiku-5-5`, paid) is also a candidate (docs/decisions.md); compare its `tokens:` line too.
+A combo is evaluated the same way, `pnpm attn eval --model claude-haiku-5-5+gemini-3.5-flash-lite`; its `tokens:` line
+sums both models and is followed by one indented line per model. A failing secondary falls back to the main model's
+secondary skills (see Labeling), so its score then reflects the main model for that article.
 
 Compare the six lines and the disagreement lists, then set the winner as `LABEL_MODEL` in `.env`. Because the
 text cache is shared, the comparison is on identical text. Prompt or taxonomy changes also move the scores, so

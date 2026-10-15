@@ -2,7 +2,7 @@ import {
   collectAll,
   createLabeler,
   labelPending,
-  labelProviderFor,
+  labelProvidersFor,
   type Db,
   type FetchFn,
   type LabelReport,
@@ -70,7 +70,7 @@ export function labelerFromEnv(
     GOOGLE_GENERATIVE_AI_API_KEY: env.googleApiKey,
     JEV_API_KEY: env.jevApiKey,
   };
-  if (!keys[labelProviderFor(env.labelModel).apiKeyVar]) return null;
+  if (labelProvidersFor(env.labelModel).some((p) => !keys[p.apiKeyVar])) return null;
   return createLabeler({
     model: env.labelModel,
     taxonomy,
