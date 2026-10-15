@@ -172,3 +172,33 @@ skills, and ATTN ranks existing articles by their priorities and level.
 ## jev labeler (2026-10-14)
 
 - **`typesafe-ai/jev` is a third labeler, chosen by the `typesafe-ai/` prefix.** It is a decision model on the Vercel AI Gateway (`JEV_API_KEY`, paid per input token), called with the experimental `experimental_decide`: one call per article, choices for primary skill, type, difficulty and quality, and a yes/no question per skill for secondary skills (kept when probability >= `jev_secondary_threshold`, default 0.5, at most 3, never the primary); gateway auth, billing, restricted-model and non-input 400/422 errors stop the run, since they would repeat for every article; 409/5xx are retried and input-caused 4xx fail only that article.
+
+## Labeler choice and eval results (2026-10-15)
+
+- **`LABEL_MODEL=typesafe-ai/jev` labels everything; Gemini is not used.** Golden-set eval (58 articles, the
+  Claude-drafted reference, so Claude may be favoured), % agreement:
+
+  | Field | jev | claude-haiku-5-5 | gemini-3.5-flash-lite |
+  |---|---|---|---|
+  | primary skill | 72.4 | 65.5 | 58.6 |
+  | secondary skills (Jaccard) | 49.7 | 20.0 | 31.3 |
+  | difficulty exact | 43.1 | 62.1 | 58.6 |
+  | difficulty ±1 | 93.1 | 98.3 | 93.1 |
+  | type | 89.7 | 82.8 | 75.9 |
+  | quality ±1 | 89.7 | 96.6 | 98.3 |
+
+  Cost per run of 58: jev ≈ $0.019 (≈ $0.33 per 1000 articles at $0.042/M input tokens), Haiku 5.5 ≈ $0.026
+  (≈ $0.45 per 1000 with prompt caching). jev needs paid Vercel credits: the free tier answers 403
+  "Free tier users do not have access to this model".
+- **Known jev weaknesses, to revisit after a trial period:**
+  - Difficulty is often one level too hard (43.1% exact vs Haiku's 62.1%), so the feed may serve articles above the
+    reader's level. Options: a difficulty-only second opinion from Haiku (the parked `feat/combo-labeler` branch
+    supports `<main>+<secondary>` combos, currently for secondary skills only), or a calibration offset.
+  - Secondary skills are under-predicted at `jev_secondary_threshold` 0.5: in 21 of the 32 secondary-skill
+    disagreements jev returned none where the reference had some. Try 0.3 and 0.4 with `attn eval` (≈ 2 cents each).
+- **The initial backlog was labeled without the API.** The 389 articles pending on 2026-10-15 were labeled by Claude
+  Code subagents (Sonnet) reading each article's full extracted text with the same system prompt and rubrics, then
+  imported with the labeler's own write path (`label_model = claude-code-subagent:sonnet`); 8 articles under
+  `label_min_chars` were marked failed. Of the 389: 154 news, 104 deep_dive, 96 release, 21 research, only 14
+  tutorial; 147 have quality 0–1 (mostly company news and vendor product posts outside the skill map), which points
+  at sources worth pruning in `data/sources.yml`.
