@@ -34,20 +34,27 @@ import {
 } from '@/components/ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { SignOutButton } from './sign-out-button';
+import { DotLogo } from './dot-logo';
 import { ThemeToggle } from './theme-toggle';
 
 const ICONS: Record<string, LucideIcon> = { '/for-you': House, '/all': List, '/profile': UserRound };
 
 const brandClass =
-  'rounded-sm text-xl leading-none font-bold tracking-[-0.03em] outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
+  'inline-flex items-center rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring';
 
-/** The brand, plain text; on onboarding it is not a link, so it does not lead out of the flow. */
+/** The brand, the dot-matrix logo; on onboarding it is not a link, so it does not lead out of the flow. */
 export function Brand({ className }: { className?: string }) {
   const pathname = usePathname();
-  if (isOnboardingPath(pathname)) return <span className={cn(brandClass, className)}>attn</span>;
+  const logo = (
+    <>
+      <DotLogo />
+      <span className="sr-only">attn</span>
+    </>
+  );
+  if (isOnboardingPath(pathname)) return <span className={cn(brandClass, className)}>{logo}</span>;
   return (
     <Link href="/" className={cn(brandClass, className)}>
-      attn
+      {logo}
     </Link>
   );
 }

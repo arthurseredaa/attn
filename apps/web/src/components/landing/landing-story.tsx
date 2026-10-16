@@ -6,6 +6,7 @@ import { useReducedMotion } from 'motion/react';
 import { Button } from '@/components/ui/button';
 import { fontMono, fontSans, pad2, type BoardData, type BoardView } from '@/lib/landing-board';
 import { cn } from '@/lib/utils';
+import { DotLogo } from '@/components/dot-logo';
 import { DotBoard, readFonts, readPalette, sampleWordmark } from './dot-board';
 
 const ACT_NAMES = ['noise', 'collected', 'focus', 'path'];
@@ -430,7 +431,10 @@ export function LandingStory({
           <section key={i} className="border-b px-4 py-14 sm:py-20 md:px-10">
             {i === 0 ? (
               <>
-                <span className="mb-10 block text-[17px] leading-none font-semibold tracking-[-0.02em]">attn</span>
+                <span className="mb-10 block">
+                  <DotLogo className="h-8" />
+                  <span className="sr-only">attn</span>
+                </span>
                 {alert ? <div className="mb-8">{alert}</div> : null}
                 <h1 className={cn(H_ACT, 'max-w-[1180px]')}>{act.title}</h1>
               </>
@@ -487,8 +491,9 @@ export function LandingStory({
           {i === 0 ? (
             <div ref={setCopy(5)} className="relative space-y-4">
               {/* A background-coloured plate: on wide screens a flashing title can pass near the brand. */}
-              <span className="-mx-1.5 block w-fit bg-background px-1.5 py-1 text-[17px] leading-none font-semibold tracking-[-0.02em]">
-                attn
+              <span className="-mx-1.5 block w-fit bg-background px-1.5 py-1">
+                <DotLogo className="h-8" />
+                <span className="sr-only">attn</span>
               </span>
               {alert}
             </div>

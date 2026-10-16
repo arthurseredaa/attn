@@ -162,11 +162,26 @@
 
 /*
  * Landing (/): one section per swipe. The landing component puts this class on <html> (the scroller) and removes it on
- * unmount, so no other page snaps; reduced motion keeps normal scrolling. The sections carry the bar's height as their
- * scroll margin.
+ * unmount, so no other page snaps; reduced motion keeps normal scrolling.
  */
 @media (prefers-reduced-motion: no-preference) {
   html.landing-snap {
     scroll-snap-type: y mandatory;
+  }
+}
+
+/* The dot-matrix logo (DotLogo): each lit dot dims and comes back on its own delay, a slow wave across the word. */
+@keyframes dot-logo-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dot-logo-lit {
+    animation: dot-logo-twinkle 2.8s ease-in-out infinite;
   }
 }
