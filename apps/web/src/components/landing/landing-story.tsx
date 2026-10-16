@@ -38,13 +38,8 @@ const sourcesWord = (n: number | null) => (n === null ? 'Many' : (NUMBER_WORDS[n
 
 // ---- styles ---------------------------------------------------------------------------------------------------------
 
-/**
- * A full-screen section under the bar (56px plus its 1px border); with the board on, it snaps one section per swipe. The
- * bar's height is a scroll margin on the sections rather than scroll padding on <html>: padding would also apply when
- * focus returns to a control in the bar (e.g. after the theme menu), and that scroll would snap to another section.
- */
-const SECTION =
-  'group relative z-10 flex min-h-[calc(100svh-3.5rem-1px)] scroll-mt-[calc(3.5rem+1px)] snap-start snap-always flex-col px-4 md:px-10';
+/** A full-screen section (the landing has no bar); with the board on, it snaps one section per swipe. */
+const SECTION = 'group relative z-10 flex min-h-svh snap-start snap-always flex-col px-4 md:px-10';
 /**
  * The act text comes in once its section is active (after the dots have started to move) and leaves fast. Only with
  * motion allowed and only after mount (`data-state` is set then), so the server html and reduced motion show it all.
@@ -55,6 +50,12 @@ const H_ACT = 'text-[clamp(36px,5vw,76px)] leading-[0.96] font-semibold tracking
 const SUB = 'mt-3.5 max-w-[34em] text-[clamp(16px,1.4vw,20px)] leading-[1.4] text-muted-foreground';
 
 const CTA_BUTTON = 'h-[54px] rounded-none px-6 text-[16px] font-semibold max-sm:w-full';
+
+/** Phones get no charts: the board stays a muted noise field behind the text, and the acts show plain lists. */
+const PHONE_QUERY = '(max-width: 767px)';
+/** A quiet list under an act's text on phones (the board draws the chart on wider screens). */
+const PHONE_LIST = 'mt-8 divide-y border-y md:hidden';
+const PHONE_ROW = 'flex items-baseline gap-3 py-2.5 text-[15px] leading-snug';
 
 function GitHubMark() {
   return (
@@ -70,13 +71,23 @@ function GitHubMark() {
 function measureView(width: number, height: number, copies: (HTMLElement | null)[], fonts: ReturnType<typeof readFonts>): BoardView {
   const bottom = (el: HTMLElement | null) => (el ? el.offsetTop + el.offsetHeight : 120);
   const h = copies[0];
+  // The noise keeps clear of the act-1 text, and on phones also of the brand just above it (index 5). On wide screens
+  // the brand sits far above the text, and one box around both would empty most of the board.
+  const brandEl = copies[5];
+  const brand = brandEl && h && h.offsetTop - (brandEl.offsetTop + brandEl.offsetHeight) < 120 ? brandEl : null;
+  const top = brand ? brand.offsetTop : (h?.offsetTop ?? height);
   return {
     width,
     height,
     // offset* ignore transforms, so the text's slide-in does not move the layout.
     copyBottoms: [bottom(copies[1] ?? null), bottom(copies[2] ?? null), bottom(copies[3] ?? null)],
     headline: h
-      ? { x0: h.offsetLeft, y0: h.offsetTop, x1: h.offsetLeft + h.offsetWidth, y1: h.offsetTop + h.offsetHeight }
+      ? {
+          x0: h.offsetLeft,
+          y0: top,
+          x1: h.offsetLeft + Math.max(h.offsetWidth, brand?.offsetWidth ?? 0),
+          y1: h.offsetTop + h.offsetHeight,
+        }
       : { x0: 0, y0: height, x1: 0, y1: height },
     wordmark: sampleWordmark(width, height, fonts),
   };
@@ -228,6 +239,102 @@ function useStillBoards(
   }, [enabled, data, sectionRefs, canvasRefs, copyRefs]);
 }
 
+function usePhone() {
+  const [phone, setPhone] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(PHONE_QUERY);
+    const update = () => setPhone(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+  return phone;
+}
+
+/** The two actions: sign in (or open For you when signed in) and browse all. */
+function CtaButtons({ signedIn }: { signedIn: boolean }) {
+  return (
+    <div className="flex flex-col sm:flex-row">
+      <Button
+        asChild
+        className={cn(
+          CTA_BUTTON,
+          'gap-2 border-signal bg-signal text-signal-foreground hover:bg-[color-mix(in_oklch,var(--signal),black_9%)] hover:brightness-100',
+        )}
+      >
+        {signedIn ? (
+          <Link href="/for-you">Open For you</Link>
+        ) : (
+          // Plain anchor: this is an api redirect, not a Next route.
+          <a href="/api/auth/github">
+            <GitHubMark />
+            Sign in with GitHub
+          </a>
+        )}
+      </Button>
+      <Button
+        asChild
+        variant="outline"
+        className={cn(
+          CTA_BUTTON,
+          'border-foreground/25 bg-transparent hover:border-foreground/25 hover:bg-foreground/5 max-sm:-mt-px sm:-ml-px',
+        )}
+      >
+        <Link href="/all">Browse all articles →</Link>
+      </Button>
+    </div>
+  );
+}
+
+/** Phones: what the board's chart shows on wider screens, as a plain list under the act's text. */
+function PhoneList({ act, data, sourceCount }: { act: number; data: BoardData; sourceCount: number | null }) {
+  if (act === 1) {
+    const listed = data.sources.filter((s) => s.count > 0);
+    // Against the headline's count: an article can name a source that is not in the sources list.
+    const rest = Math.max(0, (sourceCount ?? data.sources.length) - listed.length);
+    return (
+      <ul className={PHONE_LIST}>
+        {listed.map((s) => (
+          <li key={s.name} className={PHONE_ROW}>
+            <span className="min-w-0 flex-1 truncate">{s.name}</span>
+            <span className="font-mono text-[13px] text-muted-foreground">{s.count}</span>
+          </li>
+        ))}
+        {rest > 0 ? <li className={cn(PHONE_ROW, 'text-muted-foreground')}>+{rest} more sources</li> : null}
+      </ul>
+    );
+  }
+  if (act === 2) {
+    return (
+      <ol className={PHONE_LIST}>
+        {data.focus.map((f, i) => (
+          <li key={f.id} className={PHONE_ROW}>
+            <span className="font-mono text-[13px] text-primary">{pad2(i + 1)}</span>
+            <span className="min-w-0 flex-1">{f.name}</span>
+            <span className="font-mono text-[13px] text-muted-foreground">{f.count}</span>
+          </li>
+        ))}
+      </ol>
+    );
+  }
+  if (act === 3) {
+    return (
+      <ol className={PHONE_LIST}>
+        {data.steps.map((st, i) => (
+          <li key={st.title} className={cn(PHONE_ROW, 'items-start')}>
+            <span className="pt-px font-mono text-[13px] text-primary">{pad2(i + 1)}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-mono text-[12px] text-muted-foreground">{st.level}</span>
+              <span className="line-clamp-2">{st.title}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    );
+  }
+  return null;
+}
+
 // ---- the page ---------------------------------------------------------------------------------------------------------
 
 /**
@@ -251,6 +358,7 @@ export function LandingStory({
   const list = acts(sourceCount);
   const board = data !== null;
   const reduce = useReducedMotion();
+  const phone = usePhone();
   const [mounted, setMounted] = useState(false);
   const [active, setActive] = useState(0);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -269,7 +377,7 @@ export function LandingStory({
     return () => html.classList.remove(SNAP_CLASS);
   }, [board]);
 
-  // The active section: the one at least 60% on screen (below the bar).
+  // The active section: the one at least 60% on screen.
   useEffect(() => {
     if (!board) return;
     const io = new IntersectionObserver(
@@ -280,13 +388,16 @@ export function LandingStory({
           if (i >= 0) setActive(i);
         }
       },
-      { threshold: [0.6], rootMargin: '-57px 0px 0px 0px' },
+      { threshold: [0.6] },
     );
     for (const s of sectionRefs.current) if (s) io.observe(s);
     return () => io.disconnect();
   }, [board]);
 
-  useAnimatedBoard(board && reduce === false, data, stageRef, canvasRef, copyRefs, active);
+  // Phones keep the noise for the acts (only the closing wordmark forms) and mute it under the act text.
+  const boardState = phone && active < 4 ? 0 : active;
+  const muted = phone && active > 0 && active < 4;
+  useAnimatedBoard(board && reduce === false, data, stageRef, canvasRef, copyRefs, boardState);
   useStillBoards(board && reduce === true, data, sectionRefs, stillRefs, copyRefs);
 
   const state = (i: number) => (board && mounted ? (active === i ? 'on' : 'off') : undefined);
@@ -303,7 +414,10 @@ export function LandingStory({
           stillRefs.current[i] = el;
         }}
         aria-hidden
-        className="pointer-events-none absolute inset-0 hidden size-full motion-reduce:block"
+        className={cn(
+          'pointer-events-none absolute inset-0 hidden size-full motion-reduce:block',
+          i > 0 && i < 4 && 'max-md:motion-reduce:hidden',
+        )}
       />
     ) : null;
 
@@ -315,6 +429,7 @@ export function LandingStory({
           <section key={i} className="border-b px-4 py-14 sm:py-20 md:px-10">
             {i === 0 ? (
               <>
+                <span className="mb-10 block text-[17px] leading-none font-semibold tracking-[-0.02em]">attn</span>
                 {alert ? <div className="mb-8">{alert}</div> : null}
                 <h1 className={cn(H_ACT, 'max-w-[1180px]')}>{act.title}</h1>
               </>
@@ -322,6 +437,11 @@ export function LandingStory({
               <h2 className={cn(H_ACT, 'max-w-[1000px]')}>{act.title}</h2>
             )}
             <p className={SUB}>{act.sub}</p>
+            {i === 0 ? (
+              <div className="mt-8">
+                <CtaButtons signedIn={signedIn} />
+              </div>
+            ) : null}
           </section>
         ))}
         <Cta signedIn={signedIn} sourceCount={sourceCount} className="py-16 sm:py-24" />
@@ -334,9 +454,12 @@ export function LandingStory({
       <div
         ref={stageRef}
         aria-hidden
-        className="pointer-events-none sticky top-[calc(3.5rem+1px)] z-0 -mb-[calc(100svh-3.5rem-1px)] h-[calc(100svh-3.5rem-1px)] overflow-hidden bg-background motion-reduce:hidden"
+        className="pointer-events-none sticky top-0 z-0 -mb-[100svh] h-svh overflow-hidden bg-background motion-reduce:hidden"
       >
-        <canvas ref={canvasRef} className="absolute inset-0 block size-full" />
+        <canvas
+          ref={canvasRef}
+          className={cn('absolute inset-0 block size-full transition-opacity duration-700', muted && 'opacity-20')}
+        />
         <div
           className={cn(
             'absolute right-10 bottom-[22px] hidden font-mono text-[12px] text-muted-foreground transition-opacity duration-300 md:block',
@@ -352,20 +475,35 @@ export function LandingStory({
           key={i}
           ref={setSection(i)}
           data-state={state(i)}
-          className={cn(SECTION, i === 0 ? 'justify-end pb-[clamp(48px,10vh,104px)]' : 'pt-7 md:pt-11')}
+          className={cn(
+            SECTION,
+            i === 0
+              ? 'justify-between pt-6 pb-[clamp(48px,10vh,104px)] max-md:justify-start max-md:gap-12 max-md:pb-10'
+              : 'pt-10 md:pt-11',
+          )}
         >
           {stillCanvas(i)}
-          {i === 0 && alert ? <div className="absolute inset-x-4 top-4 z-20 md:inset-x-10">{alert}</div> : null}
+          {i === 0 ? (
+            <div ref={setCopy(5)} className="relative space-y-4">
+              {/* A background-coloured plate: on wide screens a flashing title can pass near the brand. */}
+              <span className="-mx-1.5 block w-fit bg-background px-1.5 py-1 text-[17px] leading-none font-semibold tracking-[-0.02em]">
+                attn
+              </span>
+              {alert}
+            </div>
+          ) : null}
           <div ref={setCopy(i)} className={cn('relative', COPY_MOTION, i === 0 ? 'max-w-[1180px]' : 'max-w-[1000px]')}>
             {i === 0 ? (
               <>
                 <h1 className="text-[clamp(46px,8.6vw,140px)] leading-[0.88] font-semibold tracking-[-0.058em]">{act.title}</h1>
-                <p className={cn(SUB, 'mt-[22px] text-foreground/75')}>{act.sub}</p>
+                <p className={cn(SUB, 'mt-[22px] mb-8 text-foreground/75 md:mb-10')}>{act.sub}</p>
+                <CtaButtons signedIn={signedIn} />
               </>
             ) : (
               <>
                 <h2 className={H_ACT}>{act.title}</h2>
                 <p className={SUB}>{act.sub}</p>
+                {data ? <PhoneList act={i} data={data} sourceCount={sourceCount} /> : null}
               </>
             )}
           </div>
@@ -408,35 +546,7 @@ function Cta({
         <p className={cn(SUB, 'mt-[22px] mb-10 max-w-[30em]')}>
           {sourcesWord(sourceCount)} sources, five skills, one ordered path.
         </p>
-        <div className="flex flex-col sm:flex-row">
-          <Button
-            asChild
-            className={cn(
-              CTA_BUTTON,
-              'gap-2 border-signal bg-signal text-signal-foreground hover:bg-[color-mix(in_oklch,var(--signal),black_9%)] hover:brightness-100',
-            )}
-          >
-            {signedIn ? (
-              <Link href="/for-you">Open For you</Link>
-            ) : (
-              // Plain anchor: this is an api redirect, not a Next route.
-              <a href="/api/auth/github">
-                <GitHubMark />
-                Sign in with GitHub
-              </a>
-            )}
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            className={cn(
-              CTA_BUTTON,
-              'border-foreground/25 bg-transparent hover:border-foreground/25 hover:bg-foreground/5 max-sm:-mt-px sm:-ml-px',
-            )}
-          >
-            <Link href="/all">Browse all articles →</Link>
-          </Button>
-        </div>
+        <CtaButtons signedIn={signedIn} />
       </div>
       <div className="mt-[clamp(64px,12vh,120px)] flex flex-wrap justify-between gap-4 border-t pt-4 font-mono text-[12px] text-muted-foreground">
         <span>attn</span>
