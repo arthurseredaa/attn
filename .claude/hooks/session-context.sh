@@ -6,7 +6,7 @@ cd "${CLAUDE_PROJECT_DIR:-$(pwd)}" || exit 0
 if nc -z -G 1 localhost 5432 >/dev/null 2>&1; then
   echo 'Postgres: up on localhost:5432 (DB tests and `pnpm attn` will work).'
 else
-  echo 'Postgres: DOWN. DB tests and `pnpm attn` need `docker compose up -d --wait postgres` (ask the user first).'
+  echo 'Postgres: DOWN on localhost:5432. DB tests and `pnpm attn` need it; ask the user to start it.'
 fi
 [ -f .env ] || echo 'No .env in this checkout: commands that need secrets (label, eval, api) will fail.'
 [ -d node_modules ] || echo 'No node_modules in this checkout: run `pnpm install` first.'

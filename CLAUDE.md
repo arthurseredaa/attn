@@ -19,7 +19,8 @@ pnpm monorepo, TypeScript, Node 24 (ESM).
 
 - `pnpm lint` (oxlint), `pnpm format` / `pnpm format:check` (oxfmt), `pnpm typecheck`, `pnpm test` (vitest).
 - One package or file: `pnpm exec vitest run packages/core/src/rank/`.
-- DB tests and `pnpm attn` need Postgres: `docker compose up -d --wait postgres`. Tests use the `attn_test` database
+- DB tests and `pnpm attn` need Postgres on localhost:5432 (`docker compose up -d --wait postgres`, or the owner's
+  local Homebrew service). Tests use the `attn_test` database
   (`TEST_DATABASE_URL`), created on demand by the test helper.
 
 Area-specific rules load on demand from `.claude/rules/` (db, web, data).
