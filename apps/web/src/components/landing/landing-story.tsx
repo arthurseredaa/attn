@@ -277,7 +277,8 @@ function CtaButtons({ signedIn }: { signedIn: boolean }) {
         variant="outline"
         className={cn(
           CTA_BUTTON,
-          'border-foreground/25 bg-transparent hover:border-foreground/25 hover:bg-foreground/5 max-sm:-mt-px sm:-ml-px',
+          // Opaque: the board's dots and labels pass behind it.
+          'border-foreground/25 bg-background hover:border-foreground/25 hover:bg-[color-mix(in_oklch,var(--background),var(--foreground)_5%)] max-sm:-mt-px sm:-ml-px',
         )}
       >
         <Link href="/all">Browse all articles →</Link>
@@ -478,7 +479,7 @@ export function LandingStory({
           className={cn(
             SECTION,
             i === 0
-              ? 'justify-between pt-6 pb-[clamp(48px,10vh,104px)] max-md:justify-start max-md:gap-12 max-md:pb-10'
+              ? 'pt-6 pb-[clamp(48px,10vh,104px)] max-md:pb-[max(1.5rem,env(safe-area-inset-bottom))]'
               : 'pt-10 md:pt-11',
           )}
         >
@@ -492,21 +493,26 @@ export function LandingStory({
               {alert}
             </div>
           ) : null}
-          <div ref={setCopy(i)} className={cn('relative', COPY_MOTION, i === 0 ? 'max-w-[1180px]' : 'max-w-[1000px]')}>
-            {i === 0 ? (
-              <>
+          {i === 0 ? (
+            // Wide screens: the text and the buttons together at the bottom. Phones: the text at the top, the buttons
+            // at the bottom edge, where a thumb reaches them. Not positioned: measureView reads the text's offsets
+            // against the section.
+            <div className="flex flex-1 flex-col max-md:pt-12 md:justify-end">
+              <div ref={setCopy(0)} className={cn('relative max-w-[1180px]', COPY_MOTION)}>
                 <h1 className="text-[clamp(46px,8.6vw,140px)] leading-[0.88] font-semibold tracking-[-0.058em]">{act.title}</h1>
-                <p className={cn(SUB, 'mt-[22px] mb-8 text-foreground/75 md:mb-10')}>{act.sub}</p>
+                <p className={cn(SUB, 'mt-[22px] text-foreground/75')}>{act.sub}</p>
+              </div>
+              <div className={cn('relative pt-8 max-md:mt-auto md:pt-10', COPY_MOTION)}>
                 <CtaButtons signedIn={signedIn} />
-              </>
-            ) : (
-              <>
-                <h2 className={H_ACT}>{act.title}</h2>
-                <p className={SUB}>{act.sub}</p>
-                {data ? <PhoneList act={i} data={data} sourceCount={sourceCount} /> : null}
-              </>
-            )}
-          </div>
+              </div>
+            </div>
+          ) : (
+            <div ref={setCopy(i)} className={cn('relative max-w-[1000px]', COPY_MOTION)}>
+              <h2 className={H_ACT}>{act.title}</h2>
+              <p className={SUB}>{act.sub}</p>
+              {data ? <PhoneList act={i} data={data} sourceCount={sourceCount} /> : null}
+            </div>
+          )}
         </section>
       ))}
 

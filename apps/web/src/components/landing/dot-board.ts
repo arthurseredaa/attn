@@ -599,7 +599,14 @@ export class DotBoard {
       const h = m ? 24 : 28;
       let x = pad + hash(s, cyc + 11) * Math.max(1, this.W - 2 * pad - w);
       let y = top + hash(s, cyc + 23) * Math.max(1, this.H - top - h - 30);
-      if (x + w > hl.x0 && x < hl.x1 && y + h > hl.y0 && y < hl.y1) y = top + hash(s, cyc + 29) * Math.max(1, hl.y0 - top - h);
+      if (x + w > hl.x0 && x < hl.x1 && y + h > hl.y0 && y < hl.y1) {
+        // Moved off the headline to the larger free band: above it on wide screens, below it on phones (where the
+        // text sits at the top).
+        const above = hl.y0 - top - h;
+        const below = this.H - 30 - h - hl.y1;
+        const r = hash(s, cyc + 29);
+        y = below > above ? hl.y1 + r * Math.max(1, below) : top + r * Math.max(1, above);
+      }
       x = Math.round(x);
       y = Math.round(y);
       ctx.globalAlpha = v * on;
