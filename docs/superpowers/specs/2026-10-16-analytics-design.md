@@ -24,8 +24,7 @@ article opened, (4) feed click-through by position and skill.
 - Client side only (`posthog-js`), no server-side events. Events go through a same-origin proxy `/ingest/*`
   (Next rewrite) so ad blockers drop fewer of them.
 - Consent banner. Accepted: cookies, persistent id, session replay. Declined or undecided: cookieless mode, no replay.
-  To verify against the installed `posthog-js` before implementing: whether the undecided state captures cookieless
-  or captures nothing; if it captures nothing, the spec changes to treat undecided as declined and the owner is told.
+  (Verified: see Components, "Consent".)
 - Identify with the internal user id only (`me.id`); never email or GitHub login. `reset()` on sign out.
 - Onboarding steps move into the URL, so `$pageview` is the step event (see below).
 - `article_opened` is recorded on the For you feed and on All. Title link and Read button both count.
@@ -51,7 +50,7 @@ through `?q=N`. Not in scope: real per-step routes, restoring answers across rel
 
 | Event | When | Properties |
 |---|---|---|
-| `signin_clicked` | landing sign-in button | — |
+| `signin_clicked` | the sign-in button on the landing page and in the sidebar | `from` (`landing` \| `nav`) |
 | `onboarding_skipped` | Skip on the focus step | `redo` |
 | `onboarding_completed` | onboarding POST succeeded | `skills_count`, `answered_count`, `redo` |
 | `feed_viewed` | For you loaded, and on filter change (not on load more) | `items_count`, `filtered` |
@@ -80,8 +79,11 @@ All new code in `apps/web/src`.
   `articleLinks`' handlers so ctrl/cmd-click and middle click are counted once).
 - `next.config.ts` — rewrites `/ingest/static/:path*` → `https://eu-assets.i.posthog.com/static/:path*` and
   `/ingest/:path*` → `https://eu.i.posthog.com/:path*`.
-- Env: `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` in `.env.example`. These are inlined at build time:
-  a Docker build must receive them as build args (to be handled in the plan).
+- Env: `NEXT_PUBLIC_POSTHOG_KEY` in `.env.example` (no host variable: the `/ingest` proxy targets the EU hosts).
+  It is inlined at build time: the web Dockerfile and `docker-compose.yml` pass it as a build arg.
+- Consent, verified against `posthog-js` 1.438: init with `opt_out_capturing_by_default: true` and
+  `cookieless_mode: 'on_reject'`. Undecided and declined both capture cookieless; Accept calls `opt_in_capturing()`
+  and starts session replay. `reset()` clears consent, so sign-out calls `reset()` and then re-applies the stored choice.
 
 ## Error handling
 
