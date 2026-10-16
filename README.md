@@ -131,6 +131,13 @@ untested. The api container applies migrations on start and also runs the daily 
 site is plain http on localhost, so set `COOKIE_SECURE=false` in `.env` (compose passes it through). The api is
 not published on the host; the browser reaches it only through the web proxy.
 
+## Search engine indexing
+
+The site is closed to search engines until launch. Unless the web process runs with `SITE_INDEXABLE=true`
+(exactly), every site response carries `X-Robots-Tag: noindex` (`apps/web/src/proxy.ts`); JSON from the `/api/*`
+rewrite does not. The variable is read per request, so opening the site needs a restart, not a rebuild. Check with
+`curl -sI <site>/ | grep -i x-robots`. Launch steps: `plans/seo.md`.
+
 ## Data files
 
 - `data/taxonomy.yml`: Role, Domain and Skill tree with the 0-4 level scale and a version.

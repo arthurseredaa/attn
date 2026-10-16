@@ -46,6 +46,7 @@ services:
       - api
     environment:
       API_URL: http://api:3001
+      SITE_INDEXABLE: ${SITE_INDEXABLE:-}
     ports:
       - '3000:3000'
 
