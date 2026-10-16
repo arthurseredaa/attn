@@ -8,3 +8,4 @@ coverage/
 .idea/
 .next/
 next-env.d.ts
+**/.env.local
