@@ -192,7 +192,7 @@ The structure and behaviour sections above still apply (shadcn components everyw
 1. the type, with the difficulty on the right;
 2. the title (18px/600, clamped to 3 lines);
 3. source · date · minutes;
-4. a footer pinned to the bottom, with the primary skill and +N on the left, and the icon actions with tooltips plus a filled Read on the right.
+4. a footer pinned to the bottom, with the primary skill and +N on the left and a filled Read on the right.
 
 The grid is 3 columns at 1440px, 2 at about 1024px and 1 on mobile, with equal-height rows.
 
@@ -203,7 +203,7 @@ The grid is 3 columns at 1440px, 2 at about 1024px and 1 on mobile, with equal-h
 ## Pages, one per approval cycle
 
 **1. For you** (`app/for-you/page.tsx`, `layout.tsx`, `loading.tsx`, `feed-card.tsx`, `feed-list.tsx`, `filter-bar.tsx`). The tile layout is in "Visual direction v2" above.
-- **Actions:** icon-only ghost buttons with tooltips and `aria-pressed` (Heart Like, Feather Too easy, Dumbbell Too hard, X Not interested; the aria-label carries the verb and the title), then a filled "Read" button. A pressed button stays on the hover tint; a pressed Like fills its heart.
+- **Actions:** only the filled "Read" button. The feedback buttons (Like, Too easy, Too hard, Not interested) were taken off the cards on 2026-10-16 until recommendations really adapt to them (`plans/feedback-driven-recommendations.md`); the api still accepts those events.
 - **Read state:** the tile collapses with a motion height animation to a one-line row on the page background with a muted check and "Read", keeping the existing focus logic.
 - **FilterBar:** an Input with a Search icon; the skills multi-select is a Popover + Command with checkboxes grouped by domain (its trigger shows the first skill and "+N"; "Clear" inside the popover); a ghost "Clear filters" button appears while any filter is active.
 - **Load more:** an outline Button. EmptyState for the empty cases. `loading.tsx` shows tile Skeletons; the auth guard sits in `layout.tsx` so a signed-out visit is a real 307.

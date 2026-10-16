@@ -2,34 +2,19 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Check, Dumbbell, Feather, Heart, X, type LucideIcon } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { eventResponseSchema, type ArticleCard, type EventKind } from '@attn/shared';
 import { articleLinks } from '@/lib/article-links';
 import { BrowserApiError, browserJson } from '@/lib/browser-api';
-import { cn } from '@/lib/utils';
 import { ArticleMeta } from '@/components/article-meta';
 import { ArticleType } from '@/components/article-type';
 import { DifficultyMeter } from '@/components/difficulty-meter';
 import { SkillSummary } from '@/components/skill-summary';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-type FeedbackKind = Exclude<EventKind, 'read'>;
-interface FeedbackButton {
-  kind: FeedbackKind;
-  label: string;
-  verb: string;
-  icon: LucideIcon;
-}
-const BUTTONS: FeedbackButton[] = [
-  { kind: 'like', label: 'Like', verb: 'Like', icon: Heart },
-  { kind: 'too_easy', label: 'Too easy', verb: 'Mark as too easy', icon: Feather },
-  { kind: 'too_hard', label: 'Too hard', verb: 'Mark as too hard', icon: Dumbbell },
-  { kind: 'not_interested', label: 'Not interested', verb: 'Not interested in', icon: X },
-];
-// After a read the card collapses to these; not_interested is no longer offered.
-const AFTER_READ = BUTTONS.filter((b) => b.kind !== 'not_interested');
+// The feedback buttons (like, too easy, too hard, not interested) are off the cards until recommendations really
+// adapt to them: plans/feedback-driven-recommendations.md. The api still accepts every kind.
 const KIND_NAME: Record<EventKind, string> = {
   read: 'Read',
   like: 'Like',
@@ -37,10 +22,6 @@ const KIND_NAME: Record<EventKind, string> = {
   too_hard: 'Too hard',
   not_interested: 'Not interested',
 };
-
-// Pressed buttons are also disabled (a kind is sent once): an ink icon on the hover tint, fully opaque so the state
-// reads clearly. A pressed Like also fills its heart.
-const PRESSED = 'bg-accent text-foreground disabled:opacity-100';
 
 function errorText(e: unknown): string {
   if (e instanceof BrowserApiError) return e.message;
@@ -61,7 +42,6 @@ export function FeedCard({
   onExcluded: (id: number, kind: 'read' | 'not_interested') => void;
 }) {
   const [sent, setSent] = useState<ReadonlySet<EventKind>>(new Set());
-  const [inflight, setInflight] = useState<ReadonlySet<EventKind>>(new Set());
   const [errors, setErrors] = useState<Partial<Record<EventKind, string>>>({});
   // Same-tick guard: refs change synchronously, so a double click cannot send one kind twice.
   const sentRef = useRef(new Set<EventKind>());
@@ -92,7 +72,6 @@ export function FeedCard({
   async function send(kind: EventKind) {
     if (sentRef.current.has(kind) || inflightRef.current.has(kind)) return;
     inflightRef.current.add(kind);
-    setInflight(new Set(inflightRef.current));
     setError(kind, null);
     try {
       await browserJson('POST', `/articles/${article.id}/events`, eventResponseSchema, { kind });
@@ -107,32 +86,10 @@ export function FeedCard({
       setError(kind, errorText(e));
     } finally {
       inflightRef.current.delete(kind);
-      setInflight(new Set(inflightRef.current));
     }
   }
 
   const { openLink, readLink } = articleLinks(article.url, () => void send('read'));
-
-  // Icon-only on tiles: the aria-label carries the full name (and the article), the tooltip shows the short label.
-  const feedbackButton = ({ kind, label, verb, icon: Icon }: FeedbackButton) => (
-    <Tooltip key={kind}>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={`${verb}: ${article.title}`}
-          aria-pressed={sent.has(kind)}
-          disabled={sent.has(kind) || inflight.has(kind)}
-          onClick={() => void send(kind)}
-          className={cn('h-[30px] w-7', sent.has(kind) ? PRESSED : 'text-muted-foreground')}
-        >
-          <Icon aria-hidden strokeWidth={1.75} className={cn(kind === 'like' && sent.has(kind) && 'fill-current')} />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  );
 
   const alerts = (Object.entries(errors) as [EventKind, string][]).map(([kind, message]) => (
     <p key={kind} role="alert" className="text-sm text-destructive">
@@ -150,7 +107,7 @@ export function FeedCard({
           transition={transition}
           className="overflow-hidden"
         >
-          {/* Collapsed: a quiet one-line row on the page background, the Read mark and the remaining feedback. */}
+          {/* Collapsed: a quiet one-line row on the page background with the Read mark. */}
           <Card
             ref={cardRef}
             tabIndex={-1}
@@ -165,13 +122,10 @@ export function FeedCard({
                 {article.title}
               </a>
             </h2>
-            <div className="flex items-center justify-between gap-3 pt-1.5">
-              <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
-                <Check aria-hidden className="size-3.5" />
-                Read
-              </span>
-              <div className="flex items-center">{AFTER_READ.map(feedbackButton)}</div>
-            </div>
+            <span className="inline-flex items-center gap-1.5 pt-1.5 text-[13px] font-medium text-muted-foreground">
+              <Check aria-hidden className="size-3.5" />
+              Read
+            </span>
             {alerts}
           </Card>
         </motion.div>
@@ -207,8 +161,7 @@ export function FeedCard({
               <div className="flex items-center justify-between gap-3">
                 <SkillSummary skills={article.skills} />
                 <div className="ml-auto flex shrink-0 items-center">
-                  {BUTTONS.map(feedbackButton)}
-                  <Button asChild size="sm" className="ml-2 px-[13px]">
+                  <Button asChild size="sm" className="px-[13px]">
                     <a {...readLink} aria-label={`Read ${article.title}`}>
                       Read
                     </a>
