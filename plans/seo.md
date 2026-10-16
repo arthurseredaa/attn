@@ -90,6 +90,23 @@ Each phase becomes its own implementation plan in `docs/superpowers/plans/` when
   and renewal price. Choose apex or www, 301 the other, and serve HTTPS only.
 - Deploy somewhere public. Server location does not matter for a global English site.
 
+**Pre-launch: closed for indexing (done).** Until the web process runs with `SITE_INDEXABLE=true`, every site
+response carries `X-Robots-Tag: noindex` (`apps/web/src/proxy.ts`, README "Search engine indexing"). A new domain
+is found even without links (certificate-transparency logs, crawlers), and a half-ready site indexed now leaves a
+first impression that has to be undone later.
+- Crawling stays allowed. A page blocked by robots.txt is never fetched, so its `noindex` is never seen, and
+  `Disallow: /` alone blocks crawling, not indexing.
+- Safe while closed: verify the Google Search Console Domain property (DNS TXT) and import the site into Bing
+  Webmaster Tools, so data starts collecting early.
+- Not yet: submitting the sitemap, Request indexing, IndexNow pings.
+
+**Launch day, in order:**
+1. Set `SITE_INDEXABLE=true` and restart web.
+2. Check that `curl -sI <site>/ | grep -i x-robots` prints nothing.
+3. Submit `/sitemap.xml` in Search Console.
+4. Inspect `/` and request indexing.
+5. Add a "launch" annotation in Search Console.
+
 ### Phase 1: index hygiene (small, do first)
 
 - `SITE_URL` in `.env.example`, and `apps/web/src/lib/site.ts`.
@@ -99,7 +116,7 @@ Each phase becomes its own implementation plan in `docs/superpowers/plans/` when
   - default description;
   - `openGraph.siteName`;
   - `twitter.card`.
-- `app/robots.ts`:
+- `app/robots.ts` (never `Disallow: /`, see Pre-launch above):
   - disallow `/api/`, `/for-you`, `/profile`, `/onboarding`, `/*?*q=`;
   - add a `Sitemap:` line;
   - explicitly allow `OAI-SearchBot`, `PerplexityBot`, `Claude-SearchBot`;
