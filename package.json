@@ -12,7 +12,9 @@
     ]
   },
   "scripts": {
-    "lint": "eslint .",
+    "lint": "oxlint .",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
     "typecheck": "pnpm -r exec tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "attn": "tsx packages/core/src/cli.ts",
@@ -20,14 +22,11 @@
     "web": "pnpm --filter @attn/web dev"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@next/eslint-plugin-next": "^16.4.0",
     "@types/node": "^26.6.5",
-    "eslint": "^10.12.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
+    "oxfmt": "0.73.0",
+    "oxlint": "^1.88.0",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.71.2",
     "vitest": "^5.0.4"
   }
 }

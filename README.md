@@ -45,7 +45,8 @@ Over plain http, set `COOKIE_SECURE=false` in `.env` or sign-in cookies will not
 
 | Command | What it does |
 | --- | --- |
-| `pnpm lint` | ESLint over the whole repo |
+| `pnpm lint` | oxlint over the whole repo (config: `.oxlintrc.json`) |
+| `pnpm format` / `pnpm format:check` | oxfmt: format the repo in place / fail if anything is unformatted (config: `.oxfmtrc.json`) |
 | `pnpm typecheck` | `tsc --noEmit` in every package |
 | `pnpm test` | vitest (DB tests need Postgres and the `attn_test` database) |
 | `pnpm attn migrate` | Apply database migrations to `DATABASE_URL` (idempotent) |
