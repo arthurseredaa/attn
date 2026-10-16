@@ -38,7 +38,8 @@ function Segments({ total, index, half }: { total: number; index: number; half: 
 }
 
 /** The option's row layout, shared by its plain content and the fill layer drawn over it. */
-const ROW = 'grid w-full grid-cols-[28px_minmax(0,1fr)] items-start gap-x-3 px-4 py-4 sm:grid-cols-[32px_minmax(0,1fr)] sm:px-5 sm:py-[18px]';
+const ROW =
+  'grid w-full grid-cols-[28px_minmax(0,1fr)] items-start gap-x-3 px-4 py-4 sm:grid-cols-[32px_minmax(0,1fr)] sm:px-5 sm:py-[18px]';
 const LETTER = 'grid size-7 place-items-center font-mono text-[13px] leading-none sm:size-8 sm:text-sm';
 const TEXT = 'max-w-[75ch] pt-[3px] text-base leading-snug sm:pt-1 sm:text-[17px]';
 
@@ -148,9 +149,12 @@ export function QuizRunner({
   // Set when a pick came from an option button: keyboard focus then moves to the first option of the next step.
   const refocus = useRef(false);
 
-  useEffect(() => () => {
-    if (holdTimer.current) clearTimeout(holdTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+    },
+    [],
+  );
 
   async function submit(all: QuizAnswerInput[]) {
     setBusy(true);
@@ -263,8 +267,12 @@ export function QuizRunner({
             transition={step}
             className="w-full"
           >
-            <h2 className="text-sm font-medium text-muted-foreground">{skillNames[question.skillId] ?? question.skillId}</h2>
-            <p className="mt-2 max-w-[65ch] text-[22px] leading-[1.35] tracking-[-0.015em] sm:text-[26px]">{question.situation}</p>
+            <h2 className="text-sm font-medium text-muted-foreground">
+              {skillNames[question.skillId] ?? question.skillId}
+            </h2>
+            <p className="mt-2 max-w-[65ch] text-[22px] leading-[1.35] tracking-[-0.015em] sm:text-[26px]">
+              {question.situation}
+            </p>
             <p className="mt-8 text-[15px] font-semibold">
               {phase.kind === 'first' ? 'What would you do?' : "If that option weren't there, what would you do?"}
             </p>
@@ -299,7 +307,13 @@ export function QuizRunner({
       {error ? (
         <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-destructive">
           <p>{error}</p>
-          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => pending && void submit(pending)}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => pending && void submit(pending)}
+          >
             Try again
           </Button>
         </div>
@@ -312,7 +326,13 @@ export function QuizRunner({
   );
 }
 
-export function QuizRetake({ questions, skillNames }: { questions: QuizQuestionDto[]; skillNames: Record<string, string> }) {
+export function QuizRetake({
+  questions,
+  skillNames,
+}: {
+  questions: QuizQuestionDto[];
+  skillNames: Record<string, string>;
+}) {
   const router = useRouter();
   return (
     <QuizRunner

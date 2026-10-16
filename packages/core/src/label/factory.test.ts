@@ -8,7 +8,10 @@ const taxonomy = loadTaxonomy();
 describe('labelProviderFor', () => {
   it('picks Anthropic for claude-* and Google for gemini-*', () => {
     expect(labelProviderFor('claude-haiku-5-5')).toEqual({ provider: 'anthropic', apiKeyVar: 'ANTHROPIC_API_KEY' });
-    expect(labelProviderFor('gemini-3.6-flash')).toEqual({ provider: 'google', apiKeyVar: 'GOOGLE_GENERATIVE_AI_API_KEY' });
+    expect(labelProviderFor('gemini-3.6-flash')).toEqual({
+      provider: 'google',
+      apiKeyVar: 'GOOGLE_GENERATIVE_AI_API_KEY',
+    });
   });
 
   it('throws a FatalLabelerError naming the model for an unknown prefix', () => {
@@ -88,8 +91,12 @@ describe('typesafe-ai/ (jev)', () => {
 
   it('builds a labeler with its key and no network, and unknown prefixes still fail', () => {
     expect(
-      createLabeler({ model: 'typesafe-ai/jev', taxonomy, env: { JEV_API_KEY: 'vck_dummy' }, jevSecondaryThreshold: 0.7 })
-        .model,
+      createLabeler({
+        model: 'typesafe-ai/jev',
+        taxonomy,
+        env: { JEV_API_KEY: 'vck_dummy' },
+        jevSecondaryThreshold: 0.7,
+      }).model,
     ).toBe('typesafe-ai/jev');
     expect(() => labelProviderFor('typesafe/jev')).toThrow(/unknown LABEL_MODEL provider/);
     expect(() => labelProviderFor('other-ai/jev')).toThrow(FatalLabelerError);

@@ -81,7 +81,13 @@ describe('GET /api/articles', () => {
   it('builds the card from the row, taxonomy and sources', async () => {
     const taxonomy = loadTaxonomy();
     const nameOf = (id: string) => taxonomy.domains.flatMap((d) => d.skills).find((s) => s.id === id)!.name;
-    await seed({ primary: S1, secondary: [S2], sourceId: realSource.id, wordCount: 1500, publishedAt: at('2026-03-05T10:20:30.456Z') });
+    await seed({
+      primary: S1,
+      secondary: [S2],
+      sourceId: realSource.id,
+      wordCount: 1500,
+      publishedAt: at('2026-03-05T10:20:30.456Z'),
+    });
     const [item] = (await page()).items;
     expect(item!.skills).toEqual([
       { id: S1, name: nameOf(S1), isPrimary: true },
@@ -251,4 +257,3 @@ describe('GET /api/articles', () => {
     expect(await get()).toEqual({ status: 200, body: { items: [], nextCursor: null } });
   });
 });
-

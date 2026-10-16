@@ -32,12 +32,7 @@ export async function recordSuccess(
     .onConflictDoUpdate({ target: sourceState.sourceId, set: values });
 }
 
-export async function recordFailure(
-  db: Db,
-  sourceId: string,
-  message: string,
-  now: Date,
-): Promise<void> {
+export async function recordFailure(db: Db, sourceId: string, message: string, now: Date): Promise<void> {
   await db
     .insert(sourceState)
     .values({ sourceId, lastError: message, lastRunAt: now })

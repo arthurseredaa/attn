@@ -6,7 +6,8 @@ import { ENV, PIPELINE_STEPS } from '../tokens';
 import type { LabelStepResult, PipelineSteps } from './pipeline.steps';
 
 export type PipelineRunResult =
-  { status: 'skipped_locked' } | { status: 'done'; collect: SourceReport[]; label: LabelStepResult };
+  | { status: 'skipped_locked' }
+  | { status: 'done'; collect: SourceReport[]; label: LabelStepResult };
 
 @Injectable()
 export class PipelineJob {

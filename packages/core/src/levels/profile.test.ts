@@ -34,7 +34,14 @@ async function newArticle(sourceId = 'src'): Promise<number> {
   const n = artN++;
   const [row] = await db
     .insert(articles)
-    .values({ sourceId, url: `https://x.test/a${n}`, guid: `g${n}`, title: `Title ${n}`, titleHash: `h${n}`, publishedAt: new Date(2026, 0, n) })
+    .values({
+      sourceId,
+      url: `https://x.test/a${n}`,
+      guid: `g${n}`,
+      title: `Title ${n}`,
+      titleHash: `h${n}`,
+      publishedAt: new Date(2026, 0, n),
+    })
     .returning({ id: articles.id });
   return row!.id;
 }
@@ -46,7 +53,15 @@ const skillOf = (p: Awaited<ReturnType<typeof buildProfile>>, id: string) => {
   return s;
 };
 const onboard = (extra: Partial<Parameters<typeof saveOnboarding>[1]> = {}) =>
-  saveOnboarding(db, { userId: u, roleSkillIds, focus: ['s2', 's1'], results: [], answers: [], quizVersion: 1, ...extra });
+  saveOnboarding(db, {
+    userId: u,
+    roleSkillIds,
+    focus: ['s2', 's1'],
+    results: [],
+    answers: [],
+    quizVersion: 1,
+    ...extra,
+  });
 
 beforeEach(async () => {
   db = await testDb();
@@ -73,7 +88,16 @@ describe('buildProfile', () => {
       ['d2', ['s3']],
     ]);
     for (const s of p.domains.flatMap((d) => d.skills)) {
-      expect(s).toMatchObject({ level: null, effectiveLevel: 1, assessed: false, quizzed: false, uncertain: true, points: 0, pointsNeeded: 5, focusRank: null });
+      expect(s).toMatchObject({
+        level: null,
+        effectiveLevel: 1,
+        assessed: false,
+        quizzed: false,
+        uncertain: true,
+        points: 0,
+        pointsNeeded: 5,
+        focusRank: null,
+      });
     }
     expect(p.history).toEqual({ items: [], total: 0 });
     expect(p.likes).toEqual({ read: 0, liked: 0, share: null });
@@ -95,7 +119,15 @@ describe('buildProfile', () => {
       { rank: 1, skillId: 's2', name: 'Name s2' },
       { rank: 2, skillId: 's1', name: 'Name s1' },
     ]);
-    expect(skillOf(p, 's1')).toMatchObject({ level: 3, effectiveLevel: 3, assessed: true, quizzed: true, uncertain: true, pointsNeeded: 5, focusRank: 2 });
+    expect(skillOf(p, 's1')).toMatchObject({
+      level: 3,
+      effectiveLevel: 3,
+      assessed: true,
+      quizzed: true,
+      uncertain: true,
+      pointsNeeded: 5,
+      focusRank: 2,
+    });
     expect(skillOf(p, 's2')).toMatchObject({ level: null, assessed: false, quizzed: false, focusRank: 1 });
     expect(skillOf(p, 's3').focusRank).toBeNull();
     expect(profileSchema.parse(p)).toEqual(p);
@@ -104,12 +136,21 @@ describe('buildProfile', () => {
   it('reports progress fields and honours pointsPerLevel', async () => {
     await onboard();
     const set = (skillId: string, v: Partial<typeof userSkills.$inferInsert>) =>
-      db.update(userSkills).set(v).where(and(eq(userSkills.userId, u), eq(userSkills.skillId, skillId)));
+      db
+        .update(userSkills)
+        .set(v)
+        .where(and(eq(userSkills.userId, u), eq(userSkills.skillId, skillId)));
     await set('s1', { level: 2, points: 3, uncertain: false });
     await set('s3', { level: 4 });
     await set('s2', { points: 2 });
     const p = await buildProfile(db, u, ctx);
-    expect(skillOf(p, 's1')).toMatchObject({ points: 3, pointsNeeded: 5, uncertain: false, assessed: true, quizzed: false });
+    expect(skillOf(p, 's1')).toMatchObject({
+      points: 3,
+      pointsNeeded: 5,
+      uncertain: false,
+      assessed: true,
+      quizzed: false,
+    });
     expect(skillOf(p, 's3')).toMatchObject({ level: 4, pointsNeeded: null });
     expect(skillOf(p, 's2')).toMatchObject({ assessed: false, points: 2, pointsNeeded: 5, effectiveLevel: 1 });
     expect(skillOf(await buildProfile(db, u, { ...ctx, pointsPerLevel: 3 }), 's1').pointsNeeded).toBe(3);
@@ -129,10 +170,23 @@ describe('buildProfile', () => {
     const tax: Taxonomy = {
       version: 1,
       levels,
-      domains: [{ id: 'd1', name: 'D1', skills: [skill('cc-hooks'), skill('cc-hooks-advanced'), skill('multi-agent-orchestration')] }],
+      domains: [
+        {
+          id: 'd1',
+          name: 'D1',
+          skills: [skill('cc-hooks'), skill('cc-hooks-advanced'), skill('multi-agent-orchestration')],
+        },
+      ],
     };
     const ids = ['cc-hooks', 'cc-hooks-advanced', 'multi-agent-orchestration'];
-    await saveOnboarding(db, { userId: u, roleSkillIds: ids, focus: ['cc-hooks'], results: [], answers: [], quizVersion: 1 });
+    await saveOnboarding(db, {
+      userId: u,
+      roleSkillIds: ids,
+      focus: ['cc-hooks'],
+      results: [],
+      answers: [],
+      quizVersion: 1,
+    });
     const ans = (questionId: string) => ({ userId: u, questionId, firstOption: 0, secondOption: 1, quizVersion: 1 });
     await db.insert(quizAnswers).values([ans('cc-hooks-advanced-2'), ans('multi-agent-orchestration-10')]);
     const p = await buildProfile(db, u, { ...ctx, taxonomy: tax });
@@ -161,7 +215,10 @@ describe('buildProfile', () => {
       [3, 's1'],
     ]);
     expect([skillOf(p, 's2'), skillOf(p, 's3'), skillOf(p, 's1')].map((s) => s.focusRank)).toEqual([1, 2, 3]);
-    const stored = await db.select().from(userSkills).where(and(eq(userSkills.userId, u), eq(userSkills.skillId, 's1')));
+    const stored = await db
+      .select()
+      .from(userSkills)
+      .where(and(eq(userSkills.userId, u), eq(userSkills.skillId, 's1')));
     expect(stored[0]!.focusRank).toBe(4); // read-only: the stored rank is untouched
   });
 
@@ -178,9 +235,27 @@ describe('buildProfile', () => {
     const p = await buildProfile(db, u, ctx);
     expect(p.history.total).toBe(3);
     expect(p.history.items).toEqual([
-      { articleId: b, title: `Title ${b}`, url: `https://x.test/a${b}`, sourceName: 'Source One', readAt: '2026-03-03T10:00:00.000Z' },
-      { articleId: c, title: `Title ${c}`, url: `https://x.test/a${c}`, sourceName: 'Source One', readAt: '2026-03-02T10:00:00.000Z' },
-      { articleId: a, title: `Title ${a}`, url: `https://x.test/a${a}`, sourceName: 'Source One', readAt: '2026-03-01T10:00:00.000Z' },
+      {
+        articleId: b,
+        title: `Title ${b}`,
+        url: `https://x.test/a${b}`,
+        sourceName: 'Source One',
+        readAt: '2026-03-03T10:00:00.000Z',
+      },
+      {
+        articleId: c,
+        title: `Title ${c}`,
+        url: `https://x.test/a${c}`,
+        sourceName: 'Source One',
+        readAt: '2026-03-02T10:00:00.000Z',
+      },
+      {
+        articleId: a,
+        title: `Title ${a}`,
+        url: `https://x.test/a${a}`,
+        sourceName: 'Source One',
+        readAt: '2026-03-01T10:00:00.000Z',
+      },
     ]);
     expect(p.likes).toEqual({ read: 3, liked: 1, share: 1 / 3 });
     expect(profileSchema.parse(p)).toEqual(p);
@@ -193,7 +268,8 @@ describe('buildProfile', () => {
 
   it('limits history to the last 20 reads but counts all', async () => {
     await onboard();
-    for (let i = 0; i < 25; i++) await ev(u, await newArticle(), 'read', new Date(Date.UTC(2026, 3, 1, 0, i)).toISOString());
+    for (let i = 0; i < 25; i++)
+      await ev(u, await newArticle(), 'read', new Date(Date.UTC(2026, 3, 1, 0, i)).toISOString());
     const p = await buildProfile(db, u, ctx);
     expect(HISTORY_LIMIT).toBe(20);
     expect(p.history.items).toHaveLength(20);

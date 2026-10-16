@@ -8,7 +8,15 @@ import { toggleSkill } from '@/lib/reorder';
 import { cn } from '@/lib/utils';
 import { SortableList } from '@/components/onboarding/sortable-list';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 /** Wide containers: one band with the radar tiles butted together on the left and the focus list with its controls on
  * the right. Medium and narrow: the tiles (side by side from 700px), then the list. Without a focus radar the domains

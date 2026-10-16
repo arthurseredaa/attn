@@ -21,7 +21,11 @@ export async function startFakeGithub(users: Record<string, GithubFixtureUser>):
   return startServer({
     '/login/oauth/access_token': (_req, body) => {
       let p: Record<string, unknown> = {};
-      try { p = JSON.parse(body) as Record<string, unknown>; } catch { /* leave empty */ }
+      try {
+        p = JSON.parse(body) as Record<string, unknown>;
+      } catch {
+        /* leave empty */
+      }
       const code = typeof p.code === 'string' ? p.code : '';
       if (p.client_id !== GITHUB_TEST_CLIENT_ID || p.client_secret !== GITHUB_TEST_CLIENT_SECRET || !(code in users)) {
         return json({ error: 'bad_verification_code', error_description: 'The code passed is incorrect or expired.' });

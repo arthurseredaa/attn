@@ -61,7 +61,9 @@ function SkillBlock({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={reduce ? { duration: 0 } : { duration: 0.3, delay: Math.min(index, 40) * 0.02, ease: [0.22, 1, 0.36, 1] }}
+      transition={
+        reduce ? { duration: 0 } : { duration: 0.3, delay: Math.min(index, 40) * 0.02, ease: [0.22, 1, 0.36, 1] }
+      }
       className="outline outline-border"
     >
       <button
@@ -81,7 +83,12 @@ function SkillBlock({
         )}
       >
         <SignalFlood on={on} at={at} />
-        <span className={cn('relative flex h-full flex-col transition-opacity duration-200', blocked && 'opacity-70 @min-[600px]:opacity-40')}>
+        <span
+          className={cn(
+            'relative flex h-full flex-col transition-opacity duration-200',
+            blocked && 'opacity-70 @min-[600px]:opacity-40',
+          )}
+        >
           <span
             className={cn(
               'pr-10 text-base leading-snug font-semibold tracking-[-0.01em] transition-colors duration-200 @min-[600px]:pr-14 @min-[600px]:text-[17px]',
@@ -107,7 +114,11 @@ function SkillBlock({
               aria-hidden
               initial={reduce ? false : { scale: 0.3, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={reduce ? { opacity: 0, transition: { duration: 0 } } : { scale: 0.5, opacity: 0, transition: { duration: 0.14 } }}
+              exit={
+                reduce
+                  ? { opacity: 0, transition: { duration: 0 } }
+                  : { scale: 0.5, opacity: 0, transition: { duration: 0.14 } }
+              }
               transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 20 }}
               className="absolute top-3 right-4 origin-center font-mono text-[26px] leading-none font-medium text-signal-foreground @min-[600px]:top-4 @min-[600px]:right-4 @min-[600px]:text-[48px]"
             >

@@ -94,11 +94,15 @@ describe('response schemas', () => {
     expect(articleCardSchema.safeParse({ ...card, url: 'javascript:alert(1)' }).success).toBe(false);
     expect(articleCardSchema.safeParse({ ...card, url: 'data:text/html,x' }).success).toBe(false);
     expect(articlesPageSchema.parse({ items: [card], nextCursor: null }).nextCursor).toBeNull();
-    expect(meSchema.safeParse({ id: 'nope', login: 'a', name: null, avatarUrl: null, role: 'dev' }).success).toBe(false);
+    expect(meSchema.safeParse({ id: 'nope', login: 'a', name: null, avatarUrl: null, role: 'dev' }).success).toBe(
+      false,
+    );
     expect(errorBodySchema.parse({ error: 'bad_request', message: 'm', db: 'down' }).error).toBe('bad_request');
     const me = { id: '00000000-0000-4000-8000-000000000000', login: 'a', name: null, avatarUrl: null, role: 'dev' };
     expect(meSchema.parse(me)).toEqual(me);
-    expect(meSchema.parse({ ...me, avatarUrl: 'https://avatars.example/a.png' }).avatarUrl).toBe('https://avatars.example/a.png');
+    expect(meSchema.parse({ ...me, avatarUrl: 'https://avatars.example/a.png' }).avatarUrl).toBe(
+      'https://avatars.example/a.png',
+    );
     for (const avatarUrl of ['javascript:alert(1)', 'data:image/png;base64,AAAA', 'not a url', '']) {
       expect(meSchema.safeParse({ ...me, avatarUrl }).success).toBe(false);
     }

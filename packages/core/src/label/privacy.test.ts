@@ -13,7 +13,8 @@ describe('label/ privacy boundary', () => {
     const src = fs.readFileSync(path.join(dir, f), 'utf8');
     it(`${f} imports nothing DB-touching`, () => {
       // static `from '...'`, side-effect `import '...'`, dynamic `import('...')` and `require('...')`
-      const forbidden = /(?:from\s*|import\s*\(?\s*|require\s*\(\s*)['"][^'"]*(\/db|\/pipeline|drizzle-orm|\/quiz|\/levels|\/rank)/;
+      const forbidden =
+        /(?:from\s*|import\s*\(?\s*|require\s*\(\s*)['"][^'"]*(\/db|\/pipeline|drizzle-orm|\/quiz|\/levels|\/rank)/;
       expect(src).not.toMatch(forbidden);
     });
     it(`${f} mentions no user-side identifiers`, () => {

@@ -94,7 +94,12 @@ describe('sourcesSchema', () => {
     const base = { id: 'a', name: 'A', type: 'rss', url: 'https://x.test/f' };
     const filter = { exclude_paths: ['/skills'], exclude_path_regex: ['^/a$'], exclude_title_regex: ['birthday'] };
     expect(sourcesSchema.safeParse([{ ...base, filter }]).success).toBe(true);
-    for (const bad of [{ exclude_paths: [] }, { exclude_paths: ['skills'] }, { exclude_path_regex: [] }, { exclude_title_regex: [''] }]) {
+    for (const bad of [
+      { exclude_paths: [] },
+      { exclude_paths: ['skills'] },
+      { exclude_path_regex: [] },
+      { exclude_title_regex: [''] },
+    ]) {
       expect(sourcesSchema.safeParse([{ ...base, filter: bad }]).success).toBe(false);
     }
   });
@@ -111,9 +116,18 @@ describe('sourcesSchema', () => {
   });
   it('accepts a filter on rss and sitemap', () => {
     const filter = { path_prefix: ['/blog/'], keywords: ['ai'] };
-    expect(sourceSchema.safeParse({ id: 'a', name: 'A', type: 'rss', url: 'https://x.test/f', filter }).success).toBe(true);
+    expect(sourceSchema.safeParse({ id: 'a', name: 'A', type: 'rss', url: 'https://x.test/f', filter }).success).toBe(
+      true,
+    );
     expect(
-      sourceSchema.safeParse({ id: 'b', name: 'B', type: 'sitemap', url: 'https://x.test/s.xml', path_prefix: '/news/', filter }).success,
+      sourceSchema.safeParse({
+        id: 'b',
+        name: 'B',
+        type: 'sitemap',
+        url: 'https://x.test/s.xml',
+        path_prefix: '/news/',
+        filter,
+      }).success,
     ).toBe(true);
   });
   it('rejects filter path prefixes not starting with /', () => {

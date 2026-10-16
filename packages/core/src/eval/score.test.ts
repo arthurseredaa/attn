@@ -154,9 +154,7 @@ describe('formatEvalReport', () => {
     expect(out).not.toContain('rate limited');
   });
   it('handles no metrics and rate limit', () => {
-    const out = formatEvalReport(
-      buildReport({ model: 'm', total: 1, scored: [], failures: [], rateLimited: true }),
-    );
+    const out = formatEvalReport(buildReport({ model: 'm', total: 1, scored: [], failures: [], rateLimited: true }));
     expect(out).toContain('no articles evaluated');
     expect(out).toContain('rate limited: evaluation stopped early');
     expect(out).not.toContain('disagreements:');
@@ -183,6 +181,10 @@ describe('formatEvalReport per-model usage', () => {
         usageByModel: { a: { inputTokens: 20, outputTokens: 3 }, b: { inputTokens: 10, outputTokens: 2 } },
       }),
     ).split('\n');
-    expect(out.slice(-3)).toEqual(['tokens: input=30 output=5', '  a  tokens: input=20 output=3', '  b  tokens: input=10 output=2']);
+    expect(out.slice(-3)).toEqual([
+      'tokens: input=30 output=5',
+      '  a  tokens: input=20 output=3',
+      '  b  tokens: input=10 output=2',
+    ]);
   });
 });

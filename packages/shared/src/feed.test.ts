@@ -110,10 +110,11 @@ describe('mergeFeedItems', () => {
 
 describe('excludesFromFeed', () => {
   it('is true only for the kinds the ranker excludes', () => {
-    expect(['read', 'like', 'too_easy', 'too_hard', 'not_interested'].filter((k) => excludesFromFeed(eventKindSchema.parse(k)))).toEqual([
-      'read',
-      'not_interested',
-    ]);
+    expect(
+      ['read', 'like', 'too_easy', 'too_hard', 'not_interested'].filter((k) =>
+        excludesFromFeed(eventKindSchema.parse(k)),
+      ),
+    ).toEqual(['read', 'not_interested']);
   });
 });
 

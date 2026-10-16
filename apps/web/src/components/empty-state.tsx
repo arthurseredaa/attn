@@ -3,7 +3,15 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/u
 import { cn } from '@/lib/utils';
 
 /** An empty list: one quiet line in muted text, optionally followed by a link or two. */
-export function EmptyState({ title, children, className }: { title: string; children?: ReactNode; className?: string }) {
+export function EmptyState({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children?: ReactNode;
+  className?: string;
+}) {
   return (
     <Empty className={cn('items-start justify-start gap-0 rounded-none border-0 px-0 py-12 text-left', className)}>
       <EmptyHeader className="max-w-none items-start gap-1">

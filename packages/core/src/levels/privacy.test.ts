@@ -98,9 +98,7 @@ describe('privacy scan: user data never reaches the LLM path', () => {
   });
 
   it('api onboarding and profile (including tests) never touch the labeler', () => {
-    const files = ['onboarding', 'profile'].flatMap((d) =>
-      sources(join(repoRoot, 'apps/api/src', d), { tests: true }),
-    );
+    const files = ['onboarding', 'profile'].flatMap((d) => sources(join(repoRoot, 'apps/api/src', d), { tests: true }));
     expect(files.length).toBeGreaterThan(0);
     expect(offenders(files, ['Labeler', 'createGeminiLabeler', 'labelPending', 'LABELER'])).toEqual([]);
   });

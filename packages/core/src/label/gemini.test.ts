@@ -38,7 +38,13 @@ const api = (statusCode: number) =>
 // The call options the Gemini request carried before the Claude labeler (b64989e), plus maxOutputTokens (fix round 2).
 const GEMINI_CALL_OPTION_KEYS = ['headers', 'maxOutputTokens', 'prompt', 'responseFormat', 'temperature', 'toolChoice'];
 
-const valid = { primary_skill: 'cc-hooks', secondary_skills: ['cc-hooks', 'cc-plugins'], difficulty: 3, type: 'deep_dive', quality: 4 };
+const valid = {
+  primary_skill: 'cc-hooks',
+  secondary_skills: ['cc-hooks', 'cc-plugins'],
+  difficulty: 3,
+  type: 'deep_dive',
+  quality: 4,
+};
 
 describe('createGeminiLabeler', () => {
   it('returns a normalized label', async () => {
@@ -68,12 +74,18 @@ describe('createGeminiLabeler', () => {
     await createGeminiLabeler({ model: 'm', taxonomy, languageModel: model }).label(article);
     const call = model.doGenerateCalls[0]! as unknown as Record<string, unknown>;
     expect(call.maxOutputTokens).toBe(1024);
-    const defined = Object.keys(call).filter((k) => call[k] !== undefined).sort();
+    const defined = Object.keys(call)
+      .filter((k) => call[k] !== undefined)
+      .sort();
     expect(defined).toEqual(GEMINI_CALL_OPTION_KEYS);
   });
 
   it('rejects a skill outside the taxonomy, not as a rate limit', async () => {
-    const label = createGeminiLabeler({ model: 'm', taxonomy, languageModel: okModel({ ...valid, primary_skill: 'not-a-skill' }) });
+    const label = createGeminiLabeler({
+      model: 'm',
+      taxonomy,
+      languageModel: okModel({ ...valid, primary_skill: 'not-a-skill' }),
+    });
     const err = await label.label(article).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
     expect((err as Error).name).toBe('AI_NoObjectGeneratedError');
@@ -172,7 +184,9 @@ describe('isOverloadedError', () => {
     expect(isOverloadedError(api(529))).toBe(true);
     expect(isOverloadedError(overloadText(500, 'This model is currently experiencing high demand.'))).toBe(true);
     expect(isOverloadedError(overloadText(undefined, 'The model is overloaded. Please try again later.'))).toBe(true);
-    expect(isOverloadedError(new RetryError({ message: 'm', reason: 'maxRetriesExceeded', errors: [api(503)] }))).toBe(true);
+    expect(isOverloadedError(new RetryError({ message: 'm', reason: 'maxRetriesExceeded', errors: [api(503)] }))).toBe(
+      true,
+    );
   });
   it('rejects 429 quota, fatal and other errors', () => {
     expect(isOverloadedError(api(429))).toBe(false);

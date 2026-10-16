@@ -1,6 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { articleSkills, articles, type Db } from '@attn/core';
-import { articlesPageSchema, escapeLike, resolveDateRange, taxonomySkillIds, type ArticleCard, type ArticlesPage, type ArticlesQuery, type Config, type Source, type Taxonomy } from '@attn/shared';
+import {
+  articlesPageSchema,
+  escapeLike,
+  resolveDateRange,
+  taxonomySkillIds,
+  type ArticleCard,
+  type ArticlesPage,
+  type ArticlesQuery,
+  type Config,
+  type Source,
+  type Taxonomy,
+} from '@attn/shared';
 import { and, desc, eq, gte, inArray, lt, sql, type SQL } from 'drizzle-orm';
 import { assertKnownSkills } from '../common/skill-filter';
 import { APP_CONFIG, DB, SOURCES, TAXONOMY } from '../tokens';
@@ -39,21 +50,31 @@ export class ArticlesService {
     assertKnownSkills(query.skill, this.skillIds);
     if (query.skill?.length) {
       // any-match on primary or secondary
-      conds.push(sql`exists (select 1 from ${articleSkills} where ${articleSkills.articleId} = ${articles.id} and ${inArray(articleSkills.skillId, query.skill)})`);
+      conds.push(
+        sql`exists (select 1 from ${articleSkills} where ${articleSkills.articleId} = ${articles.id} and ${inArray(articleSkills.skillId, query.skill)})`,
+      );
     }
     if (query.q) conds.push(sql`${articles.title} ilike ${`%${escapeLike(query.q)}%`}`);
     if (from) conds.push(gte(articles.publishedAt, from));
     if (toExclusive) conds.push(lt(articles.publishedAt, toExclusive));
     if (query.cursor) {
       const c = decodeCursor(query.cursor); // InvalidCursorError is mapped to 400 by the controller
-      conds.push(sql`(${articles.publishedAt}, ${articles.id}) < (${c.publishedAt.toISOString()}::timestamptz, ${c.id})`);
+      conds.push(
+        sql`(${articles.publishedAt}, ${articles.id}) < (${c.publishedAt.toISOString()}::timestamptz, ${c.id})`,
+      );
     }
 
     const rows = await this.db
       .select({
-        id: articles.id, sourceId: articles.sourceId, url: articles.url, title: articles.title,
-        publishedAt: articles.publishedAt, wordCount: articles.wordCount,
-        difficulty: articles.difficulty, type: articles.type, quality: articles.quality,
+        id: articles.id,
+        sourceId: articles.sourceId,
+        url: articles.url,
+        title: articles.title,
+        publishedAt: articles.publishedAt,
+        wordCount: articles.wordCount,
+        difficulty: articles.difficulty,
+        type: articles.type,
+        quality: articles.quality,
       })
       .from(articles)
       .where(and(...conds))
@@ -62,7 +83,15 @@ export class ArticlesService {
 
     const page = rows.slice(0, limit);
     const skillRows = page.length
-      ? await this.db.select().from(articleSkills).where(inArray(articleSkills.articleId, page.map((r) => r.id)))
+      ? await this.db
+          .select()
+          .from(articleSkills)
+          .where(
+            inArray(
+              articleSkills.articleId,
+              page.map((r) => r.id),
+            ),
+          )
       : [];
 
     const items: ArticleCard[] = page.map((r) => ({
@@ -84,7 +113,8 @@ export class ArticlesService {
 
     // Cursor precision is milliseconds: safe because every published_at write comes from a JS Date.
     const last = page[page.length - 1];
-    const nextCursor = rows.length > limit && last ? encodeCursor({ publishedAt: last.publishedAt, id: last.id }) : null;
+    const nextCursor =
+      rows.length > limit && last ? encodeCursor({ publishedAt: last.publishedAt, id: last.id }) : null;
     // Unreachable failure after the SQL filter; if it ever fires it is a logged 500 via the exception filter.
     return articlesPageSchema.parse({ items, nextCursor });
   }

@@ -32,11 +32,7 @@ export async function seedDemoArticles(db: Db, opts: SeedDemoOptions): Promise<{
       const url = `https://example.com/demo/${skillId}/${n}`;
       const type = TYPES[(n - 1) % TYPES.length]!;
       const fastType = type === 'release' || type === 'news';
-      const ageDays = fastType
-        ? skillIndex % 2 === 1
-          ? 3 + (skillIndex % 7)
-          : 30 + skillIndex
-        : 20 * n + skillIndex;
+      const ageDays = fastType ? (skillIndex % 2 === 1 ? 3 + (skillIndex % 7) : 30 + skillIndex) : 20 * n + skillIndex;
       const title = `Demo: ${names.get(skillId) ?? skillId} #${n}`;
       rows.push({
         sourceId: sourceIds[seq++ % sourceIds.length]!,
@@ -75,7 +71,9 @@ export async function seedDemoArticles(db: Db, opts: SeedDemoOptions): Promise<{
         const s = skillsByUrl.get(a.url)!;
         return [
           { articleId: a.id, skillId: s.primary, isPrimary: true },
-          ...(s.secondary && s.secondary !== s.primary ? [{ articleId: a.id, skillId: s.secondary, isPrimary: false }] : []),
+          ...(s.secondary && s.secondary !== s.primary
+            ? [{ articleId: a.id, skillId: s.secondary, isPrimary: false }]
+            : []),
         ];
       });
       if (skillRows.length > 0) await tx.insert(articleSkills).values(skillRows);
@@ -86,6 +84,9 @@ export async function seedDemoArticles(db: Db, opts: SeedDemoOptions): Promise<{
 }
 
 export async function removeDemoArticles(db: Db): Promise<{ removed: number }> {
-  const gone = await db.delete(articles).where(eq(articles.labelModel, DEMO_LABEL_MODEL)).returning({ id: articles.id });
+  const gone = await db
+    .delete(articles)
+    .where(eq(articles.labelModel, DEMO_LABEL_MODEL))
+    .returning({ id: articles.id });
   return { removed: gone.length };
 }

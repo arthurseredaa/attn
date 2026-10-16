@@ -196,16 +196,33 @@ describe('card shape and one query', () => {
   it('maps the row to a valid card', async () => {
     await focus();
     const when = new Date('2026-10-13T08:30:15.123Z');
-    const id = await makeArticle(db, { primary: S1, secondary: [S3, S2], publishedAt: when, difficulty: 3, quality: 4, type: 'deep_dive' });
+    const id = await makeArticle(db, {
+      primary: S1,
+      secondary: [S3, S2],
+      publishedAt: when,
+      difficulty: 3,
+      quality: 4,
+      type: 'deep_dive',
+    });
     const unknown = await makeArticle(db, { primary: S1, sourceId: 'other' });
     const cards = await ranker.rank(u, { limit: 10, offset: 0 });
     for (const c of cards) expect(articleCardSchema.parse(c)).toEqual(c);
     const card = cards.find((c) => c.id === id)!;
     expect(card.publishedAt).toBe(when.toISOString());
-    expect(card.skills.map((s) => [s.id, s.isPrimary])).toEqual([[S1, true], ...[S2, S3].sort().map((x) => [x, false])]);
+    expect(card.skills.map((s) => [s.id, s.isPrimary])).toEqual([
+      [S1, true],
+      ...[S2, S3].sort().map((x) => [x, false]),
+    ]);
     const name = (sid: string) => taxonomy.domains.flatMap((d) => d.skills).find((s) => s.id === sid)!.name;
     expect(card.skills.map((s) => s.name)).toEqual([S1, ...[S2, S3].sort()].map(name));
-    expect(card).toMatchObject({ sourceId: 'src', sourceName: 'Source One', difficulty: 3, quality: 4, type: 'deep_dive', wordCount: 1000 });
+    expect(card).toMatchObject({
+      sourceId: 'src',
+      sourceName: 'Source One',
+      difficulty: 3,
+      quality: 4,
+      type: 'deep_dive',
+      wordCount: 1000,
+    });
     // A source missing from the configured list (dropped from data/sources.yml) does not rank at all.
     expect(cards.find((c) => c.id === unknown)).toBeUndefined();
   });

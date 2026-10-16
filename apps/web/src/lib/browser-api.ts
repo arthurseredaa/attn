@@ -18,7 +18,10 @@ export async function browserJson<T>(
   const res = await fetch(`/api${path}`, {
     method,
     credentials: 'same-origin',
-    headers: body === undefined ? { accept: 'application/json' } : { accept: 'application/json', 'content-type': 'application/json' },
+    headers:
+      body === undefined
+        ? { accept: 'application/json' }
+        : { accept: 'application/json', 'content-type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const json: unknown = await res.json().catch(() => null);

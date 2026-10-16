@@ -6,7 +6,10 @@ export const quizQuestionSchema = z.object({
   id: z.string().min(1),
   skill_id: z.string().min(1),
   situation: z.string().min(1),
-  options: z.array(z.object({ text: z.string().min(1), level: levelSchema })).min(4).max(6),
+  options: z
+    .array(z.object({ text: z.string().min(1), level: levelSchema }))
+    .min(4)
+    .max(6),
 });
 
 export const quizSchema = z.object({

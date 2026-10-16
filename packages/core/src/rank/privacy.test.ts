@@ -21,7 +21,11 @@ function offenders(files: string[], patterns: (string | RegExp)[], strip = false
   const out: string[] = [];
   for (const file of files) {
     let text = readFileSync(file, 'utf8');
-    if (strip) text = text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\/\/.*$/gm, '');
+    if (strip)
+      text = text
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/^\s*\/\/.*$/gm, '')
+        .replace(/\/\/.*$/gm, '');
     for (const p of patterns) {
       if (typeof p === 'string' ? text.includes(p) : p.test(text)) out.push(`${rel(file)}: ${String(p)}`);
     }
@@ -44,7 +48,15 @@ describe('privacy scan: ranking and events stay off the LLM path', () => {
   it('label/, eval/ and extract/ never reach ranking, events or user tables', () => {
     const files = [...sources('label'), ...sources('eval'), ...sources('extract')];
     expect(files.length).toBeGreaterThan(0);
-    const forbidden = [/['"]\.\.\/(rank|levels)\b/, 'createSqlRanker', 'recordEvent', 'article_events', 'articleEvents', 'user_skills', 'userSkills'];
+    const forbidden = [
+      /['"]\.\.\/(rank|levels)\b/,
+      'createSqlRanker',
+      'recordEvent',
+      'article_events',
+      'articleEvents',
+      'user_skills',
+      'userSkills',
+    ];
     expect(offenders(files, forbidden)).toEqual([]);
   });
 

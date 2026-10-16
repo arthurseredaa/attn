@@ -75,7 +75,8 @@ describe('rank filters', () => {
       });
     }
     const f = { skills: [S1], q: 'topic' };
-    const order = async (limit: number, offset: number) => (await ranker.rank(u, { limit, offset, ...f })).map((c) => c.id);
+    const order = async (limit: number, offset: number) =>
+      (await ranker.rank(u, { limit, offset, ...f })).map((c) => c.id);
     const full = await order(100, 0);
     expect(full.length).toBeGreaterThan(5);
     const got = [...(await order(5, 0)), ...(await order(5, 5)), ...(await order(5, 10)), ...(await order(5, 15))];

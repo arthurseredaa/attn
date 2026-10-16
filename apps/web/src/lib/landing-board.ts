@@ -145,8 +145,10 @@ export interface BoardFonts {
   mono: string;
 }
 
-export const fontSans = (f: BoardFonts, weight: number, size: number) => `${weight} ${size}px ${f.sans}, system-ui, sans-serif`;
-export const fontMono = (f: BoardFonts, weight: number, size: number) => `${weight} ${size}px ${f.mono}, ui-monospace, monospace`;
+export const fontSans = (f: BoardFonts, weight: number, size: number) =>
+  `${weight} ${size}px ${f.sans}, system-ui, sans-serif`;
+export const fontMono = (f: BoardFonts, weight: number, size: number) =>
+  `${weight} ${size}px ${f.mono}, ui-monospace, monospace`;
 
 /** `str` cut with an ellipsis to fit `maxW`; '' when not even one letter fits. */
 export function fit(str: string, maxW: number, font: string, measure: Measure): string {
@@ -389,11 +391,20 @@ export function layoutBoard(data: BoardData, view: BoardView, fonts: BoardFonts,
       const sc = c0 + i * slot4;
       const topRow = base4 - (i + 1) * rise + 1;
       for (let c = 0; c < sw; c++)
-        for (let k = 0; k < 2; k++) T4.push({ x: cx(sc + c), y: cy(topRow + k), tone: k === 0 ? Tone.peach : Tone.orange });
+        for (let k = 0; k < 2; k++)
+          T4.push({ x: cx(sc + c), y: cy(topRow + k), tone: k === 0 ? Tone.peach : Tone.orange });
       for (let r = topRow + 2; r < prevTop; r++) T4.push({ x: cx(sc), y: cy(r), tone: Tone.amber });
-      for (let r = topRow + 2; r <= base4; r++) if ((r - topRow) % 2 === 0) T4.push({ x: cx(sc + sw - 1), y: cy(r), tone: Tone.rail });
+      for (let r = topRow + 2; r <= base4; r++)
+        if ((r - topRow) % 2 === 0) T4.push({ x: cx(sc + sw - 1), y: cy(r), tone: Tone.rail });
       prevTop = topRow;
-      steps.push({ i, x: cx(sc), y: cy(topRow), tx: cx(sc), lines: wrap(a.title, sw * S - 4, titleFont, 3, measure), level: a.level });
+      steps.push({
+        i,
+        x: cx(sc),
+        y: cy(topRow),
+        tx: cx(sc),
+        lines: wrap(a.title, sw * S - 4, titleFont, 3, measure),
+        level: a.level,
+      });
     });
   } else {
     const rowH = Math.floor((bot4 - top4) / nS);
@@ -405,11 +416,20 @@ export function layoutBoard(data: BoardData, view: BoardView, fonts: BoardFonts,
       const sc = c0 + i * ind;
       const topRow = rowOf(top4 + i * rowH + 8);
       for (let c = 0; c < sw; c++)
-        for (let k = 0; k < 2; k++) T4.push({ x: cx(sc + c), y: cy(topRow + k), tone: k === 0 ? Tone.peach : Tone.orange });
-      if (prev) for (let r = prev.row + 2; r < topRow; r++) T4.push({ x: cx(prev.sc + sw - 1), y: cy(r), tone: Tone.amber });
+        for (let k = 0; k < 2; k++)
+          T4.push({ x: cx(sc + c), y: cy(topRow + k), tone: k === 0 ? Tone.peach : Tone.orange });
+      if (prev)
+        for (let r = prev.row + 2; r < topRow; r++) T4.push({ x: cx(prev.sc + sw - 1), y: cy(r), tone: Tone.amber });
       prev = { row: topRow, sc };
       const tx = cx(sc + sw) + 10;
-      steps.push({ i, x: cx(sc), y: cy(topRow), tx, lines: wrap(a.title, W - pad - tx - 26, titleFont, 2, measure), level: a.level });
+      steps.push({
+        i,
+        x: cx(sc),
+        y: cy(topRow),
+        tx,
+        lines: wrap(a.title, W - pad - tx - 26, titleFont, 2, measure),
+        level: a.level,
+      });
     });
   }
 
@@ -443,7 +463,6 @@ export function layoutBoard(data: BoardData, view: BoardView, fonts: BoardFonts,
     minParticles: m ? 650 : 1100,
   };
 }
-
 
 // ---- particles ------------------------------------------------------------------------------------------------------
 

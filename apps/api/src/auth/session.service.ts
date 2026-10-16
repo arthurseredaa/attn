@@ -31,7 +31,10 @@ export class SessionService {
   }
 
   async purgeExpired(): Promise<number> {
-    const rows = await this.db.delete(sessions).where(lt(sessions.expiresAt, new Date())).returning({ id: sessions.id });
+    const rows = await this.db
+      .delete(sessions)
+      .where(lt(sessions.expiresAt, new Date()))
+      .returning({ id: sessions.id });
     return rows.length;
   }
 }

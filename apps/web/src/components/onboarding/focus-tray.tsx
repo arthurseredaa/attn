@@ -22,13 +22,25 @@ const SLOTS = Array.from({ length: MAX_FOCUS }, (_, i) => i);
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 /** Wide screens: the focus as MAX_FOCUS numbered slots in a row; filled ones carry the move and remove controls. */
-function FocusSlots({ items, names, onChange }: { items: string[]; names: Record<string, string>; onChange: (next: string[]) => void }) {
+function FocusSlots({
+  items,
+  names,
+  onChange,
+}: {
+  items: string[];
+  names: Record<string, string>;
+  onChange: (next: string[]) => void;
+}) {
   const reduce = useReducedMotion();
   const { dragFrom, dragProps, move, remove, setRef, empty } = useSortable(items, onChange);
   const layout = reduce ? { duration: 0 } : { duration: 0.26, ease: EASE };
 
   const placeholder = (n: number) => (
-    <span key={`empty-${n}`} aria-hidden className="flex min-h-[84px] flex-1 items-start bg-background p-3 outline outline-border">
+    <span
+      key={`empty-${n}`}
+      aria-hidden
+      className="flex min-h-[84px] flex-1 items-start bg-background p-3 outline outline-border"
+    >
       <span className="font-mono text-xl leading-none text-faint">{n + 1}</span>
     </span>
   );
@@ -43,7 +55,14 @@ function FocusSlots({ items, names, onChange }: { items: string[]; names: Record
   }
 
   // A small icon button with a tooltip; the aria-label carries the skill name.
-  const action = (key: string, Icon: LucideIcon, tip: string, label: string, disabled: boolean, onClick: () => void) => (
+  const action = (
+    key: string,
+    Icon: LucideIcon,
+    tip: string,
+    label: string,
+    disabled: boolean,
+    onClick: () => void,
+  ) => (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
@@ -77,11 +96,19 @@ function FocusSlots({ items, names, onChange }: { items: string[]; names: Record
             className="bg-card outline outline-border"
           >
             {/* Plain element for HTML drag and drop (motion owns onDragStart on motion elements). */}
-            <div {...dragProps(i)} className={cn('flex h-full min-h-[84px] cursor-grab flex-col gap-1.5 p-3 pr-2', dragFrom === i && 'opacity-50')}>
+            <div
+              {...dragProps(i)}
+              className={cn(
+                'flex h-full min-h-[84px] cursor-grab flex-col gap-1.5 p-3 pr-2',
+                dragFrom === i && 'opacity-50',
+              )}
+            >
               <div className="flex items-start justify-between gap-2">
                 <span className="font-mono text-xl leading-none text-primary">{i + 1}</span>
                 <span className="-mt-1 flex shrink-0 items-center">
-                  {action(`${id}:up`, ArrowLeft, 'Move left', `Move ${name} left`, i === 0, () => move(id, i, i - 1, 'up'))}
+                  {action(`${id}:up`, ArrowLeft, 'Move left', `Move ${name} left`, i === 0, () =>
+                    move(id, i, i - 1, 'up'),
+                  )}
                   {action(`${id}:down`, ArrowRight, 'Move right', `Move ${name} right`, i === items.length - 1, () =>
                     move(id, i, i + 1, 'down'),
                   )}
@@ -155,7 +182,9 @@ function FocusBar({
                   key={n}
                   className={cn(
                     'grid size-8 place-items-center font-mono text-[13px] transition-colors duration-200',
-                    n < items.length ? 'bg-signal text-signal-foreground' : 'border border-dashed border-faint text-faint',
+                    n < items.length
+                      ? 'bg-signal text-signal-foreground'
+                      : 'border border-dashed border-faint text-faint',
                   )}
                 >
                   {n + 1}
@@ -248,9 +277,7 @@ export function FocusTray({
       </p>
       <div className="hidden gap-x-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto]">
         <div className="min-w-0 space-y-2">
-          <h2 className="text-sm font-semibold">
-            Your focus
-          </h2>
+          <h2 className="text-sm font-semibold">Your focus</h2>
           <FocusSlots items={items} names={names} onChange={onChange} />
         </div>
         <div className="flex w-44 flex-col justify-end gap-2">

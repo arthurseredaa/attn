@@ -52,12 +52,7 @@ describe('parseFeed errors', () => {
 describe('sitemap', () => {
   it('filters by prefix', () => {
     const r = parseSitemap(fx('sitemap.xml'), '/news/');
-    expect(r.map((x) => x.url)).toEqual([
-      `${B}/news/alpha`,
-      `${B}/news/beta`,
-      `${B}/news/gamma`,
-      `${B}/news/ancient`,
-    ]);
+    expect(r.map((x) => x.url)).toEqual([`${B}/news/alpha`, `${B}/news/beta`, `${B}/news/gamma`, `${B}/news/ancient`]);
     expect(r[0]?.lastmod?.toISOString()).toBe('2026-10-02T00:00:00.000Z');
     expect(r[1]?.lastmod?.toISOString()).toBe('2026-09-15T08:30:00.000Z');
     expect(r[2]?.lastmod).toBeNull();
@@ -67,10 +62,7 @@ describe('sitemap', () => {
     expect(() => parseSitemap(fx('sitemapindex.xml'), '/news/')).toThrow(/^sitemap index/);
     expect(isSitemapIndex(fx('sitemapindex.xml'))).toBe(true);
     expect(isSitemapIndex(fx('sitemap.xml'))).toBe(false);
-    expect(parseSitemapIndex(fx('sitemapindex.xml'))).toEqual([
-      `${B}/sitemap-a.xml`,
-      `${B}/sitemap-b.xml`,
-    ]);
+    expect(parseSitemapIndex(fx('sitemapindex.xml'))).toEqual([`${B}/sitemap-a.xml`, `${B}/sitemap-b.xml`]);
   });
 });
 

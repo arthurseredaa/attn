@@ -13,7 +13,13 @@ import { makePublicArticle, type Labeler } from './types';
 const taxonomy = loadTaxonomy();
 const article = makePublicArticle({ title: 'Hooks', url: 'https://e.com/h', text: 'Body.' });
 
-const mainOut: LabelOutput = { primary_skill: 'cc-hooks', secondary_skills: ['cc-plugins'], difficulty: 3, type: 'deep_dive', quality: 4 };
+const mainOut: LabelOutput = {
+  primary_skill: 'cc-hooks',
+  secondary_skills: ['cc-plugins'],
+  difficulty: 3,
+  type: 'deep_dive',
+  quality: 4,
+};
 const secOut: LabelOutput = {
   primary_skill: 'context-engineering',
   secondary_skills: ['cc-hooks', 'cc-mcp-usage', 'cc-plugins'],
@@ -133,9 +139,15 @@ describe('createComboLabeler', () => {
   });
 
   it('still throws the main errors as the main labeler does', async () => {
-    await expect(combo(failingModel(api(401)), okModel(secOut)).labeler.label(article)).rejects.toBeInstanceOf(FatalLabelerError);
-    await expect(combo(failingModel(api(429)), okModel(secOut)).labeler.label(article)).rejects.toBeInstanceOf(RateLimitError);
-    await expect(combo(failingModel(api(503)), okModel(secOut)).labeler.label(article)).rejects.toBeInstanceOf(OverloadedError);
+    await expect(combo(failingModel(api(401)), okModel(secOut)).labeler.label(article)).rejects.toBeInstanceOf(
+      FatalLabelerError,
+    );
+    await expect(combo(failingModel(api(429)), okModel(secOut)).labeler.label(article)).rejects.toBeInstanceOf(
+      RateLimitError,
+    );
+    await expect(combo(failingModel(api(503)), okModel(secOut)).labeler.label(article)).rejects.toBeInstanceOf(
+      OverloadedError,
+    );
   });
 
   it('does not warn when main fails too', async () => {
@@ -162,8 +174,10 @@ describe('createComboLabeler', () => {
   });
 
   describe('relevance verdict', () => {
-    const mainJev = (p: number | null) => createFakeLabeler(() => ({ ...mainOut, relevance: { probability: p } }), 'main-m');
-    const secJev = (p: number | null) => createFakeLabeler(() => ({ ...secOut, relevance: { probability: p } }), 'sec-m');
+    const mainJev = (p: number | null) =>
+      createFakeLabeler(() => ({ ...mainOut, relevance: { probability: p } }), 'main-m');
+    const secJev = (p: number | null) =>
+      createFakeLabeler(() => ({ ...secOut, relevance: { probability: p } }), 'sec-m');
     const make = (main: Labeler, secondary: Labeler) =>
       createComboLabeler({ model: 'main-m+sec-m', main, secondary, onSecondaryFallback: () => {} });
 
@@ -175,7 +189,10 @@ describe('createComboLabeler', () => {
     });
 
     it('has no verdict when main has none, even if the secondary gives one', async () => {
-      const out = await make(createFakeLabeler(() => mainOut, 'main-m'), secJev(0.1)).label(article);
+      const out = await make(
+        createFakeLabeler(() => mainOut, 'main-m'),
+        secJev(0.1),
+      ).label(article);
       expect(out.relevance).toBeUndefined();
     });
 

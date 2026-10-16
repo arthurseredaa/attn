@@ -14,8 +14,7 @@ export const DEFAULT_FAKE_LABEL: LabelOutput = {
 };
 
 export function createFakeLabeler(
-  respond: (article: PublicArticle, callIndex: number) => LabelResult | Promise<LabelResult> = () =>
-    DEFAULT_FAKE_LABEL,
+  respond: (article: PublicArticle, callIndex: number) => LabelResult | Promise<LabelResult> = () => DEFAULT_FAKE_LABEL,
   model = 'fake-model',
 ): FakeLabeler {
   const calls: PublicArticle[] = [];

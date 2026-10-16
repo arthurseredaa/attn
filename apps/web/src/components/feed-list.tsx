@@ -117,7 +117,11 @@ export function FeedList({
                   else cardRefs.current.delete(a.id);
                 }}
               >
-                <FeedCard article={a} difficultyLabel={difficultyLabels[a.difficulty] ?? `L${a.difficulty}`} onExcluded={excluded} />
+                <FeedCard
+                  article={a}
+                  difficultyLabel={difficultyLabels[a.difficulty] ?? `L${a.difficulty}`}
+                  onExcluded={excluded}
+                />
               </li>
             ))}
           </ul>
@@ -130,7 +134,13 @@ export function FeedList({
       ) : null}
       {hasMore ? (
         <div className="mt-8 flex justify-center">
-          <Button type="button" variant="outline" disabled={loading} onClick={() => void loadMore()} className="h-[38px] min-w-32 px-[18px]">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={loading}
+            onClick={() => void loadMore()}
+            className="h-[38px] min-w-32 px-[18px]"
+          >
             {loading ? <Loader2 aria-hidden className="animate-spin" /> : null}
             {loading ? 'Loading…' : 'Load more'}
           </Button>

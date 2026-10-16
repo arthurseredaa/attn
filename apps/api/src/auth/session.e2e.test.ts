@@ -57,7 +57,9 @@ describe('GET /api/me', () => {
   it('401 for an expired session', async () => {
     const user = await seedUser(ctx.db);
     const t = 'expired-token';
-    await ctx.db.insert(sessions).values({ id: hashToken(t), userId: user.id, expiresAt: new Date(Date.now() - 60_000) });
+    await ctx.db
+      .insert(sessions)
+      .values({ id: hashToken(t), userId: user.id, expiresAt: new Date(Date.now() - 60_000) });
     const res = await fetch(`${ctx.base}/api/me`, { headers: cookie(t) });
     expect(res.status).toBe(401);
   });

@@ -94,7 +94,10 @@ const INPUT_CAUSED = /context|too (long|large)|token|length/i;
 
 /** The provider's own message on one line, at most 300 characters, with anything key-shaped masked. */
 function describe(message: string): string {
-  const one = message.replace(/\s+/g, ' ').trim().replace(/\b(?:vck|sk|AIza)[-_A-Za-z0-9]{8,}/g, '[redacted]');
+  const one = message
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b(?:vck|sk|AIza)[-_A-Za-z0-9]{8,}/g, '[redacted]');
   return one.length > 300 ? `${one.slice(0, 300)}...` : one;
 }
 

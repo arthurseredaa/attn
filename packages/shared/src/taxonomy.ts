@@ -52,7 +52,9 @@ export const taxonomySchema = z
 export type Taxonomy = z.infer<typeof taxonomySchema>;
 
 /** skill id -> name over every domain; takes a Taxonomy or anything shaped like it (e.g. a Profile). */
-export function skillNameMap(t: { domains: readonly { skills: readonly { id: string; name: string }[] }[] }): Record<string, string> {
+export function skillNameMap(t: {
+  domains: readonly { skills: readonly { id: string; name: string }[] }[];
+}): Record<string, string> {
   const names: Record<string, string> = {};
   for (const d of t.domains) for (const s of d.skills) names[s.id] = s.name;
   return names;

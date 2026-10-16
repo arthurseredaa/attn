@@ -18,7 +18,12 @@ describe('session helpers', () => {
     expect(parseCookies('bad=%E0%A4%A')).toEqual({ bad: '%E0%A4%A' });
   });
   it('sessionCookieOptions follows env.cookieSecure', () => {
-    expect(sessionCookieOptions(testEnv({ cookieSecure: true }))).toMatchObject({ httpOnly: true, secure: true, sameSite: 'lax', path: '/' });
+    expect(sessionCookieOptions(testEnv({ cookieSecure: true }))).toMatchObject({
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+    });
     expect(sessionCookieOptions(testEnv({ cookieSecure: false })).secure).toBe(false);
   });
 });

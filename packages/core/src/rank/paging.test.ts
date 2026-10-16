@@ -34,7 +34,12 @@ async function pagesEqualFull(): Promise<number[]> {
 describe('paging', () => {
   it('six score groups with distinct dates (ties broken by date): pages concatenate to the full order', async () => {
     for (let i = 0; i < 25; i++) {
-      await makeArticle(db, { primary: S1, difficulty: 2 + (i % 2), quality: 2 + (i % 3), publishedAt: new Date(SAME.getTime() - i * 3_600_000) });
+      await makeArticle(db, {
+        primary: S1,
+        difficulty: 2 + (i % 2),
+        quality: 2 + (i % 3),
+        publishedAt: new Date(SAME.getTime() - i * 3_600_000),
+      });
     }
     expect(await page(10, 0)).toHaveLength(10);
     expect(await page(10, 10)).toHaveLength(10);
@@ -56,7 +61,15 @@ describe('paging', () => {
 
   it('a read between pages: offset = visible count neither repeats nor skips', async () => {
     const all: number[] = [];
-    for (let i = 0; i < 25; i++) all.push(await makeArticle(db, { primary: S1, difficulty: 3, quality: 4, publishedAt: new Date(SAME.getTime() - i * 3_600_000) }));
+    for (let i = 0; i < 25; i++)
+      all.push(
+        await makeArticle(db, {
+          primary: S1,
+          difficulty: 3,
+          quality: 4,
+          publishedAt: new Date(SAME.getTime() - i * 3_600_000),
+        }),
+      );
     const p1 = await page(10, 0);
     expect(p1).toEqual(all.slice(0, 10));
     await addEvent(db, u, p1[2]!, 'read');
@@ -67,7 +80,13 @@ describe('paging', () => {
   });
 
   it('large offsets work', async () => {
-    for (let i = 0; i < 300; i++) await makeArticle(db, { primary: S1, difficulty: 3, quality: 4, publishedAt: new Date(SAME.getTime() - i * 1000) });
+    for (let i = 0; i < 300; i++)
+      await makeArticle(db, {
+        primary: S1,
+        difficulty: 3,
+        quality: 4,
+        publishedAt: new Date(SAME.getTime() - i * 1000),
+      });
     expect(await page(20, 280)).toHaveLength(20);
   });
 });

@@ -31,7 +31,6 @@ const NO_BANK: Quiz = { version: 0, questions: [] };
 
 @Injectable()
 export class OnboardingService {
-
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(TAXONOMY) private readonly taxonomy: Taxonomy,

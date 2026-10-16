@@ -25,7 +25,14 @@ type Answers = DecisionResult['answers'];
 
 /** Answers for the four choice questions, `relevant` (default 0.9) plus a probability per skill (default 0.01). */
 function answers(
-  over: { primary?: string; probs?: Record<string, number>; difficulty?: string; quality?: string; type?: string; relevant?: number } = {},
+  over: {
+    primary?: string;
+    probs?: Record<string, number>;
+    difficulty?: string;
+    quality?: string;
+    type?: string;
+    relevant?: number;
+  } = {},
 ): Answers {
   const a: Answers = {
     primary_skill: { type: 'choice', choice: over.primary ?? 'cc-hooks' },
@@ -226,7 +233,9 @@ describe('createJevLabeler', () => {
   });
 
   it('reports the relevance probability', async () => {
-    expect((await labeler(() => ok(answers({ relevant: 0.12 }))).label(article)).relevance).toEqual({ probability: 0.12 });
+    expect((await labeler(() => ok(answers({ relevant: 0.12 }))).label(article)).relevance).toEqual({
+      probability: 0.12,
+    });
     expect(relevanceFrom(answers())).toEqual({ probability: 0.9 });
     expect(relevanceFrom({})).toEqual({ probability: null });
   });

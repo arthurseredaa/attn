@@ -61,10 +61,12 @@ export async function seedArticle(db: Db, o: SeedArticle = {}): Promise<number> 
   if (!row) throw new Error('seedArticle failed');
   if (labeled) {
     const primary = o.primary ?? 'orphan-skill';
-    await db.insert(articleSkills).values([
-      { articleId: row.id, skillId: primary, isPrimary: true },
-      ...(o.secondary ?? []).map((s) => ({ articleId: row.id, skillId: s, isPrimary: false })),
-    ]);
+    await db
+      .insert(articleSkills)
+      .values([
+        { articleId: row.id, skillId: primary, isPrimary: true },
+        ...(o.secondary ?? []).map((s) => ({ articleId: row.id, skillId: s, isPrimary: false })),
+      ]);
   }
   return row.id;
 }

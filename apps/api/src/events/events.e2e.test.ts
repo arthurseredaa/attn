@@ -86,7 +86,9 @@ describe('POST /api/articles/:id/events', () => {
     await onboard(me.user.id);
     const id = await seed();
     const bodies = await Promise.all(
-      Array.from({ length: 10 }, async () => eventResponseSchema.parse(await (await post(me, id, { kind: 'read' })).json())),
+      Array.from({ length: 10 }, async () =>
+        eventResponseSchema.parse(await (await post(me, id, { kind: 'read' })).json()),
+      ),
     );
     expect(bodies.filter((b) => b.recorded)).toHaveLength(1);
     expect(bodies.filter((b) => !b.recorded)).toHaveLength(9);
@@ -165,7 +167,10 @@ describe('POST /api/articles/:id/events', () => {
     }
     expect((await send(me.headers, JSON.stringify({ kind: 'read' }))).status).toBe(415);
     expect(await eventRows()).toHaveLength(0);
-    const ok = await send({ ...me.headers, 'content-type': 'application/json; charset=utf-8' }, JSON.stringify({ kind: 'read' }));
+    const ok = await send(
+      { ...me.headers, 'content-type': 'application/json; charset=utf-8' },
+      JSON.stringify({ kind: 'read' }),
+    );
     expect(ok.status).toBe(200);
     expect(eventResponseSchema.parse(await ok.json())).toEqual({ kind: 'read', recorded: true });
   });

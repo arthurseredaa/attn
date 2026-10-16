@@ -42,7 +42,7 @@ describe('decodeEntities', () => {
     expect(decodeEntities('a &amp; b &#65; &#x42; &bogus;')).toBe('a & b A B &bogus;');
   });
   it('decodes lt gt quot apos #39', () => {
-    expect(decodeEntities('&lt;&gt;&quot;&apos;&#39;')).toBe('<>"\'\'');
+    expect(decodeEntities('&lt;&gt;&quot;&apos;&#39;')).toBe("<>\"''");
   });
 });
 

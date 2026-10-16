@@ -2,8 +2,7 @@ import { sql } from 'drizzle-orm';
 import { afterAll } from 'vitest';
 import { createDb, type Db } from '../db/client';
 
-export const TEST_DATABASE_URL =
-  process.env.TEST_DATABASE_URL ?? 'postgres://attn:attn@localhost:5432/attn_test';
+export const TEST_DATABASE_URL = process.env.TEST_DATABASE_URL ?? 'postgres://attn:attn@localhost:5432/attn_test';
 
 let shared: { db: Db; close(): Promise<void> } | undefined;
 

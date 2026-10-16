@@ -131,7 +131,11 @@ function AppSidebar({ me, items }: { me: Me | null; items: NavItem[] }) {
                 return (
                   <SidebarMenuItem key={i.href}>
                     <SidebarMenuButton asChild isActive={active} tooltip={i.label}>
-                      <Link href={i.href} aria-current={active ? 'page' : undefined} onClick={() => setOpenMobile(false)}>
+                      <Link
+                        href={i.href}
+                        aria-current={active ? 'page' : undefined}
+                        onClick={() => setOpenMobile(false)}
+                      >
                         <Icon aria-hidden strokeWidth={1.75} />
                         <span>{i.label}</span>
                       </Link>

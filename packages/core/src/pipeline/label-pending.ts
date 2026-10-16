@@ -10,7 +10,13 @@ export interface LabelOptions {
   labeler: Labeler;
   config: Pick<
     Config,
-    'label_batch' | 'relevance_threshold' | 'label_delay_ms' | 'label_max_chars' | 'label_min_chars' | 'label_max_attempts' | 'label_overload_backoff_ms'
+    | 'label_batch'
+    | 'relevance_threshold'
+    | 'label_delay_ms'
+    | 'label_max_chars'
+    | 'label_min_chars'
+    | 'label_max_attempts'
+    | 'label_overload_backoff_ms'
   >;
   taxonomyVersion: number;
   fetchFn?: FetchFn;
@@ -52,7 +58,12 @@ export async function labelPending(opts: LabelOptions): Promise<LabelReport> {
   const batch = Math.min(config.label_batch, opts.limit ?? config.label_batch);
 
   const rows = await db
-    .select({ id: articles.id, url: articles.url, title: articles.title, relevanceOverride: articles.relevanceOverride })
+    .select({
+      id: articles.id,
+      url: articles.url,
+      title: articles.title,
+      relevanceOverride: articles.relevanceOverride,
+    })
     .from(articles)
     .where(
       or(
@@ -63,7 +74,14 @@ export async function labelPending(opts: LabelOptions): Promise<LabelReport> {
     .orderBy(asc(articles.publishedAt), asc(articles.id))
     .limit(batch);
 
-  const report: LabelReport = { selected: rows.length, labeled: 0, failed: 0, excluded: 0, rateLimited: false, items: [] };
+  const report: LabelReport = {
+    selected: rows.length,
+    labeled: 0,
+    failed: 0,
+    excluded: 0,
+    rateLimited: false,
+    items: [],
+  };
 
   const fail = async (row: { id: number; url: string }, error: string): Promise<void> => {
     await db
@@ -110,13 +128,22 @@ export async function labelPending(opts: LabelOptions): Promise<LabelReport> {
     }
 
     // Relevance gate: exclude when the labeler gave a probability below the threshold. No answer = relevant.
-    if (!row.relevanceOverride && relevance?.probability != null && relevance.probability < config.relevance_threshold) {
+    if (
+      !row.relevanceOverride &&
+      relevance?.probability != null &&
+      relevance.probability < config.relevance_threshold
+    ) {
       const p = relevance.probability;
       try {
         await db.delete(articleSkills).where(eq(articleSkills.articleId, row.id));
         await db
           .update(articles)
-          .set({ labelStatus: 'excluded', excludedReason: `not relevant (p=${p.toFixed(2)})`, excludedAt: now, labelModel: labeler.model })
+          .set({
+            labelStatus: 'excluded',
+            excludedReason: `not relevant (p=${p.toFixed(2)})`,
+            excludedAt: now,
+            labelModel: labeler.model,
+          })
           .where(eq(articles.id, row.id));
         opts.log?.(`excluded  id=${row.id}  p=${p.toFixed(2)}  ${row.title}  ${row.url}`);
         report.excluded++;
@@ -142,10 +169,12 @@ export async function labelPending(opts: LabelOptions): Promise<LabelReport> {
           })
           .where(eq(articles.id, row.id));
         await tx.delete(articleSkills).where(eq(articleSkills.articleId, row.id));
-        await tx.insert(articleSkills).values([
-          { articleId: row.id, skillId: label.primary_skill, isPrimary: true },
-          ...label.secondary_skills.map((skillId) => ({ articleId: row.id, skillId, isPrimary: false })),
-        ]);
+        await tx
+          .insert(articleSkills)
+          .values([
+            { articleId: row.id, skillId: label.primary_skill, isPrimary: true },
+            ...label.secondary_skills.map((skillId) => ({ articleId: row.id, skillId, isPrimary: false })),
+          ]);
       });
       report.labeled++;
       report.items.push({ id: row.id, url: row.url, outcome: 'labeled' });

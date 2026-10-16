@@ -39,7 +39,8 @@ export function createPipelineSteps(deps: PipelineStepsDeps): PipelineSteps {
       if (!labeler) {
         return {
           status: 'skipped',
-          reason: 'LABEL_MODEL or its provider key (ANTHROPIC_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY or JEV_API_KEY) is not set',
+          reason:
+            'LABEL_MODEL or its provider key (ANTHROPIC_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY or JEV_API_KEY) is not set',
         };
       }
       return {

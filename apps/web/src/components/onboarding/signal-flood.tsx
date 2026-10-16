@@ -59,7 +59,13 @@ export function SignalFlood({ on, at }: { on: boolean; at: FloodPoint | null }) 
     const h = box.offsetHeight;
     const p = last.current ?? { x: w / 2, y: h / 2 };
     const c = floodCircle(p.x, p.y, w, h);
-    Object.assign(el.style, { left: `${c.left}px`, top: `${c.top}px`, width: `${c.size}px`, height: `${c.size}px`, marginTop: '0' });
+    Object.assign(el.style, {
+      left: `${c.left}px`,
+      top: `${c.top}px`,
+      width: `${c.size}px`,
+      height: `${c.size}px`,
+      marginTop: '0',
+    });
   }, []);
 
   // Keep a held fill covering the box when it resizes.

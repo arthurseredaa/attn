@@ -28,7 +28,8 @@ const MAX_LEVEL_SQL = sql.raw(String(MAX_LEVEL));
 const MAX_QUALITY_SQL = sql.raw(String(MAX_QUALITY));
 
 function assertPaging(limit: number, offset: number): void {
-  if (!Number.isInteger(limit) || limit < 1 || limit > 1000) throw new RangeError(`limit must be an integer 1..1000, got ${limit}`);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 1000)
+    throw new RangeError(`limit must be an integer 1..1000, got ${limit}`);
   if (!Number.isInteger(offset) || offset < 0) throw new RangeError(`offset must be an integer >= 0, got ${offset}`);
 }
 
@@ -56,7 +57,10 @@ export class SqlRanker implements Ranker {
     // Values are bind parameters; the only raw SQL is fixed text.
     const skillFilter = skills?.length
       ? sql`and exists (select 1 from article_skills f where f.article_id = a.id
-                        and f.skill_id = any(array[${sql.join(skills.map((k) => sql`${k}`), sql`, `)}]::text[]))`
+                        and f.skill_id = any(array[${sql.join(
+                          skills.map((k) => sql`${k}`),
+                          sql`, `,
+                        )}]::text[]))`
       : sql``;
     const titleFilter = q ? sql`and a.title ilike ${`%${escapeLike(q)}%`}` : sql``;
     // Only the configured sources: articles of a source dropped from data/sources.yml stop ranking.

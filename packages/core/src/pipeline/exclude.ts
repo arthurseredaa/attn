@@ -37,7 +37,10 @@ export async function excludeArticles(opts: ExcludeOptions): Promise<ExcludeRepo
     .orderBy(asc(articles.id))
     .limit(opts.sampleSize ?? 10);
   if (opts.dryRun) {
-    const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(articles).where(where);
+    const [row] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(articles)
+      .where(where);
     return { count: row?.n ?? 0, samples };
   }
   const updated = await db

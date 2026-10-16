@@ -66,7 +66,11 @@ function toRGB(value: string, fallback: RGB): RGB {
   return fallback;
 }
 
-const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+const mix = (a: RGB, b: RGB, t: number): RGB => [
+  a[0] + (b[0] - a[0]) * t,
+  a[1] + (b[1] - a[1]) * t,
+  a[2] + (b[2] - a[2]) * t,
+];
 const css = (c: RGB) => `rgb(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])})`;
 const luminance = (c: RGB) => (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255;
 
@@ -143,7 +147,8 @@ export function sampleWordmark(width: number, height: number, fonts: BoardFonts)
   t.fillText('attn', p.x, p.baseline);
   const px = t.getImageData(0, 0, g.cols, g.rows).data;
   const out: [number, number][] = [];
-  for (let r = 0; r < g.rows; r++) for (let c = 0; c < g.cols; c++) if (px[(r * g.cols + c) * 4 + 3]! > 120) out.push([c, r]);
+  for (let r = 0; r < g.rows; r++)
+    for (let c = 0; c < g.cols; c++) if (px[(r * g.cols + c) * 4 + 3]! > 120) out.push([c, r]);
   return out;
 }
 
@@ -188,8 +193,24 @@ export class DotBoard {
   private t0 = -Infinity;
   private forward = true;
   // Where each dot starts (a snapshot of the frame when the transition began), and its path and delay.
-  private f = { x: new Float32Array(0), y: new Float32Array(0), r: new Float32Array(0), g: new Float32Array(0), b: new Float32Array(0), on: new Float32Array(0), nw: new Float32Array(0) };
-  private c = { x: new Float32Array(0), y: new Float32Array(0), r: new Float32Array(0), g: new Float32Array(0), b: new Float32Array(0), on: new Float32Array(0), nw: new Float32Array(0) };
+  private f = {
+    x: new Float32Array(0),
+    y: new Float32Array(0),
+    r: new Float32Array(0),
+    g: new Float32Array(0),
+    b: new Float32Array(0),
+    on: new Float32Array(0),
+    nw: new Float32Array(0),
+  };
+  private c = {
+    x: new Float32Array(0),
+    y: new Float32Array(0),
+    r: new Float32Array(0),
+    g: new Float32Array(0),
+    b: new Float32Array(0),
+    on: new Float32Array(0),
+    nw: new Float32Array(0),
+  };
   private qx = new Float32Array(0);
   private qy = new Float32Array(0);
   private dl = new Float32Array(0);
@@ -243,7 +264,15 @@ export class DotBoard {
     };
     this.paintBase();
     const n = P.count;
-    const arrays = () => ({ x: new Float32Array(n), y: new Float32Array(n), r: new Float32Array(n), g: new Float32Array(n), b: new Float32Array(n), on: new Float32Array(n), nw: new Float32Array(n) });
+    const arrays = () => ({
+      x: new Float32Array(n),
+      y: new Float32Array(n),
+      r: new Float32Array(n),
+      g: new Float32Array(n),
+      b: new Float32Array(n),
+      on: new Float32Array(n),
+      nw: new Float32Array(n),
+    });
     this.f = arrays();
     this.c = arrays();
     this.qx = new Float32Array(n);
@@ -339,7 +368,12 @@ export class DotBoard {
     this.glow = lerp(this.glow0, glowTo, glowTo > this.glow0 ? smooth(clamp((u - 0.5) / 0.5)) : smooth(clamp(u / 0.3)));
     for (let s = 0; s < STATE_COUNT; s++) {
       if (s === k) {
-        const enter = s === 0 ? smooth(clamp((u - 0.55) / 0.45)) : s === 3 ? ease(clamp((u - 0.62) / 0.25)) : ease(clamp((u - 0.6) / 0.4));
+        const enter =
+          s === 0
+            ? smooth(clamp((u - 0.55) / 0.45))
+            : s === 3
+              ? ease(clamp((u - 0.62) / 0.25))
+              : ease(clamp((u - 0.6) / 0.4));
         this.vis[s] = lerp(this.vis0[s]!, 1, enter);
       } else {
         const leave = s === 0 ? smooth(clamp(u / 0.45)) : ease(clamp(u / 0.3));
@@ -535,7 +569,11 @@ export class DotBoard {
       ctx.fillStyle = pal.muted;
       ctx.font = fontMono(F, 400, m ? 10 : 11);
       ctx.textAlign = 'right';
-      ctx.fillText(`${this.data.focus.length} of ${this.data.skillTotal} skills · articles each`, this.W - L.grid.pad, L.top3 - (m ? 26 : 34));
+      ctx.fillText(
+        `${this.data.focus.length} of ${this.data.skillTotal} skills · articles each`,
+        this.W - L.grid.pad,
+        L.top3 - (m ? 26 : 34),
+      );
       ctx.textAlign = 'left';
     }
 

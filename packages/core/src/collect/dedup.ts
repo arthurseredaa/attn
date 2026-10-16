@@ -28,11 +28,7 @@ export async function isDuplicate(db: Db, c: Candidate): Promise<boolean> {
       or(
         eq(articles.url, c.url),
         eq(articles.guid, c.guid),
-        and(
-          eq(articles.titleHash, c.titleHash),
-          gte(articles.publishedAt, start),
-          lt(articles.publishedAt, end),
-        ),
+        and(eq(articles.titleHash, c.titleHash), gte(articles.publishedAt, start), lt(articles.publishedAt, end)),
       ),
     )
     .limit(1);

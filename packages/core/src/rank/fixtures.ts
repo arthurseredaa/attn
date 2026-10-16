@@ -80,10 +80,12 @@ export async function makeArticle(db: Db, o: ArticleFixture): Promise<number> {
     })
     .returning({ id: articles.id });
   const id = row!.id;
-  await db.insert(articleSkills).values([
-    { articleId: id, skillId: o.primary, isPrimary: true },
-    ...(o.secondary ?? []).map((skillId) => ({ articleId: id, skillId, isPrimary: false })),
-  ]);
+  await db
+    .insert(articleSkills)
+    .values([
+      { articleId: id, skillId: o.primary, isPrimary: true },
+      ...(o.secondary ?? []).map((skillId) => ({ articleId: id, skillId, isPrimary: false })),
+    ]);
   return id;
 }
 

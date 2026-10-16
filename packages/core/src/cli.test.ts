@@ -140,7 +140,12 @@ describe('attn exclude / unexclude', () => {
     return row!;
   }
   const statusOf = async (id: number) => (await db.select().from(articles).where(eq(articles.id, id)))[0]!;
-  const labeled = (q: number) => ({ labelStatus: 'labeled' as const, quality: q, difficulty: 1, type: 'news' as const });
+  const labeled = (q: number) => ({
+    labelStatus: 'labeled' as const,
+    quality: q,
+    difficulty: 1,
+    type: 'news' as const,
+  });
 
   it('--max-quality --dry-run prints counts and samples and changes nothing', async () => {
     const low = await seed(1, labeled(1));
@@ -159,7 +164,11 @@ describe('attn exclude / unexclude', () => {
     const failed = await seed(4, { labelStatus: 'failed' });
     expect(await run(['exclude', '--max-quality', '1', '--reason', 'junk q<=1'], env, io, deps)).toBe(0);
     expect(out[0]).toBe('excluded: 2');
-    expect(await statusOf(q0.id)).toMatchObject({ labelStatus: 'excluded', excludedReason: 'junk q<=1', excludedAt: deps.now });
+    expect(await statusOf(q0.id)).toMatchObject({
+      labelStatus: 'excluded',
+      excludedReason: 'junk q<=1',
+      excludedAt: deps.now,
+    });
     expect((await statusOf(q1.id)).labelStatus).toBe('excluded');
     expect((await statusOf(q2.id)).labelStatus).toBe('labeled');
     expect((await statusOf(failed.id)).labelStatus).toBe('failed');
@@ -204,9 +213,20 @@ describe('attn exclude / unexclude', () => {
   });
 
   it('unexclude returns an excluded article to pending with attempts and reason cleared', async () => {
-    const a = await seed(1, { ...labeled(1), labelStatus: 'excluded', excludedReason: 'r', excludedAt: new Date(), labelAttempts: 2 });
+    const a = await seed(1, {
+      ...labeled(1),
+      labelStatus: 'excluded',
+      excludedReason: 'r',
+      excludedAt: new Date(),
+      labelAttempts: 2,
+    });
     expect(await run(['unexclude', '--id', String(a.id)], env, io, deps)).toBe(0);
-    expect(await statusOf(a.id)).toMatchObject({ labelStatus: 'pending', labelAttempts: 0, excludedReason: null, excludedAt: null });
+    expect(await statusOf(a.id)).toMatchObject({
+      labelStatus: 'pending',
+      labelAttempts: 0,
+      excludedReason: null,
+      excludedAt: null,
+    });
   });
 
   it('unexclude refuses an article that is not excluded or does not exist', async () => {

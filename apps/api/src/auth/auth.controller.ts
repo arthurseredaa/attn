@@ -69,7 +69,9 @@ export class AuthController {
       const profile = await this.github.fetchUser(await this.github.exchangeCode(code));
       const user = await this.users.upsertGithubUser(profile);
       // best-effort housekeeping: must never block a login
-      await this.sessions.purgeExpired().catch((e: unknown) => this.logger.warn(`session purge failed: ${errMessage(e)}`));
+      await this.sessions
+        .purgeExpired()
+        .catch((e: unknown) => this.logger.warn(`session purge failed: ${errMessage(e)}`));
       const old = cookies[SESSION_COOKIE];
       if (old) await this.sessions.destroy(old); // no stale session survives a new login
       const { token } = await this.sessions.create(user.id);

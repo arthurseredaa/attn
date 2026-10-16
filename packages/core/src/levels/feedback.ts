@@ -5,7 +5,8 @@ function assertCount(n: number, name: string): void {
 export function computeDifficultyOffset(tooEasy: number, tooHard: number, offsetK: number): -1 | 0 | 1 {
   assertCount(tooEasy, 'tooEasy');
   assertCount(tooHard, 'tooHard');
-  if (!Number.isInteger(offsetK) || offsetK < 1) throw new RangeError(`offsetK must be a positive integer, got ${offsetK}`);
+  if (!Number.isInteger(offsetK) || offsetK < 1)
+    throw new RangeError(`offsetK must be a positive integer, got ${offsetK}`);
   const raw = (tooEasy - tooHard) / offsetK;
   const rounded = Math.sign(raw) * Math.round(Math.abs(raw)); // half away from zero
   if (rounded >= 1) return 1;

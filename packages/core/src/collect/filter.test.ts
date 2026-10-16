@@ -87,6 +87,8 @@ describe('exclusionRule', () => {
   });
   it('passesFilter applies the exclusion rules', () => {
     expect(passesFilter({ url: 'https://x.com/skills', title: 'AI' }, { exclude_paths: ['/skills'] })).toBe(false);
-    expect(passesFilter({ url: 'https://x.com/p', title: 'Founders letter' }, { exclude_title_regex: ['founders'] })).toBe(false);
+    expect(
+      passesFilter({ url: 'https://x.com/p', title: 'Founders letter' }, { exclude_title_regex: ['founders'] }),
+    ).toBe(false);
   });
 });

@@ -8,7 +8,9 @@ function loadQuizBanksWithWarnings() {
   const roles = new Set(loadTaxonomy().domains.flatMap((d) => d.skills.flatMap((s) => s.roles)));
   for (const role of roles) {
     if (!banks.has(role)) {
-      new Logger('Onboarding').warn(`no quiz bank for role "${role}" (expected data/quiz/${role}.yml); its skills stay unassessed`);
+      new Logger('Onboarding').warn(
+        `no quiz bank for role "${role}" (expected data/quiz/${role}.yml); its skills stay unassessed`,
+      );
     }
   }
   return banks;

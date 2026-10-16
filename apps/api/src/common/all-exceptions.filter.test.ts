@@ -7,12 +7,24 @@ import { errorCodeForStatus } from './all-exceptions.filter';
 
 @Controller('boom')
 class BoomController {
-  @Get('plain') plain(): never { throw new Error('secret internals'); }
-  @Get('teapot') teapot(): never { throw new HttpException('short and stout', 418); }
-  @Get('array') array(): never { throw new HttpException({ message: ['a bad', 'b bad'] }, 400); }
-  @Get('string') str(): never { throw 'just a string'; }
-  @Post('echo') echo(@Body() body: unknown): unknown { return body; }
-  @Get('extra') extra(): never { throw new HttpException({ message: 'down', db: 'down' }, 503); }
+  @Get('plain') plain(): never {
+    throw new Error('secret internals');
+  }
+  @Get('teapot') teapot(): never {
+    throw new HttpException('short and stout', 418);
+  }
+  @Get('array') array(): never {
+    throw new HttpException({ message: ['a bad', 'b bad'] }, 400);
+  }
+  @Get('string') str(): never {
+    throw 'just a string';
+  }
+  @Post('echo') echo(@Body() body: unknown): unknown {
+    return body;
+  }
+  @Get('extra') extra(): never {
+    throw new HttpException({ message: 'down', db: 'down' }, 503);
+  }
 }
 @Module({ controllers: [BoomController] })
 class BoomModule {}
@@ -63,7 +75,10 @@ describe('AllExceptionsFilter', () => {
 
   it('keeps string messages and extra keys of HttpExceptions', async () => {
     const base = await start();
-    expect(await (await fetch(`${base}/api/boom/teapot`)).json()).toEqual({ error: 'error', message: 'short and stout' });
+    expect(await (await fetch(`${base}/api/boom/teapot`)).json()).toEqual({
+      error: 'error',
+      message: 'short and stout',
+    });
     expect(await (await fetch(`${base}/api/boom/extra`)).json()).toEqual({
       error: 'service_unavailable',
       message: 'down',

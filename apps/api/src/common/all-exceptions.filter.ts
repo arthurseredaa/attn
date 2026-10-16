@@ -48,14 +48,23 @@ export class AllExceptionsFilter implements ExceptionFilter {
       delete extra.statusCode;
       delete extra.error;
       delete extra.message;
-      const text = Array.isArray(message) ? message.join('; ') : typeof message === 'string' ? message : exception.message;
+      const text = Array.isArray(message)
+        ? message.join('; ')
+        : typeof message === 'string'
+          ? message
+          : exception.message;
       // Nest turns body-parser's SyntaxError into a plain BadRequestException carrying V8's
       // parser text (which echoes input); the only signals left are status, JSON content type and text.
       const malformed =
-        status === 400 && !(exception instanceof AppValidationError) && Boolean(req?.is?.('json')) && /JSON at position|Unexpected end of JSON|Unexpected token|is not valid JSON/.test(text) && Object.keys(extra).length === 0;
+        status === 400 &&
+        !(exception instanceof AppValidationError) &&
+        Boolean(req?.is?.('json')) &&
+        /JSON at position|Unexpected end of JSON|Unexpected token|is not valid JSON/.test(text) &&
+        Object.keys(extra).length === 0;
       res.status(status).json({
         error: exception instanceof CodedHttpException ? exception.code : errorCodeForStatus(status),
-        message: malformed ? 'Malformed JSON body' : text, ...extra,
+        message: malformed ? 'Malformed JSON body' : text,
+        ...extra,
       });
       return;
     }

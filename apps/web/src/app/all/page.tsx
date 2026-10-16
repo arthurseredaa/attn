@@ -23,8 +23,7 @@ export default async function AllPage({ searchParams }: { searchParams: Promise<
   try {
     page = await getArticles(filters);
   } catch (e) {
-    if (e instanceof ApiError && e.status === 400)
-      problem = e.message; // hand-edited URL: show it, do not crash
+    if (e instanceof ApiError && e.status === 400) problem = e.message; // hand-edited URL: show it, do not crash
     else throw e;
   }
 

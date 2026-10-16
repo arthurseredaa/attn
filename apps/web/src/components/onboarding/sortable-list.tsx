@@ -100,7 +100,14 @@ export function SortableList({
   }
 
   // An icon button with a tooltip; the aria-label carries the item name.
-  const action = (key: string, Icon: LucideIcon, tip: string, label: string, disabled: boolean, onClick: () => void) => (
+  const action = (
+    key: string,
+    Icon: LucideIcon,
+    tip: string,
+    label: string,
+    disabled: boolean,
+    onClick: () => void,
+  ) => (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
@@ -128,7 +135,10 @@ export function SortableList({
           <li
             key={id}
             {...dragProps(i)}
-            className={cn('flex h-11 items-center gap-2.5 border-b border-border pr-1 pl-1', dragFrom === i && 'opacity-50')}
+            className={cn(
+              'flex h-11 items-center gap-2.5 border-b border-border pr-1 pl-1',
+              dragFrom === i && 'opacity-50',
+            )}
           >
             <GripVertical aria-hidden className="size-4 shrink-0 cursor-grab text-faint" />
             <span className="w-6 shrink-0 font-mono text-[13px] text-primary">#{i + 1}</span>

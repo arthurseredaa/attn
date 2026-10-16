@@ -59,9 +59,7 @@ const envSchema = z.object({
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const parsed = envSchema.safeParse(source);
   if (!parsed.success) {
-    const details = parsed.error.issues
-      .map((i) => `${i.path.join('.') || 'env'}: ${i.message}`)
-      .join('; ');
+    const details = parsed.error.issues.map((i) => `${i.path.join('.') || 'env'}: ${i.message}`).join('; ');
     throw new Error(`Invalid environment: ${details}`);
   }
   const e = parsed.data;

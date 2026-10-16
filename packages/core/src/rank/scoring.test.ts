@@ -8,7 +8,11 @@ import type { RankConfig } from './types';
 
 const taxonomy = loadTaxonomy();
 const [S1, S2, S3, S4, S5] = taxonomy.domains.flatMap((d) => d.skills.map((s) => s.id)) as string[] as [
-  string, string, string, string, string,
+  string,
+  string,
+  string,
+  string,
+  string,
 ];
 const DAY = 86_400_000;
 const ago = (days: number) => new Date(RANK_NOW.getTime() - days * DAY);
@@ -24,7 +28,8 @@ beforeEach(async () => {
 
 const mk = (over: Partial<RankConfig> = {}) =>
   createSqlRanker(db, { config: { ...rankConfig, ...over }, sources: rankSources, taxonomy, now: () => RANK_NOW });
-const scores = async (over: Partial<RankConfig> = {}) => (await mk(over).rankScored(u, { limit: 100, offset: 0 })).map((s) => s.score);
+const scores = async (over: Partial<RankConfig> = {}) =>
+  (await mk(over).rankScored(u, { limit: 100, offset: 0 })).map((s) => s.score);
 const scoredIds = async () => (await mk().rankScored(u, { limit: 100, offset: 0 })).map((s) => s.card.id);
 const focus1 = (over = {}) => giveSkill(db, u, S1, { focusRank: 1, ...over });
 
@@ -49,7 +54,8 @@ describe('score factors', () => {
   it('fit branches', async () => {
     await focus1({ uncertain: true });
     const byD = new Map<number, number>();
-    for (const d of [3, 2, 1, 4]) byD.set(d, await makeArticle(db, { primary: S1, difficulty: d, quality: 4, publishedAt: ago(1 + d) }));
+    for (const d of [3, 2, 1, 4])
+      byD.set(d, await makeArticle(db, { primary: S1, difficulty: d, quality: 4, publishedAt: ago(1 + d) }));
     const by = async (over: Partial<RankConfig> = {}) => {
       const r = await mk(over).rankScored(u, { limit: 100, offset: 0 });
       return (d: number) => r.find((x) => x.card.id === byD.get(d))!.score;
@@ -172,7 +178,7 @@ describe('ordering', () => {
 
   it('rank returns the same ids as rankScored', async () => {
     await focus1();
-    for (let i = 0; i < 4; i++) await makeArticle(db, { primary: S1, difficulty: 2 + (i % 2), quality: 2 + i % 3 });
+    for (let i = 0; i < 4; i++) await makeArticle(db, { primary: S1, difficulty: 2 + (i % 2), quality: 2 + (i % 3) });
     const m = mk();
     const cards = (await m.rank(u, { limit: 10, offset: 0 })).map((c) => c.id);
     expect(cards).toEqual((await m.rankScored(u, { limit: 10, offset: 0 })).map((s) => s.card.id));

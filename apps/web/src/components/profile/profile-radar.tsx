@@ -20,7 +20,13 @@ function wrap(text: string, max: number): string[] {
   return lines;
 }
 
-type TickProps = { x: number | string; y: number | string; index: number; textAnchor: 'start' | 'middle' | 'end' | 'inherit'; payload: { coordinate: number } };
+type TickProps = {
+  x: number | string;
+  y: number | string;
+  index: number;
+  textAnchor: 'start' | 'middle' | 'end' | 'inherit';
+  payload: { coordinate: number };
+};
 
 /**
  * A 0–4 radar of profile values: one axis per point, polygon grid rings at 1–4.
@@ -68,7 +74,9 @@ export function ProfileRadar({
         href={`#domain-${point.id}`}
         className={cn(
           'outline-none hover:underline focus-visible:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-foreground focus-visible:outline-solid',
-          point.focused ? 'fill-signal-foreground font-medium' : 'fill-signal-foreground/65 hover:fill-signal-foreground',
+          point.focused
+            ? 'fill-signal-foreground font-medium'
+            : 'fill-signal-foreground/65 hover:fill-signal-foreground',
         )}
       >
         {text}
@@ -100,7 +108,9 @@ export function ProfileRadar({
           />
           <PolarGrid
             gridType="polygon"
-            stroke={variant === 'focus' ? 'var(--border)' : 'color-mix(in oklab, var(--signal-foreground) 28%, transparent)'}
+            stroke={
+              variant === 'focus' ? 'var(--border)' : 'color-mix(in oklab, var(--signal-foreground) 28%, transparent)'
+            }
           />
           <PolarRadiusAxis domain={[0, 4]} tickCount={5} tick={false} axisLine={false} />
           <PolarAngleAxis dataKey="name" tick={tick} tickLine={false} />

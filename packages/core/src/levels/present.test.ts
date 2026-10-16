@@ -94,7 +94,14 @@ describe('presentQuiz never shows options in level order', () => {
   it('terminates when every order is monotone (all levels equal)', () => {
     const flat: Quiz = {
       version: 1,
-      questions: [{ id: 'flat-1', skill_id: 'flat', situation: 's', options: [0, 1, 2, 3].map((i) => ({ text: `o${i}`, level: 2 as const })) }],
+      questions: [
+        {
+          id: 'flat-1',
+          skill_id: 'flat',
+          situation: 's',
+          options: [0, 1, 2, 3].map((i) => ({ text: `o${i}`, level: 2 as const })),
+        },
+      ],
     };
     expect(presentQuiz(flat, ['flat']).questions[0]!.options).toHaveLength(4);
   });
@@ -120,7 +127,12 @@ describe('presentQuiz over the real bank', () => {
   });
 
   it('keeps the mean position-level correlation near zero', () => {
-    const rs = presented.questions.map((q) => pearson(q.options.map((_, i) => i), levelsOf(q)));
+    const rs = presented.questions.map((q) =>
+      pearson(
+        q.options.map((_, i) => i),
+        levelsOf(q),
+      ),
+    );
     const mean = rs.reduce((a, b) => a + b, 0) / rs.length;
     expect(Math.abs(mean)).toBeLessThan(0.15);
   });

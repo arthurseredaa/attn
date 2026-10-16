@@ -14,8 +14,27 @@ const ACT_NAMES = ['noise', 'collected', 'focus', 'path'];
 const SNAP_CLASS = 'landing-snap';
 
 const NUMBER_WORDS = [
-  'Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
-  'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen', 'Twenty',
+  'Zero',
+  'One',
+  'Two',
+  'Three',
+  'Four',
+  'Five',
+  'Six',
+  'Seven',
+  'Eight',
+  'Nine',
+  'Ten',
+  'Eleven',
+  'Twelve',
+  'Thirteen',
+  'Fourteen',
+  'Fifteen',
+  'Sixteen',
+  'Seventeen',
+  'Eighteen',
+  'Nineteen',
+  'Twenty',
 ];
 
 interface Act {
@@ -69,7 +88,12 @@ function GitHubMark() {
 // ---- the board's wiring -----------------------------------------------------------------------------------------------
 
 /** What the layout needs from the DOM: the act text blocks' positions inside their (stage-sized) sections. */
-function measureView(width: number, height: number, copies: (HTMLElement | null)[], fonts: ReturnType<typeof readFonts>): BoardView {
+function measureView(
+  width: number,
+  height: number,
+  copies: (HTMLElement | null)[],
+  fonts: ReturnType<typeof readFonts>,
+): BoardView {
   const bottom = (el: HTMLElement | null) => (el ? el.offsetTop + el.offsetHeight : 120);
   const h = copies[0];
   // The noise keeps clear of the act-1 text, and on phones also of the brand just above it (index 5). On wide screens
@@ -471,7 +495,8 @@ export function LandingStory({
             active > 3 && 'opacity-0',
           )}
         >
-          <b className="font-medium text-primary">{pad2(Math.min(active, 3) + 1)}</b> / 04 · {ACT_NAMES[Math.min(active, 3)]}
+          <b className="font-medium text-primary">{pad2(Math.min(active, 3) + 1)}</b> / 04 ·{' '}
+          {ACT_NAMES[Math.min(active, 3)]}
         </div>
       </div>
 
@@ -504,7 +529,9 @@ export function LandingStory({
             // against the section.
             <div className="flex flex-1 flex-col max-md:pt-12 md:justify-end">
               <div ref={setCopy(0)} className={cn('relative max-w-[1180px]', COPY_MOTION)}>
-                <h1 className="text-[clamp(46px,8.6vw,140px)] leading-[0.88] font-semibold tracking-[-0.058em]">{act.title}</h1>
+                <h1 className="text-[clamp(46px,8.6vw,140px)] leading-[0.88] font-semibold tracking-[-0.058em]">
+                  {act.title}
+                </h1>
                 <p className={cn(SUB, 'mt-[22px] text-foreground/75')}>{act.sub}</p>
               </div>
               <div className={cn('relative pt-8 max-md:mt-auto md:pt-10', COPY_MOTION)}>

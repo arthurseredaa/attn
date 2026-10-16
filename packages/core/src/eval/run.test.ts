@@ -14,7 +14,12 @@ import { loadGolden } from './golden';
 import { formatEvalReport } from './score';
 import { runEval } from './run';
 
-const config = { label_max_chars: 1000, label_min_chars: 200, label_delay_ms: 10, label_overload_backoff_ms: [2000, 5000] };
+const config = {
+  label_max_chars: 1000,
+  label_min_chars: 200,
+  label_delay_ms: 10,
+  label_overload_backoff_ms: [2000, 5000],
+};
 const ANY: LabelOutput = { primary_skill: 'cc-hooks', secondary_skills: [], difficulty: 1, type: 'news', quality: 1 };
 const html = { headers: { 'Content-Type': 'text/html' } };
 let server: TestServer;

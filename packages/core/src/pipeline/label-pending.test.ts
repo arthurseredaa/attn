@@ -2,7 +2,14 @@ import { eq, getTableColumns, sql } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { articleSkills, articles, type Db } from '../db';
 import { articleHtml } from '../extract/fixtures/html';
-import { createComboLabeler, createFakeLabeler, DEFAULT_FAKE_LABEL, FatalLabelerError, OverloadedError, RateLimitError } from '../label';
+import {
+  createComboLabeler,
+  createFakeLabeler,
+  DEFAULT_FAKE_LABEL,
+  FatalLabelerError,
+  OverloadedError,
+  RateLimitError,
+} from '../label';
 import { resetDb, testDb } from '../test/db';
 import { startServer, type TestServer } from '../test/server';
 import { unexcludeArticle } from './exclude';
@@ -134,8 +141,14 @@ describe('labelPending', () => {
     it("a combo labeler uses main's verdict: below threshold excludes, secondary's verdict is ignored, fallback still gates", async () => {
       const a = await insertArticle(1);
       const b = await insertArticle(2);
-      const main = createFakeLabeler((art) => ({ ...DEFAULT_FAKE_LABEL, relevance: { probability: art.url.endsWith('p1') ? 0.2 : 0.9 } }), 'm');
-      const secondary = createFakeLabeler(() => ({ ...DEFAULT_FAKE_LABEL, secondary_skills: ['cc-mcp-usage'], relevance: { probability: 0.99 } }), 's');
+      const main = createFakeLabeler(
+        (art) => ({ ...DEFAULT_FAKE_LABEL, relevance: { probability: art.url.endsWith('p1') ? 0.2 : 0.9 } }),
+        'm',
+      );
+      const secondary = createFakeLabeler(
+        () => ({ ...DEFAULT_FAKE_LABEL, secondary_skills: ['cc-mcp-usage'], relevance: { probability: 0.99 } }),
+        's',
+      );
       const labeler = createComboLabeler({ model: 'm+s', main, secondary, onSecondaryFallback: () => {} });
       const report = await run(labeler);
       expect(report).toMatchObject({ labeled: 1, excluded: 1, failed: 0 });
@@ -213,7 +226,9 @@ describe('labelPending', () => {
     expect(row.wordCount).toBeGreaterThan(300);
     expect(Object.keys(row).sort()).toEqual(Object.keys(getTableColumns(articles)).sort());
     for (const table of ['articles', 'article_skills', 'source_state']) {
-      const rows = await db.execute<{ j: string }>(sql`select row_to_json(t)::text as j from ${sql.identifier(table)} t`);
+      const rows = await db.execute<{ j: string }>(
+        sql`select row_to_json(t)::text as j from ${sql.identifier(table)} t`,
+      );
       for (const r of rows) expect(r.j).not.toContain('w399');
     }
   });

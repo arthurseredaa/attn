@@ -44,7 +44,12 @@ describe('state -> URL', () => {
         return [k, all.length > 1 ? all : all[0]];
       }),
     );
-    expect(pickFilters(parsed)).toMatchObject({ skill: ['a', 'b'], q: 'agents & more', source: 'src', from: '2026-01-01' });
+    expect(pickFilters(parsed)).toMatchObject({
+      skill: ['a', 'b'],
+      q: 'agents & more',
+      source: 'src',
+      from: '2026-01-01',
+    });
   });
 
   it('writes nothing for empty filters', () => {

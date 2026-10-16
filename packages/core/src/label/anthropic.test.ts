@@ -7,7 +7,13 @@ import { makePublicArticle } from './types';
 
 const taxonomy = loadTaxonomy();
 const article = makePublicArticle({ title: 'Hooks deep dive', url: 'https://e.com/hooks', text: 'Body about hooks.' });
-const valid = { primary_skill: 'cc-hooks', secondary_skills: ['cc-plugins'], difficulty: 3, type: 'deep_dive', quality: 4 };
+const valid = {
+  primary_skill: 'cc-hooks',
+  secondary_skills: ['cc-plugins'],
+  difficulty: 3,
+  type: 'deep_dive',
+  quality: 4,
+};
 
 interface Sent {
   url: string;
@@ -53,7 +59,10 @@ const apiError = (status: number, type: string, msg: string) => ({
 
 function labeler(respond: Parameters<typeof fakeFetch>[0], model = 'claude-haiku-5-5') {
   const f = fakeFetch(respond);
-  return { l: createAnthropicLabeler({ model, taxonomy, apiKey: 'test-key', maxRetries: 0, fetch: f.fetch }), sent: f.sent };
+  return {
+    l: createAnthropicLabeler({ model, taxonomy, apiKey: 'test-key', maxRetries: 0, fetch: f.fetch }),
+    sent: f.sent,
+  };
 }
 
 describe('createAnthropicLabeler', () => {
@@ -116,7 +125,11 @@ describe('createAnthropicLabeler', () => {
   it('counts the usage of a call that reached the model but returned an invalid label', async () => {
     const { l } = labeler(() => ({
       status: 200,
-      body: message('{"primary_skill":"not-a-skill"}', { input_tokens: 40, output_tokens: 9, cache_read_input_tokens: 30 }),
+      body: message('{"primary_skill":"not-a-skill"}', {
+        input_tokens: 40,
+        output_tokens: 9,
+        cache_read_input_tokens: 30,
+      }),
     }));
     const err = await l.label(article).catch((e: unknown) => e);
     expect((err as Error).name).toBe('AI_NoObjectGeneratedError');
@@ -156,7 +169,9 @@ describe('createAnthropicLabeler', () => {
   });
 
   it('maps a 429 rate_limit_error to RateLimitError', async () => {
-    const { l } = labeler(() => apiError(429, 'rate_limit_error', 'Number of request tokens has exceeded your rate limit'));
+    const { l } = labeler(() =>
+      apiError(429, 'rate_limit_error', 'Number of request tokens has exceeded your rate limit'),
+    );
     const err = await l.label(article).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(RateLimitError);
     expect(err).not.toBeInstanceOf(OverloadedError);
@@ -206,6 +221,8 @@ describe('createAnthropicLabeler', () => {
   });
 
   it('constructs with an api key and no network', () => {
-    expect(createAnthropicLabeler({ model: 'claude-haiku-5-5', taxonomy, apiKey: 'dummy' }).model).toBe('claude-haiku-5-5');
+    expect(createAnthropicLabeler({ model: 'claude-haiku-5-5', taxonomy, apiKey: 'dummy' }).model).toBe(
+      'claude-haiku-5-5',
+    );
   });
 });

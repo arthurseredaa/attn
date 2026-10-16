@@ -63,7 +63,10 @@ export default async function ProfilePage() {
         skills={allSkills}
         names={skillNameMap(profile)}
         domainsChart={
-          <section aria-labelledby="radar-domains" className="space-y-1 border border-signal bg-signal p-5 text-signal-foreground">
+          <section
+            aria-labelledby="radar-domains"
+            className="space-y-1 border border-signal bg-signal p-5 text-signal-foreground"
+          >
             <h2 id="radar-domains" className="text-sm font-semibold">
               Domains
             </h2>
@@ -72,7 +75,10 @@ export default async function ProfilePage() {
         }
         focusChart={
           showFocusRadar ? (
-            <section aria-labelledby="radar-focus" className="space-y-1 border border-border bg-card p-5 @max-[699px]:border-t-0 @min-[700px]:border-l-0">
+            <section
+              aria-labelledby="radar-focus"
+              className="space-y-1 border border-border bg-card p-5 @max-[699px]:border-t-0 @min-[700px]:border-l-0"
+            >
               <h2 id="radar-focus" className="text-sm font-semibold">
                 Focus
               </h2>
@@ -85,7 +91,12 @@ export default async function ProfilePage() {
       {profile.domains.map((d) => {
         const open = d.skills.filter((s) => !s.quizzed).map((s) => s.id);
         return (
-          <section key={d.id} id={`domain-${d.id}`} aria-labelledby={`domain-${d.id}-heading`} className="scroll-mt-20 md:scroll-mt-6">
+          <section
+            key={d.id}
+            id={`domain-${d.id}`}
+            aria-labelledby={`domain-${d.id}-heading`}
+            className="scroll-mt-20 md:scroll-mt-6"
+          >
             <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
               <h2 id={`domain-${d.id}-heading`} className="text-lg font-semibold tracking-[-0.01em]">
                 {d.name}

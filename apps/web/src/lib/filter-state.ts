@@ -44,7 +44,8 @@ export function commit(s: FilterBarState): { state: FilterBarState; query: strin
 export const change = (s: FilterBarState, patch: Partial<FilterValues>) => commit(edit(s, patch));
 
 /** Clears every filter, including a search text that has not reached the URL yet. */
-export const clear = (s: FilterBarState) => commit(edit(s, { skill: [], q: '', source: undefined, from: undefined, to: undefined }));
+export const clear = (s: FilterBarState) =>
+  commit(edit(s, { skill: [], q: '', source: undefined, from: undefined, to: undefined }));
 
 /**
  * Server props arrived. If they show something this bar wrote itself, keep `pending` (the user may have typed or

@@ -7,7 +7,8 @@ describe('isOnboardingPath', () => {
     expect(isOnboardingPath('/onboarding/quiz')).toBe(true);
   });
   it('is false elsewhere', () => {
-    for (const p of ['/', '/for-you', '/all', '/profile', '/onboardingx', null]) expect(isOnboardingPath(p)).toBe(false);
+    for (const p of ['/', '/for-you', '/all', '/profile', '/onboardingx', null])
+      expect(isOnboardingPath(p)).toBe(false);
   });
 });
 

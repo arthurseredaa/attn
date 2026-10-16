@@ -280,9 +280,9 @@ describe('quiz marker (Decision 14)', () => {
     await addEvent(db, u, a1, 'too_easy'); // recorded before any quiz
     await rec(a2, 'too_easy');
     expect(await offset()).toBe(1); // both count
-    await db.insert(quizAnswers).values([
-      { userId: u, questionId: `${S2}-1`, firstOption: 0, secondOption: 1, quizVersion: 1 },
-    ]);
+    await db
+      .insert(quizAnswers)
+      .values([{ userId: u, questionId: `${S2}-1`, firstOption: 0, secondOption: 1, quizVersion: 1 }]);
     await rec(a3, 'too_hard');
     expect(await offset()).toBe(0); // (2 - 1) / 3: the S2 answer did not hide the S1 events
     const [a4] = (await articlesOf(1)) as [number];
@@ -393,7 +393,9 @@ describe('errors and isolation', () => {
     const pending = await makeArticle(db, { primary: S1, status: 'pending' });
     const failed = await makeArticle(db, { primary: S1, status: 'failed' });
     const noPrimary = await makeArticle(db, { primary: S2, secondary: [S1] });
-    await db.delete(articleSkills).where(and(eq(articleSkills.articleId, noPrimary), eq(articleSkills.isPrimary, true)));
+    await db
+      .delete(articleSkills)
+      .where(and(eq(articleSkills.articleId, noPrimary), eq(articleSkills.isPrimary, true)));
     for (const id of [999_999, pending, failed, noPrimary]) {
       for (const k of KINDS) await expect(rec(id, k)).rejects.toBeInstanceOf(ArticleNotFoundError);
     }

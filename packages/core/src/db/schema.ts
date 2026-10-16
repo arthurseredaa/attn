@@ -99,7 +99,9 @@ export const articleSkills = pgTable(
   (t) => [
     primaryKey({ columns: [t.articleId, t.skillId] }),
     index('article_skills_skill_id_idx').on(t.skillId),
-    uniqueIndex('article_skills_one_primary_idx').on(t.articleId).where(sql`${t.isPrimary}`),
+    uniqueIndex('article_skills_one_primary_idx')
+      .on(t.articleId)
+      .where(sql`${t.isPrimary}`),
   ],
 );
 

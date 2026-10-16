@@ -15,7 +15,13 @@ export interface Ranker {
 
 export type RankConfig = Pick<
   Config,
-  'quality_min' | 'background_quality_min' | 'fresh_days' | 'background_priority' | 'fit_next' | 'fit_same' | 'fit_stretch'
+  | 'quality_min'
+  | 'background_quality_min'
+  | 'fresh_days'
+  | 'background_priority'
+  | 'fit_next'
+  | 'fit_same'
+  | 'fit_stretch'
 >;
 
 export interface ScoredCard {

@@ -24,7 +24,10 @@ function article(over: Partial<typeof articles.$inferInsert> = {}): typeof artic
 }
 
 async function insertUser(githubId = 1) {
-  const [u] = await db.insert(users).values({ githubId, login: `u${githubId}` }).returning();
+  const [u] = await db
+    .insert(users)
+    .values({ githubId, login: `u${githubId}` })
+    .returning();
   return u!;
 }
 
@@ -56,9 +59,9 @@ describe('schema constraints', () => {
     await db.insert(articleSkills).values({ articleId: a.id, skillId: 'x', isPrimary: true });
     const p = db.insert(articleSkills).values({ articleId: a.id, skillId: 'y', isPrimary: true });
     await expect(p).rejects.toThrow();
-    expect(
-      await pgCode(db.insert(articleSkills).values({ articleId: a.id, skillId: 'z', isPrimary: true })),
-    ).toBe('23505');
+    expect(await pgCode(db.insert(articleSkills).values({ articleId: a.id, skillId: 'z', isPrimary: true }))).toBe(
+      '23505',
+    );
   });
 
   it('allows a non-primary skill next to a primary one', async () => {
@@ -80,9 +83,9 @@ describe('schema constraints', () => {
     await db.insert(articleEvents).values({ userId: u.id, articleId: a.id, kind: 'like' });
     const p = db.insert(articleEvents).values({ userId: u.id, articleId: a.id, kind: 'like' });
     await expect(p).rejects.toThrow();
-    expect(
-      await pgCode(db.insert(articleEvents).values({ userId: u.id, articleId: a.id, kind: 'like' })),
-    ).toBe('23505');
+    expect(await pgCode(db.insert(articleEvents).values({ userId: u.id, articleId: a.id, kind: 'like' }))).toBe(
+      '23505',
+    );
     await db.insert(articleEvents).values({ userId: u.id, articleId: a.id, kind: 'read' });
   });
 

@@ -131,7 +131,8 @@ function withUsageAndLenientRefusals(inner: DecisionModelObject, usage: LabelTok
         else if (id === JEV_QUESTION_IDS.relevant) answers[id] = { type: 'boolean', probability: 1 };
       }
       // A missing relevance answer counts as relevant too; decide would otherwise fail the whole article.
-      if (!(JEV_QUESTION_IDS.relevant in answers)) answers[JEV_QUESTION_IDS.relevant] = { type: 'boolean', probability: 1 };
+      if (!(JEV_QUESTION_IDS.relevant in answers))
+        answers[JEV_QUESTION_IDS.relevant] = { type: 'boolean', probability: 1 };
       return { ...result, answers };
     },
   };
@@ -150,7 +151,8 @@ export function mapJevAnswers(
 ): LabelOutput {
   const choice = (id: string): string => {
     const a = answers[id];
-    if (a?.type !== 'choice') throw new InvalidJevOutputError(`jev gave no choice for "${id}" (got ${a?.type ?? 'nothing'})`);
+    if (a?.type !== 'choice')
+      throw new InvalidJevOutputError(`jev gave no choice for "${id}" (got ${a?.type ?? 'nothing'})`);
     return a.choice;
   };
   const primary = choice(JEV_QUESTION_IDS.primary);

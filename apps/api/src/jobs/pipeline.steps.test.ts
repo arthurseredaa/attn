@@ -135,7 +135,9 @@ describe('labelerFromEnv', () => {
   const keys = { googleApiKey: undefined, anthropicApiKey: undefined, jevApiKey: undefined };
 
   it('is null without LABEL_MODEL or without the key of the chosen provider', () => {
-    expect(labelerFromEnv({ ...keys, labelModel: undefined, googleApiKey: 'k', anthropicApiKey: 'k' }, taxonomy)).toBeNull();
+    expect(
+      labelerFromEnv({ ...keys, labelModel: undefined, googleApiKey: 'k', anthropicApiKey: 'k' }, taxonomy),
+    ).toBeNull();
     expect(labelerFromEnv({ ...keys, labelModel: 'claude-haiku-5-5', googleApiKey: 'k' }, taxonomy)).toBeNull();
     expect(labelerFromEnv({ ...keys, labelModel: 'gemini-3.6-flash', anthropicApiKey: 'k' }, taxonomy)).toBeNull();
   });
@@ -159,8 +161,8 @@ describe('labelerFromEnv', () => {
   });
 
   it('throws at startup on an unknown provider prefix', () => {
-    expect(() => labelerFromEnv({ ...keys, labelModel: 'gpt-5', googleApiKey: 'k', anthropicApiKey: 'k' }, taxonomy)).toThrow(
-      /unknown LABEL_MODEL provider/,
-    );
+    expect(() =>
+      labelerFromEnv({ ...keys, labelModel: 'gpt-5', googleApiKey: 'k', anthropicApiKey: 'k' }, taxonomy),
+    ).toThrow(/unknown LABEL_MODEL provider/);
   });
 });

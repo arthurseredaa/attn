@@ -13,10 +13,21 @@ describe('floodCircle', () => {
   });
   it('covers every corner from any point', () => {
     const [w, h] = [240, 90];
-    for (const [x, y] of [[0, 0], [w, h], [w / 2, h / 2], [w, 0], [17, 63]] as const) {
+    for (const [x, y] of [
+      [0, 0],
+      [w, h],
+      [w / 2, h / 2],
+      [w, 0],
+      [17, 63],
+    ] as const) {
       const { left, top, size } = floodCircle(x, y, w, h);
       const r = size / 2;
-      for (const [cx, cy] of [[0, 0], [w, 0], [0, h], [w, h]] as const) {
+      for (const [cx, cy] of [
+        [0, 0],
+        [w, 0],
+        [0, h],
+        [w, h],
+      ] as const) {
         expect(Math.hypot(cx - (left + r), cy - (top + r))).toBeLessThanOrEqual(r);
       }
     }

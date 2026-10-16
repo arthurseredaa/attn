@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { and, eq, sql } from 'drizzle-orm';
 import { FOCUS_LOCK_NAMESPACE, loadTaxonomy, quizAnswers, userSkills } from '@attn/core';
 import { fixtureQuiz, resetDb } from '@attn/core/testing';
-import { errorBodySchema, profileSchema, quizResponseSchema, type Profile, type Quiz, type Taxonomy } from '@attn/shared';
+import {
+  errorBodySchema,
+  profileSchema,
+  quizResponseSchema,
+  type Profile,
+  type Quiz,
+  type Taxonomy,
+} from '@attn/shared';
 import { startTestApp, type TestApp } from '../test/app';
 import { signIn } from '../test/auth';
 
@@ -94,7 +101,9 @@ describe('GET /api/quiz', () => {
     const a = quizResponseSchema.parse(await (await call('GET', '/quiz?skills=evals', headers)).json());
     expect(a.questions).toEqual([]);
     expect(a.unavailable).toEqual(['evals']);
-    const b = quizResponseSchema.parse(await (await call('GET', '/quiz?skills=cc-hooks,evals,cc-hooks', headers)).json());
+    const b = quizResponseSchema.parse(
+      await (await call('GET', '/quiz?skills=cc-hooks,evals,cc-hooks', headers)).json(),
+    );
     expect(b.questions.map((q) => q.id)).toEqual(['ch-1', 'ch-2']);
     expect(b.unavailable).toEqual(['evals']);
   });
@@ -133,7 +142,9 @@ describe('POST /api/onboarding', () => {
 
   it('allows skipping the quiz', async () => {
     const { headers } = await signIn(ctx);
-    const p = profileSchema.parse(await (await call('POST', '/onboarding', headers, { focus: ['evals'], answers: [] })).json());
+    const p = profileSchema.parse(
+      await (await call('POST', '/onboarding', headers, { focus: ['evals'], answers: [] })).json(),
+    );
     expect(p.focus.map((f) => f.skillId)).toEqual(['evals']);
     expect(allSkills(p).every((s) => !s.assessed && s.uncertain)).toBe(true);
   });
@@ -277,7 +288,10 @@ describe('POST /api/onboarding', () => {
     expect((await form({})).status).toBe(401);
     expect((await form({}, 'PUT', '/focus')).status).toBe(401);
     const me = await signIn(ctx);
-    for (const [method, path] of [['POST', '/onboarding'], ['PUT', '/focus']] as const) {
+    for (const [method, path] of [
+      ['POST', '/onboarding'],
+      ['PUT', '/focus'],
+    ] as const) {
       const res = await form(me.headers, method, path);
       expect(res.status, path).toBe(415);
       expect(await res.json(), path).toEqual({ error: 'unsupported_media_type', message: expect.any(String) });
@@ -310,7 +324,11 @@ describe('POST /api/onboarding', () => {
   it('does not relabel app validation errors or catch trailing junk wrongly', async () => {
     const { headers } = await signIn(ctx);
     const send = (body: string) =>
-      fetch(`${ctx.base}/api/onboarding`, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body });
+      fetch(`${ctx.base}/api/onboarding`, {
+        method: 'POST',
+        headers: { ...headers, 'content-type': 'application/json' },
+        body,
+      });
     for (const key of ['Unexpected token', 'in JSON at position 3']) {
       const res = await send(JSON.stringify({ focus: ['evals'], answers: [], [key]: 1 }));
       expect(res.status).toBe(400);
@@ -350,7 +368,16 @@ describe('quiz banks per role', () => {
 
   beforeEach(async () => {
     await ctx.close();
-    ctx = await startTestApp({}, { quizBanks: new Map([['dev', fixtureQuiz], ['pm', pmQuiz]]), taxonomy });
+    ctx = await startTestApp(
+      {},
+      {
+        quizBanks: new Map([
+          ['dev', fixtureQuiz],
+          ['pm', pmQuiz],
+        ]),
+        taxonomy,
+      },
+    );
     await resetDb(ctx.db);
   });
 
@@ -385,7 +412,9 @@ describe('quiz banks per role', () => {
     expect(quiz).toEqual({ version: 0, questions: [], unavailable: ['ops-only'] });
     const res = await call('POST', '/onboarding', ops.headers, { focus: ['ops-only'], answers: [] });
     expect(res.status).toBe(200);
-    const bad = await call('POST', '/onboarding', ops.headers, { answers: [{ questionId: 'ops-only-1', first: 0, second: 1 }] });
+    const bad = await call('POST', '/onboarding', ops.headers, {
+      answers: [{ questionId: 'ops-only-1', first: 0, second: 1 }],
+    });
     expect(bad.status).toBe(422);
   });
 });
@@ -419,7 +448,12 @@ describe('PUT /api/focus', () => {
 
   it('400 for bad shapes, 422 for unknown skill, focus intact afterwards', async () => {
     const me = await onboarded();
-    const bad: unknown[] = [{ focus: [] }, { focus: ['a', 'b', 'c', 'd', 'e', 'f'] }, { focus: ['evals', 'evals'] }, {}];
+    const bad: unknown[] = [
+      { focus: [] },
+      { focus: ['a', 'b', 'c', 'd', 'e', 'f'] },
+      { focus: ['evals', 'evals'] },
+      {},
+    ];
     for (const b of bad) expect((await call('PUT', '/focus', me.headers, b)).status).toBe(400);
     // no body and no content type: not JSON
     expect((await call('PUT', '/focus', me.headers)).status).toBe(415);

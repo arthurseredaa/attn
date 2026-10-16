@@ -91,12 +91,24 @@ describe('toBoardData', () => {
     const data = toBoardData(
       [
         article(1, [['g', true]]),
-        article(2, [['b', true], ['a', false]]),
-        article(3, [['a', true], ['zzz', false]]),
-        article(4, [['c', true], ['b', false]]),
+        article(2, [
+          ['b', true],
+          ['a', false],
+        ]),
+        article(3, [
+          ['a', true],
+          ['zzz', false],
+        ]),
+        article(4, [
+          ['c', true],
+          ['b', false],
+        ]),
         article(5, [['d', true]]),
         article(6, [['e', true]]),
-        article(7, [['f', true], ['a', false]]),
+        article(7, [
+          ['f', true],
+          ['a', false],
+        ]),
       ],
       sources,
       taxonomy,

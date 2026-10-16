@@ -43,8 +43,7 @@ const sitemap = (id: string, path: string, filter?: Source['filter']): Source =>
 const run = (source: Source, extra: { backfillDays?: number; timeoutMs?: number } = {}) =>
   collectSource({ db, source, config, now, ...extra });
 const rows = () => db.select().from(articles).orderBy(asc(articles.id));
-const stateOf = async (id: string) =>
-  (await db.select().from(sourceState).where(eq(sourceState.sourceId, id)))[0];
+const stateOf = async (id: string) => (await db.select().from(sourceState).where(eq(sourceState.sourceId, id)))[0];
 const counts = (r: Awaited<ReturnType<typeof run>>) => ({
   seen: r.seen,
   inserted: r.inserted,
@@ -75,9 +74,7 @@ describe('rss', () => {
 
   it('second run is not_modified when the server answers 304', async () => {
     server.setRoute('/rss.xml', (req) =>
-      req.headers['if-none-match'] === '"v1"'
-        ? { status: 304 }
-        : fixtureRoute('rss.xml', { ...xml, ETag: '"v1"' }),
+      req.headers['if-none-match'] === '"v1"' ? { status: 304 } : fixtureRoute('rss.xml', { ...xml, ETag: '"v1"' }),
     );
     await run(rss('r', '/rss.xml'));
     const r = await run(rss('r', '/rss.xml'));
@@ -128,7 +125,9 @@ describe('rss', () => {
 
   it('counts and lists items blocked by exclusion rules in filtered, not skipped, and does not insert them', async () => {
     server.setRoute('/f.xml', fixtureRoute('filter.xml'));
-    const r = await run(rss('f', '/f.xml', { exclude_paths: ['/blog/new-office/'], exclude_title_regex: ['^ai thing'] }));
+    const r = await run(
+      rss('f', '/f.xml', { exclude_paths: ['/blog/new-office/'], exclude_title_regex: ['^ai thing'] }),
+    );
     expect(r.inserted).toBe(1);
     expect(r.filtered).toBe(2);
     expect(r.skipped).toBe(0);
@@ -300,7 +299,11 @@ describe('failure isolation', () => {
 
 describe('new cleanup sources (saved fixtures, no network)', () => {
   const feeds: [string, string, string[]][] = [
-    ['philschmid', 'philschmid.xml', ['How to build an agent with Gemini and function calling', 'Context engineering & evals']],
+    [
+      'philschmid',
+      'philschmid.xml',
+      ['How to build an agent with Gemini and function calling', 'Context engineering & evals'],
+    ],
     ['jetbrains-ai', 'jetbrains-ai.xml', ['Using Claude Agent in your IDE', 'Agent skills in practice']],
     ['simon-willison', 'simon-tag.atom', ['Vibe engineering', 'Claude Code tips']],
   ];

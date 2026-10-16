@@ -14,11 +14,24 @@ describe('real data files', () => {
     expect(text).not.toMatch(/[Ѐ-ӿ]/); // no Cyrillic left
   });
   it('sources: exactly the 14 ids (mozilla-ai-blog and jetbrains-ai dropped, simon-willison tag feeds, philschmid added)', () => {
-    const ids = loadSources().map((s) => s.id).sort();
+    const ids = loadSources()
+      .map((s) => s.id)
+      .sort();
     expect(ids).toEqual([
-      'addy-osmani','ai-hero','anthropic-engineering','anthropic-news','claude-dev','cloudflare-ai',
-      'github-blog-ai','hamel-evals','latent-space','mcp-blog','philschmid',
-      'simon-willison','simon-willison-claude-code','vercel',
+      'addy-osmani',
+      'ai-hero',
+      'anthropic-engineering',
+      'anthropic-news',
+      'claude-dev',
+      'cloudflare-ai',
+      'github-blog-ai',
+      'hamel-evals',
+      'latent-space',
+      'mcp-blog',
+      'philschmid',
+      'simon-willison',
+      'simon-willison-claude-code',
+      'vercel',
     ]);
   });
   it('sources: new feeds, and no collect rule for anthropic-news or the new unfiltered sources', () => {
@@ -33,7 +46,14 @@ describe('real data files', () => {
     const by = new Map(loadSources().map((s) => [s.id, s]));
     const rule = (id: string, path: string, title: string | null = 'AI') =>
       exclusionRule({ url: `https://x.test${path}`, title }, by.get(id)?.filter);
-    for (const p of ['/skills', '/skills-catalog', '/newsletter', '/ai-coding-dictionary', '/skills/subscribe', '/workshops/x']) {
+    for (const p of [
+      '/skills',
+      '/skills-catalog',
+      '/newsletter',
+      '/ai-coding-dictionary',
+      '/skills/subscribe',
+      '/workshops/x',
+    ]) {
       expect(rule('ai-hero', p)).not.toBeNull();
     }
     expect(rule('ai-hero', '/skills/tdd')).toBeNull();
@@ -41,7 +61,14 @@ describe('real data files', () => {
     expect(rule('vercel', '/blog/how-rogo-ships-agent-code-on-vercel')).toBe('exclude_path_regex');
     expect(rule('vercel', '/blog/2026-vercel-ai-accelerator-recap')).toBe('exclude_path_regex');
     expect(rule('vercel', '/blog/ai-gateway-ga')).toBeNull();
-    for (const t of ['Birthday Week 2026', "Annual Founders' Letter", 'Everything we launched during X', 'One year of Y', 'Sovereign AI', 'Civil Society']) {
+    for (const t of [
+      'Birthday Week 2026',
+      "Annual Founders' Letter",
+      'Everything we launched during X',
+      'One year of Y',
+      'Sovereign AI',
+      'Civil Society',
+    ]) {
       expect(rule('cloudflare-ai', '/p', t)).toBe('exclude_title_regex');
     }
     expect(rule('cloudflare-ai', '/p', 'Building agents on Workers')).toBeNull();
@@ -52,8 +79,17 @@ describe('real data files', () => {
   });
   it('config: loads and matches spec-stated values', () => {
     const c = loadConfig();
-    expect(c).toMatchObject({ points_per_level: 5, interest_decay: 0.8, interest_min: 0.2,
-      quality_min: 2, background_quality_min: 4, fresh_days: 14, page_size: 20,
-      label_overload_backoff_ms: [2000, 5000, 10000], jev_secondary_threshold: 0.5, relevance_threshold: 0.3 });
+    expect(c).toMatchObject({
+      points_per_level: 5,
+      interest_decay: 0.8,
+      interest_min: 0.2,
+      quality_min: 2,
+      background_quality_min: 4,
+      fresh_days: 14,
+      page_size: 20,
+      label_overload_backoff_ms: [2000, 5000, 10000],
+      jev_secondary_threshold: 0.5,
+      relevance_threshold: 0.3,
+    });
   });
 });

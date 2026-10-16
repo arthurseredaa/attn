@@ -53,7 +53,11 @@ export async function apiGet<T>(
   const json: unknown = await res.json().catch(() => null);
   if (!res.ok) {
     const body = errorBodySchema.safeParse(json);
-    throw new ApiError(res.status, body.success ? body.data : null, body.success ? body.data.message : `API ${res.status}`);
+    throw new ApiError(
+      res.status,
+      body.success ? body.data : null,
+      body.success ? body.data.message : `API ${res.status}`,
+    );
   }
   return schema.parse(json);
 }

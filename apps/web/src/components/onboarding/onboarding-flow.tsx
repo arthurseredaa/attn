@@ -95,7 +95,10 @@ export function OnboardingFlow({
       onClick={() => void cont()}
     >
       Continue
-      <ArrowRight aria-hidden className="transition-transform duration-200 group-hover/continue:translate-x-0.5 motion-reduce:transition-none" />
+      <ArrowRight
+        aria-hidden
+        className="transition-transform duration-200 group-hover/continue:translate-x-0.5 motion-reduce:transition-none"
+      />
     </Button>
   );
   const secondary = (
@@ -106,7 +109,13 @@ export function OnboardingFlow({
 
   return (
     <div className="space-y-10">
-      <FocusPicker taxonomy={taxonomy} role={role} value={focus} onChange={setFocus} onBlocked={() => setNudge((n) => n + 1)} />
+      <FocusPicker
+        taxonomy={taxonomy}
+        role={role}
+        value={focus}
+        onChange={setFocus}
+        onBlocked={() => setNudge((n) => n + 1)}
+      />
       <FocusTray
         items={focus}
         names={skillNames}

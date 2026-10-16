@@ -135,7 +135,8 @@ async function labelCommand(args: string[], env: NodeJS.ProcessEnv, io: Io, deps
         io.err(`provider error: ${report.fatal}; the run was stopped and no further articles were touched`);
         return 1;
       }
-      if (report.rateLimited) io.out('rate limited by the provider; the remaining articles stay pending for the next run');
+      if (report.rateLimited)
+        io.out('rate limited by the provider; the remaining articles stay pending for the next run');
       return 0;
     } finally {
       await close();
@@ -315,7 +316,12 @@ async function collect(args: string[], env: NodeJS.ProcessEnv, io: Io, deps: Dep
   let backfillDays: number | undefined;
   const rawDays = values['backfill-days'];
   if (rawDays !== undefined) {
-    if (!/^\d+$/.test(rawDays) || !Number.isSafeInteger(Number(rawDays)) || Number(rawDays) < 1 || Number(rawDays) > 3650) {
+    if (
+      !/^\d+$/.test(rawDays) ||
+      !Number.isSafeInteger(Number(rawDays)) ||
+      Number(rawDays) < 1 ||
+      Number(rawDays) > 3650
+    ) {
       io.err(`--backfill-days must be an integer from 1 to 3650, got "${rawDays}"`);
       return 1;
     }
@@ -358,7 +364,12 @@ async function collect(args: string[], env: NodeJS.ProcessEnv, io: Io, deps: Dep
   });
 }
 
-export async function run(argv: string[], env: NodeJS.ProcessEnv, io: Io = defaultIo, deps: Deps = {}): Promise<number> {
+export async function run(
+  argv: string[],
+  env: NodeJS.ProcessEnv,
+  io: Io = defaultIo,
+  deps: Deps = {},
+): Promise<number> {
   const [command, ...rest] = argv;
   try {
     switch (command) {

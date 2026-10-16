@@ -7,11 +7,11 @@ services:
       POSTGRES_PASSWORD: attn
       POSTGRES_DB: attn
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U attn -d attn"]
+      test: ['CMD-SHELL', 'pg_isready -U attn -d attn']
       interval: 2s
       retries: 30
 
@@ -24,7 +24,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://attn:attn@postgres:5432/attn
-      PORT: "3001"
+      PORT: '3001'
       APP_URL: ${APP_URL:-http://localhost:3000}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
@@ -34,7 +34,7 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-}
       # SCHEDULE_ENABLED is deliberately not set: the daily collect+label job runs inside this container by default.
     expose:
-      - "3001"
+      - '3001'
 
   web:
     build:
@@ -47,7 +47,7 @@ services:
     environment:
       API_URL: http://api:3001
     ports:
-      - "3000:3000"
+      - '3000:3000'
 
 volumes:
   pgdata:

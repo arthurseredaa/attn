@@ -155,7 +155,11 @@ export function FeedCard({
                 {article.title}
               </a>
             </h2>
-            <ArticleMeta sourceName={article.sourceName} publishedAt={article.publishedAt} wordCount={article.wordCount} />
+            <ArticleMeta
+              sourceName={article.sourceName}
+              publishedAt={article.publishedAt}
+              wordCount={article.wordCount}
+            />
 
             <div className="mt-auto pt-4 sm:pt-[22px]">
               <div className="flex items-center justify-between gap-3">

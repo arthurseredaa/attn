@@ -9,14 +9,8 @@ let dir: string;
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'attn-quiz-'));
   fs.mkdirSync(path.join(dir, 'quiz'));
-  const levels = [0, 1, 2, 3, 4]
-    .map((l) => `  - {level: ${l}, label: L${l}, description: d}`)
-    .join('\n');
-  const skills = ['a', 'b']
-    .map(
-      (id) => `      - {id: ${id}, name: ${id}, description: x, roles: [dev]}`,
-    )
-    .join('\n');
+  const levels = [0, 1, 2, 3, 4].map((l) => `  - {level: ${l}, label: L${l}, description: d}`).join('\n');
+  const skills = ['a', 'b'].map((id) => `      - {id: ${id}, name: ${id}, description: x, roles: [dev]}`).join('\n');
   fs.writeFileSync(
     path.join(dir, 'taxonomy.yml'),
     `version: 1\nlevels:\n${levels}\ndomains:\n  - id: d\n    name: D\n    skills:\n${skills}\n`,
@@ -26,27 +20,20 @@ afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
 
 const question = (id: string, skill: string, levels: number[]) =>
   `  - id: ${id}\n    skill_id: ${skill}\n    situation: s\n    options:\n` +
-  levels
-    .map((l, i) => `      - {text: "${id} opt ${i}", level: ${l}}`)
-    .join('\n') +
+  levels.map((l, i) => `      - {text: "${id} opt ${i}", level: ${l}}`).join('\n') +
   '\n';
-const writeQuiz = (body: string) =>
-  fs.writeFileSync(path.join(dir, 'quiz/dev.yml'), body);
+const writeQuiz = (body: string) => fs.writeFileSync(path.join(dir, 'quiz/dev.yml'), body);
 
 describe('loadQuiz', () => {
   it('returns the parsed bank', () => {
-    writeQuiz(
-      `version: 3\nquestions:\n${question('a-1', 'a', [2, 0, 4, 1])}${question('a-2', 'a', [3, 1, 0, 4])}`,
-    );
+    writeQuiz(`version: 3\nquestions:\n${question('a-1', 'a', [2, 0, 4, 1])}${question('a-2', 'a', [3, 1, 0, 4])}`);
     const quiz = loadQuiz('dev', dir);
     expect(quiz.version).toBe(3);
     expect(quiz.questions.map((x) => x.id)).toEqual(['a-1', 'a-2']);
   });
 
   it('names the file and the issue for an unknown skill', () => {
-    writeQuiz(
-      `version: 1\nquestions:\n${question('z-1', 'z', [2, 0, 4, 1])}${question('z-2', 'z', [3, 1, 0, 4])}`,
-    );
+    writeQuiz(`version: 1\nquestions:\n${question('z-1', 'z', [2, 0, 4, 1])}${question('z-2', 'z', [3, 1, 0, 4])}`);
     expect(() => loadQuiz('dev', dir)).toThrow(/quiz\/dev\.yml/);
     expect(() => loadQuiz('dev', dir)).toThrow(/unknown skill_id z/);
   });
@@ -99,15 +86,11 @@ describe('real quiz bank', () => {
   });
 
   it('keeps the DRAFT header verbatim while it is present', () => {
-    const lines = fs
-      .readFileSync(path.join(dataDir(), 'quiz/dev.yml'), 'utf8')
-      .split('\n');
-    if (lines[0]?.startsWith('# DRAFT'))
-      expect(lines.slice(0, 5)).toEqual(DRAFT_HEADER);
+    const lines = fs.readFileSync(path.join(dataDir(), 'quiz/dev.yml'), 'utf8').split('\n');
+    if (lines[0]?.startsWith('# DRAFT')) expect(lines.slice(0, 5)).toEqual(DRAFT_HEADER);
   });
 
-  const skillOrder = () =>
-    taxonomy.domains.flatMap((d) => d.skills.map((s) => s.id));
+  const skillOrder = () => taxonomy.domains.flatMap((d) => d.skills.map((s) => s.id));
 
   it('covers every dev skill of the taxonomy', () => {
     expect(quizCoverageIssues(bank, taxonomy, 'dev')).toEqual([]);
@@ -139,30 +122,21 @@ describe('real quiz bank', () => {
       if (!a || !b) throw new Error(`${skill}: missing questions`);
       expect(a.situation, skill).not.toBe(b.situation);
       const textsA = new Set(a.options.map((o) => o.text.trim().toLowerCase()));
-      const shared = b.options.filter((o) =>
-        textsA.has(o.text.trim().toLowerCase()),
-      );
+      const shared = b.options.filter((o) => textsA.has(o.text.trim().toLowerCase()));
       expect(shared, skill).toEqual([]);
     }
   });
 
   it('uses every level 0-4 for at least 5% of the options in the whole bank', () => {
-    const levels = bank.questions.flatMap((q) =>
-      q.options.map((o) => o.level),
-    );
+    const levels = bank.questions.flatMap((q) => q.options.map((o) => o.level));
     for (const level of [0, 1, 2, 3, 4]) {
-      expect(
-        levels.filter((l) => l === level).length / levels.length,
-        `level ${level}`,
-      ).toBeGreaterThanOrEqual(0.05);
+      expect(levels.filter((l) => l === level).length / levels.length, `level ${level}`).toBeGreaterThanOrEqual(0.05);
     }
   });
 
   it('uses every level 0-4 across the part-1 bank', () => {
     const levels = new Set(
-      bank.questions
-        .filter((q) => PART_1.includes(q.skill_id))
-        .flatMap((q) => q.options.map((o) => o.level)),
+      bank.questions.filter((q) => PART_1.includes(q.skill_id)).flatMap((q) => q.options.map((o) => o.level)),
     );
     expect([...levels].sort()).toEqual([0, 1, 2, 3, 4]);
   });
@@ -170,8 +144,7 @@ describe('real quiz bank', () => {
   it('keeps texts short enough for the UI', () => {
     for (const q of bank.questions) {
       expect(q.situation.length, q.id).toBeLessThanOrEqual(500);
-      for (const o of q.options)
-        expect(o.text.length, `${q.id}: ${o.text}`).toBeLessThanOrEqual(280);
+      for (const o of q.options) expect(o.text.length, `${q.id}: ${o.text}`).toBeLessThanOrEqual(280);
     }
   });
 
@@ -217,13 +190,8 @@ describe('real quiz bank', () => {
       const all = questions().flatMap((q) => q.options);
       const overall = mean(all.map((o) => o.text.length));
       for (const level of [0, 1, 2, 3, 4]) {
-        const m = mean(
-          all.filter((o) => o.level === level).map((o) => o.text.length),
-        );
-        expect(
-          Math.abs(m - overall) / overall,
-          `level ${level}`,
-        ).toBeLessThanOrEqual(0.1);
+        const m = mean(all.filter((o) => o.level === level).map((o) => o.text.length));
+        expect(Math.abs(m - overall) / overall, `level ${level}`).toBeLessThanOrEqual(0.1);
       }
     });
 
@@ -231,10 +199,7 @@ describe('real quiz bank', () => {
       for (const q of questions()) {
         const m = mean(q.options.map((o) => o.text.length));
         for (const o of q.options) {
-          expect(
-            Math.abs(o.text.length - m) / m,
-            `${q.id}: ${o.text}`,
-          ).toBeLessThanOrEqual(0.15);
+          expect(Math.abs(o.text.length - m) / m, `${q.id}: ${o.text}`).toBeLessThanOrEqual(0.15);
         }
       }
     });
@@ -244,10 +209,7 @@ describe('real quiz bank', () => {
     const allOptions = () => questions().flatMap((q) => q.options);
     const lengthRank = (q: Q, i: number) => {
       const lengths = q.options.map((o) => o.text.length);
-      return (
-        lengths.filter((l) => l < (lengths[i] ?? 0)).length /
-        (lengths.length - 1)
-      );
+      return lengths.filter((l) => l < (lengths[i] ?? 0)).length / (lengths.length - 1);
     };
 
     const PRONOUN = /\b(I|my|me|myself|we|our|us|mine)\b/i;
@@ -304,8 +266,7 @@ describe('real quiz bank', () => {
     // Word lists copied verbatim from the reviewer's heuristic scripts (heur3.py, heur2r.py, extra3.py).
     // They were fixed a priori by the reviewer: do not tune them to the bank text.
     /** Round-2 fixed 10-word mechanism list (R2b). */
-    const NARROW_10 =
-      /\b(hooks?|CI|scripts?|tests?|validat\w*|schema|sandbox\w*|containers?|fail\w*|block\w*)\b/gi;
+    const NARROW_10 = /\b(hooks?|CI|scripts?|tests?|validat\w*|schema|sandbox\w*|containers?|fail\w*|block\w*)\b/gi;
     /** The 10-word list plus check/reject/deny/require (re-review 3, question 2). */
     const NARROW_CONTROL =
       /\b(hooks?|CI|scripts?|tests?|validat\w*|schema|sandbox\w*|containers?|fail\w*|block\w*|check\w*|reject\w*|den(y|ies|ying)|require\w*)\b/gi;
@@ -366,18 +327,13 @@ describe('real quiz bank', () => {
       thatClauses: (t) => count(THAT, t),
       thatControl: (t) => count(THAT, t) + count(CONTROL, t),
       inaction: (t) => count(INACTION, t),
-      narrowBoundaryMinusInaction: (t) =>
-        count(NARROW_10, t) + count(BOUNDARY, t) - count(INACTION, t),
-      engineeringBoundaryMinusInaction: (t) =>
-        count(ENGINEERING, t) + count(BOUNDARY, t) - count(INACTION, t),
+      narrowBoundaryMinusInaction: (t) => count(NARROW_10, t) + count(BOUNDARY, t) - count(INACTION, t),
+      engineeringBoundaryMinusInaction: (t) => count(ENGINEERING, t) + count(BOUNDARY, t) - count(INACTION, t),
       definiteArticles: (t) => count(/\bthe\b/gi, t),
       articles: (t) => count(/\b(a|an|the)\b/gi, t),
       functionWordRatio: (t) => {
         const words = wordTokens(t);
-        return (
-          words.filter((w) => FUNCTION_WORDS.has(w.toLowerCase())).length /
-          words.length
-        );
+        return words.filter((w) => FUNCTION_WORDS.has(w.toLowerCase())).length / words.length;
       },
       operatorOpener: (t) => (OPERATOR_OPENER.test(t) ? 1 : 0),
     };
@@ -393,8 +349,7 @@ describe('real quiz bank', () => {
         const best = Math.max(...scores);
         const picked = q.options.filter((_, i) => scores[i] === best);
         hits += picked.filter((o) => o.level === top).length / picked.length;
-        chance +=
-          q.options.filter((o) => o.level === top).length / q.options.length;
+        chance += q.options.filter((o) => o.level === top).length / q.options.length;
       }
       return { rate: hits / qs.length, chance: chance / qs.length };
     };
@@ -425,8 +380,7 @@ describe('real quiz bank', () => {
         const n = scores.filter((s) => s === best).length;
         return scores.map((s) => (s === best ? 1 / n : 0));
       }
-      const worst =
-        mode === 'dropLowest' ? Math.min(...scores) : Math.max(...scores);
+      const worst = mode === 'dropLowest' ? Math.min(...scores) : Math.max(...scores);
       const keep = scores.map((s) => s !== worst);
       const pool = keep.some(Boolean) ? keep : scores.map(() => true);
       const n = pool.filter(Boolean).length;
@@ -491,10 +445,7 @@ describe('real quiz bank', () => {
           const word = o.text.split(' ')[0] ?? '';
           counts.set(word, (counts.get(word) ?? 0) + 1);
         }
-        expect(
-          Math.max(...counts.values()) / opts.length,
-          `level ${level}`,
-        ).toBeLessThanOrEqual(0.4);
+        expect(Math.max(...counts.values()) / opts.length, `level ${level}`).toBeLessThanOrEqual(0.4);
       }
     });
 
@@ -502,14 +453,11 @@ describe('real quiz bank', () => {
       it.each([
         ['highest', 1],
         ['lowest', -1],
-      ] as const)(
-        'picking the option with the %s value stays near chance (<= chance + 0.12)',
-        (_dir, sign) => {
-          const f = FEATURES[name] as (t: string) => number;
-          const { rate, chance } = solverRate((o) => sign * f(o.text));
-          expect(rate).toBeLessThanOrEqual(chance + 0.12);
-        },
-      );
+      ] as const)('picking the option with the %s value stays near chance (<= chance + 0.12)', (_dir, sign) => {
+        const f = FEATURES[name] as (t: string) => number;
+        const { rate, chance } = solverRate((o) => sign * f(o.text));
+        expect(rate).toBeLessThanOrEqual(chance + 0.12);
+      });
       it.each([
         ['lowest', 1],
         ['highest', -1],
@@ -518,9 +466,7 @@ describe('real quiz bank', () => {
         (_dir, sign) => {
           const f = FEATURES[name] as (t: string) => number;
           const { chance } = solverRate(() => 0);
-          expect(eliminationRate((t) => sign * f(t))).toBeLessThanOrEqual(
-            chance + 0.12,
-          );
+          expect(eliminationRate((t) => sign * f(t))).toBeLessThanOrEqual(chance + 0.12);
         },
       );
       it.each(['max', 'min', 'dropLowest', 'dropHighest'] as const)(
@@ -533,14 +479,7 @@ describe('real quiz bank', () => {
       );
     });
 
-    it.each([
-      'engineering',
-      'control',
-      'definiteArticles',
-      'articles',
-      'functionWordRatio',
-      'operatorOpener',
-    ])(
+    it.each(['engineering', 'control', 'definiteArticles', 'articles', 'functionWordRatio', 'operatorOpener'])(
       'keeps the per-level mean of the %s feature within 20% of the overall mean',
       (name) => {
         const f = FEATURES[name] as (t: string) => number;
@@ -548,9 +487,7 @@ describe('real quiz bank', () => {
         const overall = mean(all.map((o) => f(o.text)));
         expect(overall).toBeGreaterThan(0);
         for (const level of [0, 1, 2, 3, 4]) {
-          const m = mean(
-            all.filter((o) => o.level === level).map((o) => f(o.text)),
-          );
+          const m = mean(all.filter((o) => o.level === level).map((o) => f(o.text)));
           expect(
             Math.abs(m - overall) / overall,
             `level ${level}: ${m.toFixed(2)} vs ${overall.toFixed(2)}`,
@@ -576,17 +513,13 @@ describe('real quiz bank', () => {
       ['hook', /\bhooks?\b/i],
     ] as const)('uses %s at two or more of levels 2-4', (_name, re) => {
       const levels = levelsWith(re);
-      expect(
-        [2, 3, 4].filter((l) => levels.has(l)).length,
-      ).toBeGreaterThanOrEqual(2);
+      expect([2, 3, 4].filter((l) => levels.has(l)).length).toBeGreaterThanOrEqual(2);
     });
 
     it("is not solvable by combining length, 'Write' opener and engineering vocabulary (<= chance + 0.12)", () => {
       const { rate, chance } = solverRate(
         (o, i, q) =>
-          lengthRank(q, i) +
-          (o.text.startsWith('Write') ? 1 : 0) +
-          Math.min(count(ENGINEERING, o.text), 3) / 3,
+          lengthRank(q, i) + (o.text.startsWith('Write') ? 1 : 0) + Math.min(count(ENGINEERING, o.text), 3) / 3,
       );
       expect(rate).toBeLessThanOrEqual(chance + 0.12);
     });
@@ -602,11 +535,7 @@ describe('real quiz bank', () => {
       ];
     };
     /** Top-level hit rate, chance, and expected chosen vs random level of a solver over `qs`. */
-    const solve = (
-      qs: BankQ[],
-      score: (text: string, q: BankQ) => number,
-      mode: Mode,
-    ) => {
+    const solve = (qs: BankQ[], score: (text: string, q: BankQ) => number, mode: Mode) => {
       let hit = 0;
       let chance = 0;
       let picked = 0;
@@ -636,10 +565,8 @@ describe('real quiz bank', () => {
     const FAMILIES: Record<string, RegExp> = {
       'lazy/docs':
         /\b(manually|by hand|past(e|es|ed|ing)|rerun\w*|let the agent|docs?|documented|examples?|defaults?|templates?)\b/i,
-      'rigor adjectives':
-        /\b(fixed|strict|single|verified|versioned|central|required|dedicated|signed|pinned)\b/i,
-      'compound tokens':
-        /(\b\w+-\w+\b|\b[a-z]+[A-Z]\w*\b|\b[A-Z][a-z]+[A-Z]\w*\b|\b[A-Z]{2,}s?\b)/,
+      'rigor adjectives': /\b(fixed|strict|single|verified|versioned|central|required|dedicated|signed|pinned)\b/i,
+      'compound tokens': /(\b\w+-\w+\b|\b[a-z]+[A-Z]\w*\b|\b[A-Z][a-z]+[A-Z]\w*\b|\b[A-Z]{2,}s?\b)/,
     };
 
     describe.each(Object.keys(FAMILIES))('word family: %s', (family) => {
@@ -654,9 +581,7 @@ describe('real quiz bank', () => {
           const overall = mean(all.map((o) => marked(o.text)));
           expect(overall).toBeGreaterThan(0);
           for (const level of [0, 1, 2, 3, 4]) {
-            const share = mean(
-              all.filter((o) => o.level === level).map((o) => marked(o.text)),
-            );
+            const share = mean(all.filter((o) => o.level === level).map((o) => marked(o.text)));
             expect(
               Math.abs(share - overall) / overall,
               `level ${level}: ${share.toFixed(2)} vs ${overall.toFixed(2)}`,
@@ -700,15 +625,11 @@ describe('real quiz bank', () => {
     const situationEcho = (text: string, q: BankQ) => {
       const stems = (t: string) =>
         words(t)
-          .filter(
-            (w) => w.length >= 4 && !FUNCTION_WORDS.has(w.toLowerCase()),
-          )
+          .filter((w) => w.length >= 4 && !FUNCTION_WORDS.has(w.toLowerCase()))
           .map((w) => w.toLowerCase().slice(0, 5));
       const situation = new Set(stems(q.situation));
       const option = stems(text);
-      return option.length === 0
-        ? 0
-        : option.filter((s) => situation.has(s)).length / option.length;
+      return option.length === 0 ? 0 : option.filter((s) => situation.has(s)).length / option.length;
     };
 
     describe.each(['meanIdf', 'situationEcho'])('solver: %s', (feature) => {

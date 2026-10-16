@@ -1,14 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { USER_AGENT } from '../collect/http';
 import { startServer, type TestServer } from '../test/server';
-import {
-  countWords,
-  ExtractError,
-  extractFromHtml,
-  fetchArticleText,
-  limitText,
-  truncateText,
-} from './extract';
+import { countWords, ExtractError, extractFromHtml, fetchArticleText, limitText, truncateText } from './extract';
 import { articleHtml } from './fixtures/html';
 
 describe('countWords', () => {
@@ -139,7 +132,8 @@ describe('fetchArticleText', () => {
 describe('bot-blocked responses', () => {
   const html = articleHtml('A', 100);
   const mk = (init: ResponseInit) =>
-    (async () => new Response(html, { ...init, headers: { 'content-type': 'text/html', ...init.headers } })) as typeof fetch;
+    (async () =>
+      new Response(html, { ...init, headers: { 'content-type': 'text/html', ...init.headers } })) as typeof fetch;
 
   it('reports a 202 with x-amzn-waf-action as bot-blocked', async () => {
     const fetchFn = mk({ status: 202, headers: { 'x-amzn-waf-action': 'challenge' } });

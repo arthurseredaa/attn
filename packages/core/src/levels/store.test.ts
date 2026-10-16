@@ -3,7 +3,15 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { quizAnswers, userSkills, users, type Db } from '../db';
 import { resetDb, testDb } from '../test/db';
 import { FocusError } from './role';
-import { FOCUS_LOCK_NAMESPACE, FocusBusyError, isOnboarded, lockUser, NotOnboardedError, saveOnboarding, setFocus } from './store';
+import {
+  FOCUS_LOCK_NAMESPACE,
+  FocusBusyError,
+  isOnboarded,
+  lockUser,
+  NotOnboardedError,
+  saveOnboarding,
+  setFocus,
+} from './store';
 
 const roles = ['s1', 's2', 's3', 's4', 's5', 's6'];
 const ver = 7;
@@ -92,7 +100,10 @@ describe('saveOnboarding', () => {
         { questionId: 's1-2', first: 1, second: 3 },
       ],
     });
-    await db.update(userSkills).set({ points: 3, difficultyOffset: 1, interest: 0.6 }).where(eq(userSkills.skillId, 's1'));
+    await db
+      .update(userSkills)
+      .set({ points: 3, difficultyOffset: 1, interest: 0.6 })
+      .where(eq(userSkills.skillId, 's1'));
     await db.update(userSkills).set({ level: 4, points: 2, difficultyOffset: -1 }).where(eq(userSkills.skillId, 's2'));
 
     await saveOnboarding(db, {
@@ -104,7 +115,14 @@ describe('saveOnboarding', () => {
         { questionId: 's1-2', first: 3, second: 2 },
       ],
     });
-    expect(await rowOf(u, 's1')).toMatchObject({ level: 3, uncertain: true, points: 0, difficultyOffset: 0, interest: 0.6, focusRank: null });
+    expect(await rowOf(u, 's1')).toMatchObject({
+      level: 3,
+      uncertain: true,
+      points: 0,
+      difficultyOffset: 0,
+      interest: 0.6,
+      focusRank: null,
+    });
     expect(await rowOf(u, 's2')).toMatchObject({ level: 4, points: 2, difficultyOffset: -1, focusRank: 1 });
     const a = await db.select().from(quizAnswers).orderBy(asc(quizAnswers.questionId));
     expect(a.map((x) => [x.questionId, x.firstOption, x.secondOption])).toEqual([
@@ -206,7 +224,7 @@ describe('setFocus', () => {
     const b = ['s1', 's4'];
     await Promise.all(Array.from({ length: 20 }, (_, i) => setFocus(db, u, i % 2 === 0 ? a : b, roles)));
     const r = await ranks(u);
-    const isA = (r.s3 === 1 && r.s2 === 2 && r.s1 === 3 && Object.keys(r).length === 3);
+    const isA = r.s3 === 1 && r.s2 === 2 && r.s1 === 3 && Object.keys(r).length === 3;
     const isB = r.s1 === 1 && r.s4 === 2 && Object.keys(r).length === 2;
     expect(isA || isB).toBe(true);
   });

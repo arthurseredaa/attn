@@ -19,7 +19,11 @@ afterEach(async () => {
   await ctx.close();
 });
 
-async function onboard(userId: string, focus: string[] = [S1], results = [{ skillId: S1, level: 2, uncertain: false }]) {
+async function onboard(
+  userId: string,
+  focus: string[] = [S1],
+  results = [{ skillId: S1, level: 2, uncertain: false }],
+) {
   await saveOnboarding(ctx.db, {
     userId,
     roleSkillIds: roleSkillIds(loadTaxonomy(), 'dev'),
@@ -142,10 +146,14 @@ describe('GET /api/feed', () => {
   describe('skill and q filters', () => {
     it('any-match on primary or secondary, title search, combined', async () => {
       const me = await signIn(ctx);
-      await onboard(me.user.id, [S1, S2], [
-        { skillId: S1, level: 2, uncertain: false },
-        { skillId: S2, level: 2, uncertain: false },
-      ]);
+      await onboard(
+        me.user.id,
+        [S1, S2],
+        [
+          { skillId: S1, level: 2, uncertain: false },
+          { skillId: S2, level: 2, uncertain: false },
+        ],
+      );
       const a = await seed({ primary: S1, title: 'Agents 101' });
       const b = await seed({ primary: S2, secondary: [S1], title: 'Evals 100%' });
       const c = await seed({ primary: S2, title: 'Agents at scale' });
@@ -176,10 +184,14 @@ describe('GET /api/feed', () => {
 
     it('offset paging with filters continues the same filtered list (served minus excluded)', async () => {
       const me = await signIn(ctx);
-      await onboard(me.user.id, [S1, S2], [
-        { skillId: S1, level: 2, uncertain: false },
-        { skillId: S2, level: 2, uncertain: false },
-      ]);
+      await onboard(
+        me.user.id,
+        [S1, S2],
+        [
+          { skillId: S1, level: 2, uncertain: false },
+          { skillId: S2, level: 2, uncertain: false },
+        ],
+      );
       const pageSize = 3;
       ctx.moduleRef.get<Config>(APP_CONFIG, { strict: false }).page_size = pageSize;
       const total = pageSize + 3;

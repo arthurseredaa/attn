@@ -56,11 +56,7 @@ function decodeURIComponentSafe(s: string): string {
 }
 
 async function hasArticles(db: Db, sourceId: string): Promise<boolean> {
-  const rows = await db
-    .select({ id: articles.id })
-    .from(articles)
-    .where(eq(articles.sourceId, sourceId))
-    .limit(1);
+  const rows = await db.select({ id: articles.id }).from(articles).where(eq(articles.sourceId, sourceId)).limit(1);
   return rows.length > 0;
 }
 
@@ -122,9 +118,7 @@ export async function collectSource(
 
     const body = res.body ?? '';
     const isSitemap = source.type === 'sitemap';
-    const entries = isSitemap
-      ? await loadSitemapEntries(source, body, fetchFn, timeoutMs)
-      : parseFeed(body);
+    const entries = isSitemap ? await loadSitemapEntries(source, body, fetchFn, timeoutMs) : parseFeed(body);
     // "First run" = no article from this source exists yet (not: no source_state row).
     const firstRun = isSitemap && !(await hasArticles(db, source.id));
     report.seen = entries.length;

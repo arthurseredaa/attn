@@ -12,11 +12,12 @@ import {
 } from './index';
 
 const skill = (id: string, roles: string[] = ['dev']) => ({ id, name: id, description: 'x', roles });
-const taxonomy = (skills = [skill('a'), skill('b')]): Taxonomy => ({
-  version: 1,
-  levels: [0, 1, 2, 3, 4].map((level) => ({ level, label: `L${level}`, description: 'd' })),
-  domains: [{ id: 'd1', name: 'D1', skills }],
-}) as Taxonomy;
+const taxonomy = (skills = [skill('a'), skill('b')]): Taxonomy =>
+  ({
+    version: 1,
+    levels: [0, 1, 2, 3, 4].map((level) => ({ level, label: `L${level}`, description: 'd' })),
+    domains: [{ id: 'd1', name: 'D1', skills }],
+  }) as Taxonomy;
 
 const q = (id: string, skillId: string, levels: number[], texts?: string[]) => ({
   id,
@@ -74,7 +75,9 @@ describe('skillIdOfQuestionId', () => {
     for (const id of ['cc-hooks', 'cc-hooks-x', 'cc-hooks-', '-1', '1', '']) expect(skillIdOfQuestionId(id)).toBeNull();
   });
   it('is the rule quizBankIssues enforces', () => {
-    expect(quizBankIssues(bank(q('a-b-1', 'a-b', [2, 0, 4, 1]), q('a-b-2', 'a-b', [3, 1, 0, 4])), taxonomy([skill('a-b')]))).toEqual([]);
+    expect(
+      quizBankIssues(bank(q('a-b-1', 'a-b', [2, 0, 4, 1]), q('a-b-2', 'a-b', [3, 1, 0, 4])), taxonomy([skill('a-b')])),
+    ).toEqual([]);
     expect(quizBankIssues(bank(q('a-b-1', 'a', [2, 0, 4, 1]), q('a-2', 'a', [3, 1, 0, 4])), taxonomy())).toEqual([
       'a-b-1: id must be <skill_id>-<n> (skill_id a)',
     ]);
@@ -126,7 +129,12 @@ describe('onboardingBodySchema', () => {
 });
 
 describe('quizResponseSchema', () => {
-  const question = { id: 'a-1', skillId: 'a', situation: 's', options: [0, 1, 2, 3].map((id) => ({ id, text: `t${id}` })) };
+  const question = {
+    id: 'a-1',
+    skillId: 'a',
+    situation: 's',
+    options: [0, 1, 2, 3].map((id) => ({ id, text: `t${id}` })),
+  };
   it('parses a valid response', () => {
     expect(quizResponseSchema.safeParse({ version: 1, questions: [question], unavailable: [] }).success).toBe(true);
   });
@@ -146,8 +154,17 @@ describe('profileSchema', () => {
     likes: { read: 0, liked: 0, share: null },
   };
   const pskill = {
-    id: 'a', name: 'A', description: 'd', level: null, effectiveLevel: 1, assessed: false, quizzed: false,
-    uncertain: true, points: 0, pointsNeeded: 5, focusRank: null,
+    id: 'a',
+    name: 'A',
+    description: 'd',
+    level: null,
+    effectiveLevel: 1,
+    assessed: false,
+    quizzed: false,
+    uncertain: true,
+    points: 0,
+    pointsNeeded: 5,
+    focusRank: null,
   };
   it('parses a minimal profile', () => {
     expect(profileSchema.safeParse(base).success).toBe(true);
@@ -158,7 +175,13 @@ describe('profileSchema', () => {
     expect(profileSchema.safeParse({ ...p, domains: [{ id: 'd', name: 'D', skills: [pskill] }] }).success).toBe(true);
   });
   it('rejects a javascript: history url', () => {
-    const item = { articleId: 1, title: 't', url: 'javascript:alert(1)', sourceName: 's', readAt: '2026-10-14T00:00:00Z' };
+    const item = {
+      articleId: 1,
+      title: 't',
+      url: 'javascript:alert(1)',
+      sourceName: 's',
+      readAt: '2026-10-14T00:00:00Z',
+    };
     expect(profileSchema.safeParse({ ...base, history: { items: [item], total: 1 } }).success).toBe(false);
   });
 });

@@ -169,7 +169,12 @@ describe('GET /api/auth/github/callback', () => {
       if (round === 2) {
         fake.setRoute('/user', {
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ id: 4242, login: 'octocat2', name: 'New Name', avatar_url: 'https://avatars.example/n.png' }),
+          body: JSON.stringify({
+            id: 4242,
+            login: 'octocat2',
+            name: 'New Name',
+            avatar_url: 'https://avatars.example/n.png',
+          }),
         });
       }
       const { state } = await begin();
@@ -230,10 +235,7 @@ describe('GET /api/auth/github/callback', () => {
     const svc = ctx.moduleRef.get(SessionService, { strict: false });
     const { token: oldToken } = await svc.create(other.id);
     const { state } = await begin();
-    const res = await callback(
-      `code=good-code&state=${state}`,
-      `attn_oauth_state=${state}; attn_session=${oldToken}`,
-    );
+    const res = await callback(`code=good-code&state=${state}`, `attn_oauth_state=${state}; attn_session=${oldToken}`);
     expect(res.headers.get('location')).toBe(`${LANDING}/profile`);
     const rows = await ctx.db.select().from(sessions);
     expect(rows).toHaveLength(1);
@@ -246,7 +248,10 @@ describe('GET /api/auth/github/callback', () => {
 
   it('a garbage old session cookie does not break login', async () => {
     const { state } = await begin();
-    const res = await callback(`code=good-code&state=${state}`, `attn_oauth_state=${state}; attn_session=garbage%E0%A4%A`);
+    const res = await callback(
+      `code=good-code&state=${state}`,
+      `attn_oauth_state=${state}; attn_session=garbage%E0%A4%A`,
+    );
     expect(res.headers.get('location')).toBe(`${LANDING}/profile`);
     expect(await counts()).toEqual({ users: 1, sessions: 1 });
   });

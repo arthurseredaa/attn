@@ -56,7 +56,11 @@ export async function lockUser(tx: Tx, userId: string): Promise<void> {
 
 /** Onboarded = the user has at least one user_skills row (plan Decision 3); the one place that rule lives. */
 async function hasSkillRows(q: Db | Tx, userId: string): Promise<boolean> {
-  const rows = await q.select({ one: sql<number>`1` }).from(userSkills).where(eq(userSkills.userId, userId)).limit(1);
+  const rows = await q
+    .select({ one: sql<number>`1` })
+    .from(userSkills)
+    .where(eq(userSkills.userId, userId))
+    .limit(1);
   return rows.length > 0;
 }
 

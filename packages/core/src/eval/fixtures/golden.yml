@@ -1,22 +1,22 @@
-- url: "{{BASE}}/g1"
+- url: '{{BASE}}/g1'
   primary_skill: context-engineering
   secondary_skills: [cc-hooks]
   difficulty: 2
   type: tutorial
   quality: 3
-- url: "{{BASE}}/g2"
+- url: '{{BASE}}/g2'
   primary_skill: cc-hooks
   secondary_skills: []
   difficulty: 3
   type: deep_dive
   quality: 4
-- url: "{{BASE}}/g3"
+- url: '{{BASE}}/g3'
   primary_skill: cc-mcp-usage
   secondary_skills: [cc-plugins, cc-hooks]
   difficulty: 1
   type: release
   quality: 2
-- url: "{{BASE}}/g4"
+- url: '{{BASE}}/g4'
   primary_skill: agent-sdk
   secondary_skills: []
   difficulty: 4

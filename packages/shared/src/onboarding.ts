@@ -26,7 +26,14 @@ export type QuizResponse = z.infer<typeof quizResponseSchema>;
 export const quizQuerySchema = z.object({
   skills: z
     .string()
-    .transform((s) => [...new Set(s.split(',').map((x) => x.trim()).filter(Boolean))])
+    .transform((s) => [
+      ...new Set(
+        s
+          .split(',')
+          .map((x) => x.trim())
+          .filter(Boolean),
+      ),
+    ])
     .pipe(z.array(z.string()).min(1).max(64)),
 });
 

@@ -4,7 +4,16 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { ChevronDown, Search } from 'lucide-react';
 import { MAX_FILTER_SKILLS, MAX_SEARCH_LENGTH, type SourceSummary, type Taxonomy } from '@attn/shared';
-import { change, clear, commit, edit, initFilterState, syncProps, type FilterBarState, type FilterValues } from '@/lib/filter-state';
+import {
+  change,
+  clear,
+  commit,
+  edit,
+  initFilterState,
+  syncProps,
+  type FilterBarState,
+  type FilterValues,
+} from '@/lib/filter-state';
 import { hasActiveFilters, toggleSkill } from '@/lib/filters';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -223,7 +232,13 @@ export function FilterBar({
           </>
         ) : null}
         {active ? (
-          <Button type="button" variant="ghost" size="sm" onClick={clearAll} className="font-normal text-muted-foreground">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={clearAll}
+            className="font-normal text-muted-foreground"
+          >
             Clear filters
           </Button>
         ) : null}

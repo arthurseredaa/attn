@@ -48,11 +48,7 @@ describe('scoreQuiz', () => {
     ]);
   });
   it('returns several skills sorted by skillId', () => {
-    const r = scoreQuiz(
-      fixtureQuiz,
-      [a('ce-1', 2, 4), a('ce-2', 3, 0), a('ch-1', 1, 3), a('ch-2', 2, 3)],
-      1.5,
-    );
+    const r = scoreQuiz(fixtureQuiz, [a('ce-1', 2, 4), a('ce-2', 3, 0), a('ch-1', 1, 3), a('ch-2', 2, 3)], 1.5);
     expect(r.map((x) => x.skillId)).toEqual(['cc-hooks', 'context-engineering']);
     expect(r[0]).toEqual({ skillId: 'cc-hooks', level: 3, uncertain: false });
   });
