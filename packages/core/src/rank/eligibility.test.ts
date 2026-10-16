@@ -206,7 +206,8 @@ describe('card shape and one query', () => {
     const name = (sid: string) => taxonomy.domains.flatMap((d) => d.skills).find((s) => s.id === sid)!.name;
     expect(card.skills.map((s) => s.name)).toEqual([S1, ...[S2, S3].sort()].map(name));
     expect(card).toMatchObject({ sourceId: 'src', sourceName: 'Source One', difficulty: 3, quality: 4, type: 'deep_dive', wordCount: 1000 });
-    expect(cards.find((c) => c.id === unknown)).toMatchObject({ sourceId: 'other', sourceName: 'other' });
+    // A source missing from the configured list (dropped from data/sources.yml) does not rank at all.
+    expect(cards.find((c) => c.id === unknown)).toBeUndefined();
   });
 
   it('issues exactly one statement', async () => {

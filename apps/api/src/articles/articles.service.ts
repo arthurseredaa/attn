@@ -9,6 +9,8 @@ import { decodeCursor, encodeCursor } from './cursor';
 @Injectable()
 export class ArticlesService {
   private readonly sourceNames: Map<string, string>;
+  /** The configured sources (data/sources.yml): articles of a source dropped from the config are not listed. */
+  private readonly sourceIds: string[];
   private readonly skillNames: Map<string, string>;
   private readonly skillIds: ReadonlySet<string>;
 
@@ -19,6 +21,7 @@ export class ArticlesService {
     @Inject(APP_CONFIG) private readonly config: Config,
   ) {
     this.sourceNames = new Map(sources.map((s) => [s.id, s.name]));
+    this.sourceIds = sources.map((s) => s.id);
     this.skillIds = new Set(taxonomySkillIds(taxonomy));
     this.skillNames = new Map(taxonomy.domains.flatMap((d) => d.skills.map((s) => [s.id, s.name] as const)));
   }
@@ -27,7 +30,11 @@ export class ArticlesService {
     const limit = query.limit ?? this.config.page_size;
     const { from, toExclusive } = resolveDateRange(query);
     // Only http(s) urls are served (the card schema rejects anything else); filtering in SQL keeps page sizes and cursors exact.
-    const conds: SQL[] = [eq(articles.labelStatus, 'labeled'), sql`${articles.url} ~* '^https?://'`];
+    const conds: SQL[] = [
+      eq(articles.labelStatus, 'labeled'),
+      sql`${articles.url} ~* '^https?://'`,
+      inArray(articles.sourceId, this.sourceIds),
+    ];
     if (query.source) conds.push(eq(articles.sourceId, query.source));
     assertKnownSkills(query.skill, this.skillIds);
     if (query.skill?.length) {

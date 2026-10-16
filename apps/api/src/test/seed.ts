@@ -1,7 +1,10 @@
-import { articleSkills, articles, loadTaxonomy, users, type Db } from '@attn/core';
+import { articleSkills, articles, loadSources, loadTaxonomy, users, type Db } from '@attn/core';
 import { taxonomySkillIds, type ArticleType, type LabelStatus } from '@attn/shared';
 
 let counter = 0;
+
+/** A configured source (data/sources.yml): listings and the feed only serve articles of configured sources. */
+export const SEED_SOURCE = loadSources()[0]!;
 
 export function skillIds(n: number): string[] {
   const ids = taxonomySkillIds(loadTaxonomy());
@@ -42,7 +45,7 @@ export async function seedArticle(db: Db, o: SeedArticle = {}): Promise<number> 
   const [row] = await db
     .insert(articles)
     .values({
-      sourceId: o.sourceId ?? 'src',
+      sourceId: o.sourceId ?? SEED_SOURCE.id,
       url,
       guid: url,
       title,

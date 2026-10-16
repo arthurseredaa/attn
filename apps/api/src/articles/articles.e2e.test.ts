@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadSources, loadTaxonomy } from '@attn/core';
 import { resetDb } from '@attn/core/testing';
-import { articleCardSchema, articlesPageSchema, type ArticlesPage, type Config } from '@attn/shared';
+import { articleCardSchema, articlesPageSchema, type ArticlesPage, type Config, type Source } from '@attn/shared';
 import { startTestApp, type TestApp } from '../test/app';
 import { seedArticle, skillIds, type SeedArticle } from '../test/seed';
 import { APP_CONFIG } from '../tokens';
 
 let ctx: TestApp;
 const [S1, S2, S3] = skillIds(3) as [string, string, string];
-const realSource = loadSources()[0]!;
+const [realSource, otherSource] = loadSources() as [Source, Source];
 
 beforeEach(async () => {
   ctx = await startTestApp();
@@ -92,18 +92,24 @@ describe('GET /api/articles', () => {
     expect(Object.keys(item!).sort()).toEqual(Object.keys(articleCardSchema.shape).sort());
   });
 
-  it('falls back for unknown source, orphan skill and null word count', async () => {
-    await seed({ sourceId: 'gone-source', primary: 'orphan-skill', wordCount: null });
+  it('falls back for an orphan skill and a null word count', async () => {
+    await seed({ primary: 'orphan-skill', wordCount: null });
     const [item] = (await page()).items;
-    expect(item!.sourceName).toBe('gone-source');
     expect(item!.skills).toEqual([{ id: 'orphan-skill', name: 'orphan-skill', isPrimary: true }]);
     expect(item!.wordCount).toBeNull();
   });
 
+  it('skips articles of a source dropped from the config, also when asked for it', async () => {
+    const kept = await seed();
+    await seed({ sourceId: 'gone-source' });
+    expect(ids(await page())).toEqual([kept]);
+    expect(ids(await page('?source=gone-source'))).toEqual([]);
+  });
+
   it('filters by source; unknown source gives an empty page', async () => {
-    const a = await seed({ sourceId: 'A' });
-    await seed({ sourceId: 'B' });
-    expect(ids(await page('?source=A'))).toEqual([a]);
+    const a = await seed({ sourceId: realSource.id });
+    await seed({ sourceId: otherSource.id });
+    expect(ids(await page(`?source=${realSource.id}`))).toEqual([a]);
     expect(await get('?source=nope')).toEqual({ status: 200, body: { items: [], nextCursor: null } });
   });
 
@@ -194,14 +200,14 @@ describe('GET /api/articles', () => {
   it('combines a filter with a cursor', async () => {
     const a: number[] = [];
     for (let i = 0; i < 5; i++) {
-      a.push(await seed({ sourceId: 'A', publishedAt: at(`2026-02-0${1 + i}T00:00:00.000Z`) }));
-      await seed({ sourceId: 'B', publishedAt: at(`2026-02-0${1 + i}T06:00:00.000Z`) });
+      a.push(await seed({ sourceId: realSource.id, publishedAt: at(`2026-02-0${1 + i}T00:00:00.000Z`) }));
+      await seed({ sourceId: otherSource.id, publishedAt: at(`2026-02-0${1 + i}T06:00:00.000Z`) });
     }
     const walked: number[] = [];
     let cursor: string | null = null;
     do {
-      const p: ArticlesPage = await page(`?source=A&limit=2${cursor ? `&cursor=${cursor}` : ''}`);
-      expect(p.items.every((i) => i.sourceId === 'A')).toBe(true);
+      const p: ArticlesPage = await page(`?source=${realSource.id}&limit=2${cursor ? `&cursor=${cursor}` : ''}`);
+      expect(p.items.every((i) => i.sourceId === realSource.id)).toBe(true);
       walked.push(...ids(p));
       cursor = p.nextCursor;
     } while (cursor);

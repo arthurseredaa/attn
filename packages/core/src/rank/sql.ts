@@ -59,6 +59,11 @@ export class SqlRanker implements Ranker {
                         and f.skill_id = any(array[${sql.join(skills.map((k) => sql`${k}`), sql`, `)}]::text[]))`
       : sql``;
     const titleFilter = q ? sql`and a.title ilike ${`%${escapeLike(q)}%`}` : sql``;
+    // Only the configured sources: articles of a source dropped from data/sources.yml stop ranking.
+    const sourceIds = sql`array[${sql.join(
+      this.deps.sources.map((s) => sql`${s.id}`),
+      sql`, `,
+    )}]::text[]`;
     const rows = (await this.db.execute(sql`
       with cand as (
         select a.id, a.source_id, a.url, a.title, a.published_at, a.word_count,
@@ -71,6 +76,7 @@ export class SqlRanker implements Ranker {
         join user_skills us on us.user_id = ${userId}::uuid and us.skill_id = p.skill_id
         where a.label_status = 'labeled'
           and a.url ~* '^https?://'
+          and a.source_id = any(${sourceIds})
           and a.quality >= ${c.quality_min}::int
           and (us.focus_rank is not null or a.quality >= ${c.background_quality_min}::int)
           and (a.type not in ('release', 'news') or a.published_at >= ${freshSince}::timestamptz)

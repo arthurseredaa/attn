@@ -4,7 +4,7 @@ import { resetDb } from '@attn/core/testing';
 import { errorBodySchema, profileSchema, type Profile } from '@attn/shared';
 import { startTestApp, type TestApp } from '../test/app';
 import { signIn } from '../test/auth';
-import { seedArticle, skillIds } from '../test/seed';
+import { SEED_SOURCE, seedArticle, skillIds } from '../test/seed';
 
 let ctx: TestApp;
 
@@ -97,7 +97,7 @@ describe('GET /api/profile', () => {
     ]);
     const p = profileSchema.parse(await (await getProfile(me.headers)).json());
     expect(p.history.total).toBe(1);
-    expect(p.history.items[0]).toMatchObject({ articleId, sourceName: 'src' });
+    expect(p.history.items[0]).toMatchObject({ articleId, sourceName: SEED_SOURCE.name });
     expect(p.likes).toEqual({ read: 1, liked: 1, share: 1 });
   });
 

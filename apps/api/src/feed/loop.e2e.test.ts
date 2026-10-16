@@ -5,7 +5,7 @@ import { resetDb } from '@attn/core/testing';
 import { feedPageSchema, profileSchema, type EventKind, type FeedPage, type Profile } from '@attn/shared';
 import { startTestApp, type TestApp } from '../test/app';
 import { signIn } from '../test/auth';
-import { seedArticle, skillIds, type SeedArticle } from '../test/seed';
+import { SEED_SOURCE, seedArticle, skillIds, type SeedArticle } from '../test/seed';
 
 let ctx: TestApp;
 let headers: Record<string, string>;
@@ -93,7 +93,7 @@ describe('feed -> events -> profile loop', () => {
     for (const h of p.history.items) {
       expect(h.title).toMatch(/^Article /);
       expect(h.url).toMatch(/^https:\/\/example\.com\/a\//);
-      expect(h.sourceName).toBe('src');
+      expect(h.sourceName).toBe(SEED_SOURCE.name);
       expect(new Date(h.readAt).toISOString()).toBe(h.readAt);
     }
     const times = p.history.items.map((h) => Date.parse(h.readAt));

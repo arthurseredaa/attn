@@ -21,7 +21,10 @@ beforeEach(async () => {
   await resetDb(db);
 });
 
-const seed = () => seedDemoArticles(db, { taxonomy, sourceIds: ['a', 'b'], now });
+const sourceIds = ['a', 'b'];
+const seed = () => seedDemoArticles(db, { taxonomy, sourceIds, now });
+// The ranker only serves configured sources, so it gets the demo's.
+const demoSources = sourceIds.map((id) => ({ ...rankSources[0]!, id, name: id }));
 
 describe('seedDemoArticles', () => {
   it('inserts labeled demo articles with one primary skill each', async () => {
@@ -118,7 +121,7 @@ describe('seedDemoArticles', () => {
     for (const [i, s] of skills.entries()) {
       await giveSkill(db, u, s, i === 0 ? { focusRank: 1, level: 2, uncertain: false } : {});
     }
-    const ranker = createSqlRanker(db, { config: rankConfig, sources: rankSources, taxonomy, now: () => now });
+    const ranker = createSqlRanker(db, { config: rankConfig, sources: demoSources, taxonomy, now: () => now });
     const cards = await ranker.rank(u, { limit: 20, offset: 0 });
     expect(cards.length).toBeGreaterThan(0);
     const primary = (c: (typeof cards)[number]) => c.skills.find((k) => k.isPrimary)!.id;
