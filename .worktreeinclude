@@ -1,0 +1,10 @@
+# Gitignored files Claude Code copies into each new worktree (.gitignore syntax;
+# only files that are also gitignored get copied). See
+# https://code.claude.com/docs/en/worktrees#copy-gitignored-files-into-worktrees
+
+# Secrets and local config (see .env.example)
+.env
+**/.env.local
+
+# Eval text cache (README, Evaluation): avoids refetching golden articles
+.cache/
