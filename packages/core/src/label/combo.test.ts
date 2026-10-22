@@ -4,7 +4,7 @@ import { APICallError } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 import { loadTaxonomy } from '../data';
 import { createGeminiLabeler } from './gemini';
-import { createComboLabeler, mergeSecondarySkills, parseLabelModel } from './combo';
+import { createComboLabeler, mergeComboFields, mergeSecondarySkills, parseLabelModel } from './combo';
 import { createLabeler, labelProvidersFor, labelerConfigError } from './factory';
 import { FatalLabelerError, OverloadedError, RateLimitError } from './errors';
 import { createFakeLabeler } from './fake';
@@ -118,7 +118,66 @@ describe('mergeSecondarySkills', () => {
   });
 });
 
+describe('mergeComboFields', () => {
+  it('with [secondary_skills] equals mergeSecondarySkills', () => {
+    expect(mergeComboFields(mainOut, secOut, ['secondary_skills'])).toEqual(
+      mergeSecondarySkills(mainOut, secOut.secondary_skills),
+    );
+  });
+  it('takes only the named fields from the secondary', () => {
+    expect(mergeComboFields(mainOut, secOut, ['difficulty', 'quality'])).toEqual({
+      ...mainOut,
+      difficulty: 1,
+      quality: 1,
+    });
+    expect(mergeComboFields(mainOut, secOut, ['type'])).toEqual({ ...mainOut, type: 'news' });
+  });
+  it('merges secondary skills against main primary when combined with other fields', () => {
+    expect(mergeComboFields(mainOut, secOut, ['difficulty', 'secondary_skills'])).toEqual({
+      ...mainOut,
+      difficulty: 1,
+      secondary_skills: ['cc-mcp-usage', 'cc-plugins'],
+    });
+  });
+});
+
 describe('createComboLabeler', () => {
+  it('takes difficulty and quality from the secondary when configured, the rest from main', async () => {
+    const onFallback = vi.fn();
+    const labeler = createComboLabeler({
+      model: 'main-m+sec-m',
+      main: createFakeLabeler(() => ({ ...mainOut, relevance: { probability: 0.2 } }), 'main-m'),
+      secondary: createFakeLabeler(() => secOut, 'sec-m'),
+      fields: ['difficulty', 'quality'],
+      onSecondaryFallback: onFallback,
+    });
+    expect(await labeler.label(article)).toEqual({
+      ...mainOut,
+      difficulty: 1,
+      quality: 1,
+      relevance: { probability: 0.2 },
+    });
+    expect(onFallback).not.toHaveBeenCalled();
+  });
+
+  it('keeps all of main when the secondary fails with fields configured', async () => {
+    const onFallback = vi.fn();
+    const labeler = createComboLabeler({
+      model: 'main-m+sec-m',
+      main: createFakeLabeler(() => mainOut, 'main-m'),
+      secondary: createGeminiLabeler({
+        model: 'sec-m',
+        taxonomy,
+        languageModel: failingModel(api(503)),
+        maxRetries: 0,
+      }),
+      fields: ['difficulty', 'quality'],
+      onSecondaryFallback: onFallback,
+    });
+    expect(await labeler.label(article)).toEqual(mainOut);
+    expect(onFallback).toHaveBeenCalledTimes(1);
+  });
+
   it('takes main fields and the secondary labeler secondary skills (minus main primary)', async () => {
     const { labeler, onFallback } = combo(okModel(mainOut), okModel(secOut));
     expect(await labeler.label(article)).toEqual({ ...mainOut, secondary_skills: ['cc-mcp-usage', 'cc-plugins'] });

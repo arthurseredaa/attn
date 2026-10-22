@@ -183,11 +183,14 @@ Without the model or its key, or with any other prefix (`unknown LABEL_MODEL pro
 anything and names the problem.
 
 **Combo.** `LABEL_MODEL=<main>+<secondary>` (e.g. `claude-haiku-5-5+gemini-3.5-flash-lite`) labels each article with
-both models in parallel. The result is the main model's label (primary skill, type, difficulty, quality) with its
-secondary skills replaced by the secondary model's, minus the main primary skill, deduped, at most 3. Both parts go
+both models in parallel. The result is the main model's label with the fields listed in `label_combo_fields`
+(`data/config.yml`) taken from the secondary model. The default, `[secondary_skills]`, replaces only the secondary
+skills: the secondary model's, minus the main primary skill, deduped, at most 3. Other choices are `difficulty`,
+`quality` and `type` (e.g. `[difficulty, quality]` with `typesafe-ai/jev+claude-haiku-5-5`); the primary skill and the
+relevance verdict are always the main model's. Both parts go
 through the same checks (each needs its own key; an empty part or a second `+` exits 1 at startup). If the secondary
-call fails for any reason (429, overload, invalid output, a fatal error of that provider), the article keeps the main
-model's own secondary skills, one `warning: secondary labeler ...` line is logged, and the run continues; only a main
+call fails for any reason (429, overload, invalid output, a fatal error of that provider), the article keeps all of
+the main model's own fields, one `warning: secondary labeler ...` line is logged, and the run continues; only a main
 model failure behaves as before (fatal or 429 stops the run). The stored `label_model` is the full combo string, and
 `eval` token totals cover both calls with a per-model breakdown.
 

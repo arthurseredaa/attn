@@ -51,18 +51,21 @@ export function resolveLabelerFactory(
   model: string,
   env: NodeJS.ProcessEnv,
   deps: Deps,
-  config?: Pick<Config, 'jev_secondary_threshold'>,
+  config?: Pick<Config, 'jev_secondary_threshold' | 'label_combo_fields'>,
 ): ((model: string, taxonomy: Taxonomy) => Labeler) | { error: string } {
   if (deps.makeLabeler) return deps.makeLabeler;
   const error = labelerConfigError(model, env);
   if (error !== undefined) return { error };
-  return (m, taxonomy) =>
-    createLabeler({
+  return (m, taxonomy) => {
+    const c = config ?? loadConfig(env.ATTN_DATA_DIR ?? dataDir());
+    return createLabeler({
       model: m,
       taxonomy,
       env,
-      jevSecondaryThreshold: (config ?? loadConfig(env.ATTN_DATA_DIR ?? dataDir())).jev_secondary_threshold,
+      jevSecondaryThreshold: c.jev_secondary_threshold,
+      comboFields: c.label_combo_fields,
     });
+  };
 }
 
 async function withPipelineLock(url: string, io: Io, fn: () => Promise<number>): Promise<number> {

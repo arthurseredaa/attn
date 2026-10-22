@@ -1,4 +1,4 @@
-import type { Taxonomy } from '@attn/shared';
+import type { ComboField, Taxonomy } from '@attn/shared';
 import { createAnthropicLabeler } from './anthropic';
 import { createComboLabeler, parseLabelModel } from './combo';
 import { FatalLabelerError } from './errors';
@@ -64,6 +64,8 @@ export interface CreateLabelerOptions {
   maxRetries?: number;
   /** `jev_secondary_threshold` from data/config.yml; used only by the typesafe-ai/* labeler. */
   jevSecondaryThreshold?: number;
+  /** `label_combo_fields` from data/config.yml: what a combo takes from its second model. */
+  comboFields?: readonly ComboField[];
   /** Receives one line per combo fallback (the secondary labeler failed); defaults to console.warn. */
   warn?: (line: string) => void;
 }
@@ -76,12 +78,14 @@ export function createLabeler(opts: CreateLabelerOptions): Labeler {
   if (secondary === undefined) return createSingleLabeler(main, opts);
   const warn = opts.warn ?? ((line: string) => console.warn(line));
   const { provider } = labelProviderFor(secondary);
+  const kept = (opts.comboFields ?? ['secondary_skills']).join(', ');
   return createComboLabeler({
     model: opts.model,
     main: createSingleLabeler(main, opts),
     secondary: createSingleLabeler(secondary, opts),
+    ...(opts.comboFields ? { fields: opts.comboFields } : {}),
     onSecondaryFallback: (reason) =>
-      warn(`warning: secondary labeler ${secondary} (${provider}) failed, kept main's secondary skills: ${reason}`),
+      warn(`warning: secondary labeler ${secondary} (${provider}) failed, kept main's ${kept}: ${reason}`),
   });
 }
 

@@ -17,6 +17,9 @@ label_overload_backoff_ms: [2000, 5000, 10000]
 # Label (typesafe-ai/jev only): a skill becomes a secondary skill when jev's probability that the article substantially
 # covers it is at least this value (0-1]. Up to 3, highest first, never the primary skill.
 jev_secondary_threshold: 0.5
+# Label (combo LABEL_MODEL=<main>+<secondary> only): fields taken from the secondary model; every other field, and
+# relevance, stays main's. Any of: secondary_skills, difficulty, quality, type.
+label_combo_fields: [secondary_skills]
 # Label (typesafe-ai/jev only): relevance gate. jev also answers "is this article useful: does it teach or meaningfully
 # inform at least one skill in our skill map?". When its probability of "yes" is below this value (0-1], the article is
 # marked excluded instead of labeled. A refused or missing answer counts as relevant. Claude/Gemini labelers have no gate.

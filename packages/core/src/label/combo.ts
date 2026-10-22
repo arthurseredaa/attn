@@ -1,4 +1,4 @@
-import type { LabelOutput } from '@attn/shared';
+import type { ComboField, LabelOutput } from '@attn/shared';
 import { FatalLabelerError } from './errors';
 import type { LabelResult, LabelTokenUsage, Labeler, PublicArticle } from './types';
 
@@ -37,6 +37,20 @@ export function mergeSecondarySkills<T extends LabelOutput>(main: T, secondarySk
   return { ...main, secondary_skills: merged };
 }
 
+/** Main's label with the named fields taken from the secondary's; secondary skills merge as in mergeSecondarySkills. */
+export function mergeComboFields<T extends LabelOutput>(
+  main: T,
+  secondary: LabelOutput,
+  fields: readonly ComboField[],
+): T {
+  let out: T = { ...main };
+  for (const f of fields) {
+    if (f === 'secondary_skills') out = mergeSecondarySkills(out, secondary.secondary_skills);
+    else out = { ...out, [f]: secondary[f] };
+  }
+  return out;
+}
+
 function sum(a: LabelTokenUsage, b: LabelTokenUsage): LabelTokenUsage {
   const total: LabelTokenUsage = {
     inputTokens: a.inputTokens + b.inputTokens,
@@ -55,7 +69,9 @@ export interface ComboLabelerOptions {
   model: string;
   main: Labeler;
   secondary: Labeler;
-  /** Called once per secondary failure that fell back to main's own secondary skills. */
+  /** Fields taken from the secondary (`label_combo_fields`); default `['secondary_skills']`. */
+  fields?: readonly ComboField[];
+  /** Called once per secondary failure that fell back to main's own fields. */
   onSecondaryFallback: (reason: string) => void;
 }
 
@@ -66,12 +82,13 @@ function shortReason(e: unknown): string {
 }
 
 /**
- * Calls both labelers in parallel. The label is main's, with secondary skills from the secondary labeler. Any
- * secondary failure keeps main's own secondary skills; main's relevance verdict (if any) is kept unchanged and the secondary's is ignored; a main failure is thrown as is (so fatal, 429 and overload
+ * Calls both labelers in parallel. The label is main's, with the configured fields (default: secondary skills) from
+ * the secondary labeler. Any secondary failure keeps main's own fields; main's relevance verdict (if any) is kept unchanged and the secondary's is ignored; a main failure is thrown as is (so fatal, 429 and overload
  * handling stay exactly the main labeler's).
  */
 export function createComboLabeler(opts: ComboLabelerOptions): Labeler {
   const { main, secondary } = opts;
+  const fields = opts.fields ?? ['secondary_skills'];
   return {
     model: opts.model,
     async label(article: PublicArticle): Promise<LabelResult> {
@@ -81,7 +98,7 @@ export function createComboLabeler(opts: ComboLabelerOptions): Labeler {
         opts.onSecondaryFallback(shortReason(s.reason));
         return m.value;
       }
-      return mergeSecondarySkills(m.value, s.value.secondary_skills);
+      return mergeComboFields(m.value, s.value, fields);
     },
     usage() {
       return sum(main.usage?.() ?? ZERO, secondary.usage?.() ?? ZERO);

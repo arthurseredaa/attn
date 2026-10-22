@@ -156,6 +156,7 @@ describe('labelerFromEnv', () => {
     expect(
       labelerFromEnv({ ...keys, labelModel: 'typesafe-ai/jev', jevApiKey: 'vck_k' }, taxonomy, {
         jev_secondary_threshold: 0.6,
+        label_combo_fields: ['secondary_skills'],
       })?.model,
     ).toBe('typesafe-ai/jev');
   });

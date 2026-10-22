@@ -66,7 +66,7 @@ export function createPipelineSteps(deps: PipelineStepsDeps): PipelineSteps {
 export function labelerFromEnv(
   env: Pick<Env, 'labelModel' | 'googleApiKey' | 'anthropicApiKey' | 'jevApiKey'>,
   taxonomy: Taxonomy,
-  config?: Pick<Config, 'jev_secondary_threshold'>,
+  config?: Pick<Config, 'jev_secondary_threshold' | 'label_combo_fields'>,
 ): Labeler | null {
   if (!env.labelModel) return null;
   const keys = {
@@ -79,6 +79,8 @@ export function labelerFromEnv(
     model: env.labelModel,
     taxonomy,
     env: keys,
-    ...(config ? { jevSecondaryThreshold: config.jev_secondary_threshold } : {}),
+    ...(config
+      ? { jevSecondaryThreshold: config.jev_secondary_threshold, comboFields: config.label_combo_fields }
+      : {}),
   });
 }

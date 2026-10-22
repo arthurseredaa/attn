@@ -157,6 +157,17 @@ describe('configSchema', () => {
     expect(configSchema.safeParse({ ...config, relevance_threshold: 0 }).success).toBe(false);
     expect(configSchema.safeParse({ ...config, relevance_threshold: 1.5 }).success).toBe(false);
   });
+  it('defaults label_combo_fields to [secondary_skills]', () => {
+    expect(configSchema.parse(config).label_combo_fields).toEqual(['secondary_skills']);
+  });
+  it('accepts a list of combo fields and rejects empty, unknown or duplicate ones', () => {
+    expect(configSchema.parse({ ...config, label_combo_fields: ['difficulty', 'quality'] }).label_combo_fields).toEqual(
+      ['difficulty', 'quality'],
+    );
+    expect(configSchema.safeParse({ ...config, label_combo_fields: [] }).success).toBe(false);
+    expect(configSchema.safeParse({ ...config, label_combo_fields: ['primary_skill'] }).success).toBe(false);
+    expect(configSchema.safeParse({ ...config, label_combo_fields: ['quality', 'quality'] }).success).toBe(false);
+  });
   it('rejects a missing jev_secondary_threshold', () => {
     const rest: Partial<typeof config> = { ...config };
     delete rest.jev_secondary_threshold;
