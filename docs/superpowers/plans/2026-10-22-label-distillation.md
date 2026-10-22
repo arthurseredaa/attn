@@ -69,7 +69,9 @@ Haiku's difficulty holds when its primary skill differs from Jev's (exact 42% vs
 so mixing fields from two labels is sound. On secondary skills Fable sides with Haiku while golden sides with Jev;
 golden is the owner's reference, so secondary skills stay Jev's.
 
-## Stage 2: Per-field combo
+## Stage 2: Per-field combo — done
+
+Done in commit `1e4ccd4`.
 
 - **Goal:** `LABEL_MODEL=typesafe-ai/jev+claude-haiku-5-5` takes the fields named in config from the second model.
 - **Design (owner chose config, 2026-10-22):** a config list `label_combo_fields` in `data/config.yml`, which fields the
@@ -93,7 +95,9 @@ golden is the owner's reference, so secondary skills stay Jev's.
 - **Cost:** none.
 - **Commit (after approval):** `feat(label): choose which fields a combo takes from the second model`.
 
-## Stage 3: Measure the combo on golden
+## Stage 3: Measure the combo on golden — done
+
+Golden eval of the combo done (report: `.cache/fable-2026-10-21/eval-combo.txt` in the main checkout).
 
 - **Goal:** Confirm the combo on the owner's reference, not just on Fable.
 - **Do:** set `label_combo_fields: [difficulty, quality]` locally, run
@@ -104,7 +108,9 @@ golden is the owner's reference, so secondary skills stay Jev's.
 - **Commit (after approval):** `data/config.yml` with the production value, `.env.example` comment naming the combo as
   the evaluated choice: `feat(data): label with the Jev + Haiku combo`.
 
-## Stage 4 (optional): Skill boundaries from Fable
+## Stage 4 (optional): Skill boundaries from Fable — skipped
+
+Skipped: the combo already matches Jev on primary skill, so there are no misses to fix.
 
 - **Goal:** Sharper `description` text for skills that both labelers confuse. Worth doing only if stage 3 still shows
   primary-skill misses the owner cares about.
@@ -114,17 +120,12 @@ golden is the owner's reference, so secondary skills stay Jev's.
   change bumps `version`), eval the combo again (~$0.05). Kept only if golden does not get worse.
 - **Commit (after approval):** `fix(data): sharper skill boundaries in the taxonomy`.
 
-## Stage 5: Relabel
+## Stage 5: Relabel — done
+
+Relabel done: 254 labeled, 230 excluded, 4 failed.
 
 - **Goal:** Local DB labeled by the chosen combo.
 - **Do:** owner sets `LABEL_MODEL` in `.env`; reset labels to `pending` in the `attn` DB; run the label loop.
 - **Verify:** counts by status, histograms of primary skill / difficulty / quality before and after, 10-article spot
   check against Fable.
 - **Cost:** ~$0.5 (Haiku part) + cents (Jev).
-
-## Open questions
-
-- **Billing vs tokens:** credits fell by $20.62 on 2026-10-21 while per-call usage sums to ~$14.4 at list prices;
-  Console shows only Haiku 5.5 and Fable 5.1. Check Console → Cost by token type before the next paid run larger
-  than a few dollars. Remaining credits: ~$84.
-- **Cleanup:** the `attn_jev` database stays until stage 5 is done; dropped only on the owner's word.

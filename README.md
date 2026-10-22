@@ -457,16 +457,17 @@ The MVP is done when the owner judges that ATTN covers their own use case. Then 
 and its scheduled task disabled, not before. This repo does not do that.
 
 Verifiably done in this repo: collect, label, eval, onboarding and quiz, For you, feedback, Profile. A CI workflow
-(`.github/workflows/ci.yml`) is configured but has never run: the repo has no remote yet.
+(`.github/workflows/ci.yml`) runs on GitHub and is green.
 
 Owner hand-off:
 
 - Choose `LABEL_MODEL` from `attn eval` results against `data/golden/draft.yml` (the accepted Claude-drafted
-  reference) and set it in `.env`.
+  reference): done, the Jev + Haiku combo, see
+  [docs/superpowers/plans/2026-10-22-label-distillation.md](docs/superpowers/plans/2026-10-22-label-distillation.md).
 - Review the quiz DRAFT using [docs/quiz-owner-review.md](docs/quiz-owner-review.md).
 - Set GitHub OAuth credentials and do a real sign-in round trip (never exercised here).
-- Build the Docker images (never built in the authoring environment).
-- Push to GitHub and see CI green.
+- Build the Docker images: built and run locally with `docker compose` (2026-10).
+- Push to GitHub and see CI green: done.
 - Decide on openai-news (dropped: Cloudflare 403, see Known limitations).
 - Run ATTN for a trial period, then archive the old `ai-news` repo and disable its scheduled task (owner's call).
 
