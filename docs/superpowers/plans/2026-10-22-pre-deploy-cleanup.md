@@ -58,7 +58,7 @@ worktrees and branches removed. No deploy work here.
 
 ## Stage 2: Record the chosen labeler in .env.example
 
-- [ ] **Goal:** a new setup sees which `LABEL_MODEL` was evaluated and chosen.
+- [x] **Goal:** a new setup sees which `LABEL_MODEL` was evaluated and chosen.
 - **Files:** `.env.example` only: a comment next to the existing `LABEL_MODEL` comments, e.g.
   `# Evaluated choice (2026-10-22): typesafe-ai/jev+claude-haiku-5-5 with label_combo_fields [difficulty, quality]`
   `# in data/config.yml (docs/superpowers/plans/2026-10-22-label-distillation.md). Needs JEV_API_KEY and ANTHROPIC_API_KEY.`
