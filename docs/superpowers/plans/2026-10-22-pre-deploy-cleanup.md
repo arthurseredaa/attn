@@ -68,7 +68,7 @@ worktrees and branches removed. No deploy work here.
 
 ## Stage 3: Refresh docs and record the deploy TODO
 
-- [ ] **Goal:** docs match reality before deploy planning starts.
+- [x] **Goal:** docs match reality before deploy planning starts.
 - **Files:**
   - `README.md`, section "MVP done-criteria and hand-off": the CI sentence ("configured but has never run: the repo
     has no remote yet") → CI runs on GitHub and is green; "Choose `LABEL_MODEL`…" → done (combo, with a pointer to
