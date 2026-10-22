@@ -1,155 +1,130 @@
-# Label Distillation Plan (Fable → Haiku / Jev)
+# Labeler Choice Plan: per-field Jev + Haiku combo
 
 > Staged execution: one stage at a time. After each stage, stop, show what changed and the verification output, and
 > wait for the owner's explicit approval before the next one. Commit and push a stage only after it is approved.
 
-**Goal:** Make the cheap labelers (`claude-haiku-5-5`, `typesafe-ai/jev`) label closer to a strong reference by turning
-the disagreements between them and Claude Fable 5.1 into explicit rules: sharper skill boundaries in
-`data/taxonomy.yml`, calibrated rubrics in `packages/core/src/label/prompt.ts` and, for Haiku, a few worked examples.
-Then pick `LABEL_MODEL` by eval and relabel.
+**Goal:** Pick the production labeler by measurement. Jev is the best labeler for primary skill, type, secondary
+skills and relevance; Haiku is the best for difficulty and quality. Build a combo that takes each field from the model
+that is best at it, measure it on golden, and switch `LABEL_MODEL` to it.
 
-**Approach:** Prompt-level distillation, no fine-tuning. Fable is the teacher on a training set; the golden set is only
-ever used to measure. A rule stays only if eval on golden does not get worse.
+**History:** the first version of this plan (commit `3605c2b`) distilled Fable's labels into rules for Haiku. Stage 0
+showed Jev already close to Fable on primary skill and best on secondary skills, so the rules-for-Haiku stages were
+dropped in favour of a per-field combo. Skill-boundary rules survive as an optional stage 4.
 
-**Budget:** about $5 of API credits in total (stage costs below). Planning price for Fable on this labeler:
-~$0.042 per article (measured: 485 calls cost ~$20.4 on 2026-10-21; the token-based estimate was lower, see
-Open questions).
+## Data (2026-10-21, local DB)
 
-## Starting data (2026-10-21)
-
-Collected 488 articles (all 14 sources, `backfill_days: 180`) into the local `attn` database and labeled them three
-ways with the project's own labeler and prompt:
+Collected 488 articles (all 14 sources, `backfill_days: 180`) and labeled them with the project's own labeler and
+prompt:
 
 | Labeler | Where | Result |
 | --- | --- | --- |
 | `claude-haiku-5-5` | DB `attn` | 484 labeled, 4 failed (fetch) |
 | `typesafe-ai/jev` | DB `attn_jev` (copy of `attn`) | 263 labeled, 221 excluded by the relevance gate, 4 failed |
-| `claude-fable-5-1` | `.cache/fable-2026-10-21/fable.jsonl` (DB untouched) | 484 labeled, $13.91 by token count |
+| `claude-fable-5-1` | `.cache/fable-2026-10-21/fable.jsonl` (DB untouched) | 484 labeled |
 
-Agreement with Fable on the 263 articles Jev kept:
+Files in `.cache/fable-2026-10-21/` (gitignored, kept out of git on purpose): `fable.jsonl`, `haiku.tsv`, `jev.tsv`
+(`id|status|primary|secondaries|type|difficulty|quality`), `compare.py`, `combo_check.py`, `fable-run.mts`,
+`label-loop.sh`, `eval-baseline-*.txt`.
 
-| | primary | type | difficulty exact / ±1 | quality exact / ±1 |
-| --- | --- | --- | --- | --- |
-| Haiku | 51% | 76% | 43% / 96% | 51% / 98% |
-| Jev | 73% | 89% | 20% / 71% | 33% / 93% |
-
-Findings that drive the rules:
-
-1. Haiku uses `agent-verification` and `context-engineering` as catch-alls. Fable moves Haiku's `agent-verification`
-   to `ai-code-governance` (9), `evals` (7), `prompt-injection` (7), `cc-skills-commands` (7); Haiku's
-   `context-engineering` to `cc-skills-commands` (6), `spec-driven-workflow` (3).
-2. Jev's main primary confusion: `evals` → `model-selection` (6).
-3. Both overrate difficulty and quality against Fable. Haiku is +1 on about half the articles and almost never off by
-   2. Jev is +1..+3 on difficulty for 179 of 263 (75 of them by 2 or more).
-4. Jev's relevance gate looks right: of the 221 excluded, Fable gave quality 1 to 174, 2 to 41, and 3 to only 6.
-
-Files in `.cache/fable-2026-10-21/` (gitignored, not in git on purpose): `fable.jsonl` (one line per article: id, label,
-usage, cost), `haiku.tsv` and `jev.tsv` (exported labels: `id|status|primary|secondaries|type|difficulty|quality`),
-`compare.py` (the agreement report above), `fable-run.mts` (resumable Fable run with a cost cap), `label-loop.sh`
-(runs `attn label` until nothing is pending).
+43 of the 58 golden articles are among the 488 collected ones. Anything learned from the 488 (stage 4) excludes them.
 
 ## Global constraints
 
-- **Train/test split.** 43 of the 58 golden articles are among the 488 collected ones. They are excluded from every
-  training step (dossier, rule proposals, examples). Training set = the other 441. Golden is only for `attn eval`.
-- `data/golden/` is not edited (owner's reference; `.claude/rules/data.md`). If Fable disagrees with golden, that is
-  reported, not "fixed".
-- Fable is a stronger labeler, not ground truth: it labeled with the same prompt at the lowest effort. Every rule it
-  proposes is reviewed by the owner before it goes in.
+- `data/golden/` is not edited (owner's reference; `.claude/rules/data.md`).
+- Fable is a stronger labeler, not ground truth: it labeled with the same prompt at the lowest effort, and on golden
+  it is worse than Haiku at exact difficulty (stage 0).
 - `pnpm attn label` / `pnpm attn eval` and every Fable call are paid: each paid run is named with its estimated cost
   and runs only after the owner says yes.
-- `.env` is never read or printed; scripts load it with `process.loadEnvFile('.env')`.
-- Skill ids in `taxonomy.yml` are not renamed or removed; only `description` text changes.
-- Commits: conventional style with scope (`feat(label): ...`, `fix(data): ...`, `docs(plan): ...`), no Claude
-  attribution lines.
+- `.env` is never read or printed. Scripts get `DATABASE_URL` from the environment or `process.loadEnvFile('.env')`.
+  (`label-loop.sh` greps `.env` and is fixed before it is used again.)
+- Tunable choices go in `data/config.yml`, not in code.
+- Commits: conventional style with scope, no Claude attribution lines.
 
-## Stage 0: Baseline on golden
+## Stage 0: Baseline on golden — done
 
-- **Goal:** Starting numbers for all three models on golden, and a check of the teacher: golden was itself drafted by
-  Claude, so if Fable disagrees with it a lot, either Fable or golden needs a look before Fable writes rules.
+`pnpm attn eval` on all 58 golden articles, 0 failures each. Cost: Fable ~$2.4, Haiku ~$0.03, Jev ~$0.02.
+
+| golden (58) | Fable 5.1 | Haiku 5.5 | Jev |
+| --- | --- | --- | --- |
+| primary_skill | 75.9% | 55.2% | 70.7% |
+| secondary_skills | 30.3% | 20.3% | 51.3% |
+| difficulty exact / ±1 | 50.0% / 98.3% | 56.9% / 98.3% | 36.2% / 91.4% |
+| type | 91.4% | 86.2% | 86.2% |
+| quality ±1 | 100% | 96.6% | 93.1% |
+
+Reading: Jev is within 3 articles of Fable on primary skill and far ahead on secondary skills; its weak field is
+difficulty. Haiku is the best at exact difficulty. 58 articles is a small sample: 5 points is about 3 articles.
+
+## Stage 1: Free combo check against Fable — done
+
+`combo_check.py` on the 263 articles Jev kept, every label compared with Fable's (no model calls):
+
+| vs Fable (263) | primary | type | secondary (Jaccard) | difficulty exact / ±1 | quality exact / ±1 |
+| --- | --- | --- | --- | --- | --- |
+| Haiku | 50.6% | 75.7% | 31.7% | 43.0% / 95.8% | 50.6% / 98.1% |
+| Jev | 73.4% | 89.0% | 20.5% | 20.2% / 71.1% | 32.7% / 93.2% |
+| Combo (Jev + Haiku's difficulty, quality) | 73.4% | 89.0% | 20.5% | 43.0% / 95.8% | 50.6% / 98.1% |
+
+Haiku's difficulty holds when its primary skill differs from Jev's (exact 42% vs 44% when they agree, ±1 96% both),
+so mixing fields from two labels is sound. On secondary skills Fable sides with Haiku while golden sides with Jev;
+golden is the owner's reference, so secondary skills stay Jev's.
+
+## Stage 2: Per-field combo
+
+- **Goal:** `LABEL_MODEL=typesafe-ai/jev+claude-haiku-5-5` takes the fields named in config from the second model.
+- **Design (owner chose config, 2026-10-22):** a config list `label_combo_fields` in `data/config.yml`, which fields the
+  second model supplies. Default `[secondary_skills]` keeps today's combo behaviour exactly; the production setting
+  would be `[difficulty, quality]`. Alternative considered: a field list in the model string itself; rejected because
+  tunable choices live in config.
 - **Do:**
-  - `pnpm attn eval --model claude-haiku-5-5` (~$0.05)
-  - `pnpm attn eval --model typesafe-ai/jev` (cents, Vercel balance)
-  - `pnpm attn eval --model claude-fable-5-1` (~$2.5)
-  - Save each report to `.cache/fable-2026-10-21/eval-baseline-<model>.txt`.
-- **Files:** none in git.
-- **Verify:** three reports, each with `evaluated=` close to 58 and the metric lines (`primary_skill`,
-  `secondary_skills`, `difficulty_exact`, `difficulty_within1`, `type`, `quality_within1`). Summary table in the
-  stage report.
-- **Gate:** if Fable's `primary_skill` on golden is not clearly above Haiku's and Jev's, stop and discuss before
-  stage 1.
+  - `packages/shared`: add `label_combo_fields` to the config schema (allowed values: `secondary_skills`, `difficulty`,
+    `quality`, `type`; non-empty, no duplicates; default `[secondary_skills]`).
+  - `packages/core/src/label/combo.ts`: generalise the merge from secondary skills to the configured fields.
+    `secondary_skills` keeps `mergeSecondarySkills` (minus main's primary, deduped, at most 3). Relevance stays main's.
+    On a secondary failure all configured fields stay main's, with the existing one-line warning.
+  - `factory.ts` / `cli.ts` / the API job: pass the config value through to `createComboLabeler`.
+  - `data/config.yml`: add the key with the default value and a comment.
+  - README, Labeling → Combo: describe the setting.
+- **Tests (first):** `combo.test.ts` — default reproduces today's output byte for byte; `[difficulty, quality]` takes
+  those two from the secondary and everything else from main; secondary failure keeps main's fields and warns;
+  config schema rejects unknown and duplicate fields.
+- **Verify:** `pnpm exec vitest run packages/core/src/label/ packages/core/src/data.real.test.ts`, then `pnpm test`,
+  `pnpm typecheck`, `pnpm lint`, `pnpm format:check`.
+- **Cost:** none.
+- **Commit (after approval):** `feat(label): choose which fields a combo takes from the second model`.
 
-## Stage 1: Disagreement dossier
+## Stage 3: Measure the combo on golden
 
-- **Goal:** 30–40 representative cases where Haiku or Jev disagree with Fable, grouped by pattern, for the owner to
-  check and for Fable to learn from.
-- **Do:** a script in `.cache/fable-2026-10-21/` that reads `haiku.tsv`, `jev.tsv`, `fable.jsonl` and the article
-  titles and URLs from the `attn` DB, drops the 43 golden URLs, and writes `dossier.md`:
-  - primary-skill confusion pairs with at least 3 cases (findings 1 and 2), 3–5 articles each;
-  - difficulty and quality overrating, 5–8 articles per field across the scale;
-  - per case: title, URL, Haiku / Jev / Fable labels.
-- **Files:** none in git.
-- **Verify:** `dossier.md` exists; no golden URL in it (checked by the script, count printed); the owner reads it and
-  strikes any case where Fable itself looks wrong.
-- **Cost:** none (no model calls).
+- **Goal:** Confirm the combo on the owner's reference, not just on Fable.
+- **Do:** set `label_combo_fields: [difficulty, quality]` locally, run
+  `pnpm attn eval --model typesafe-ai/jev+claude-haiku-5-5` (~$0.05), save to
+  `.cache/fable-2026-10-21/eval-combo.txt`.
+- **Verify:** primary, type and secondary within one article of Jev's stage 0 numbers; difficulty and quality within
+  one article of Haiku's. A bigger gap means the merge is wrong, not the models: back to stage 2.
+- **Commit (after approval):** `data/config.yml` with the production value, `.env.example` comment naming the combo as
+  the evaluated choice: `feat(data): label with the Jev + Haiku combo`.
 
-## Stage 2: Fable proposes rules
+## Stage 4 (optional): Skill boundaries from Fable
 
-- **Goal:** Draft rules from the reviewed dossier.
-- **Do:** one Fable call (higher effort than labeling) with the dossier, the current skill descriptions, the rubrics
-  and `LABELING_GUIDANCE`, asking for:
-  1. new `description` text for each skill in a confusion pair, naming the boundary (the style already used by
-     `cc-plugins` / `cc-skills-commands` and `ai-code-governance`);
-  2. calibration lines for the difficulty and quality rubrics (what a 2 vs a 3 looks like);
-  3. 10–15 short worked examples (title, 1–2 sentence summary, label, one-sentence reason), training set only.
-  Article text is fetched again for the dossier cases, cut to `label_max_chars`.
-- **Files:** `.cache/fable-2026-10-21/proposals.md` (not in git).
-- **Verify:** the owner reads the proposals and marks which to take.
-- **Cost:** ~$1–2.
+- **Goal:** Sharper `description` text for skills that both labelers confuse. Worth doing only if stage 3 still shows
+  primary-skill misses the owner cares about.
+- **Do:** dossier of primary-skill confusions from the 441 non-golden articles (`agent-verification`,
+  `context-engineering`, `evals` / `model-selection` pairs), owner review, one Fable call for proposed descriptions
+  (~$1–2), owner picks, edit `data/taxonomy.yml` (ids unchanged; decide with the owner whether a description-only
+  change bumps `version`), eval the combo again (~$0.05). Kept only if golden does not get worse.
+- **Commit (after approval):** `fix(data): sharper skill boundaries in the taxonomy`.
 
-## Stage 3: Skill boundaries and rubrics
+## Stage 5: Relabel
 
-- **Goal:** Apply the accepted rules where both labelers see them.
-- **Do:**
-  - `data/taxonomy.yml`: new `description` text for the accepted skills. Both labelers read descriptions: Haiku via
-    `buildSystemPrompt`, Jev via the per-question `instructions` in `jev.ts`.
-  - `packages/core/src/label/prompt.ts`: calibration lines in `DIFFICULTY_RUBRIC` / `QUALITY_RUBRIC`. Jev picks these
-    constants up through `jev.ts`, so `jev.ts` does not change.
-  - Decide with the owner whether a description change bumps `taxonomy.version` (it is stored per article as
-    `taxonomy_version`; `docs/decisions.md` has no rule for description-only edits).
-  - Update `prompt.test.ts` / taxonomy tests only where they pin the changed text.
-- **Verify:**
-  - `pnpm exec vitest run packages/core/src/data.real.test.ts packages/core/src/quiz-data.test.ts` (data rule)
-  - `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm format:check`
-  - `attn eval` for Haiku and Jev (~$0.1), compared with stage 0 per metric. A change that makes any metric worse by
-    more than one article's worth is reverted or reworded, then re-measured.
-- **Commit (after approval):** `feat(label): sharper skill boundaries and calibrated rubrics from Fable review`.
-
-## Stage 4 (optional): Worked examples for Haiku
-
-- **Goal:** Give Haiku the accepted examples. They go into the cached system prompt, so they cost almost nothing per
-  call.
-- **Do:** an `## Examples` block in `buildSystemPrompt` (`prompt.ts`), examples kept as a constant next to the
-  rubrics. Jev gets none (no system prompt; adding them to every question would multiply input tokens).
-- **Verify:** `pnpm test` (`prompt.test.ts` covers the new block), `pnpm typecheck`; `attn eval` for Haiku (~$0.05),
-  compared with stage 3. Kept only if not worse.
-- **Commit (after approval):** `feat(label): worked examples in the labeling prompt`.
-
-## Stage 5: Pick LABEL_MODEL and relabel
-
-- **Goal:** Choose the production labeler from the stage 3–4 eval numbers and relabel the local DB with it.
-- **Candidates:** `claude-haiku-5-5`, `typesafe-ai/jev`, or a combo. Jev's strengths (primary, type, relevance gate)
-  and Haiku's (difficulty, quality) may favour a combo; the current combo only takes secondary skills from the second
-  model, so a per-field combo would be a separate change, proposed here and not built.
-- **Do:** set `LABEL_MODEL` in `.env` (owner), reset labels to `pending` in the `attn` DB, run `label-loop.sh`.
-- **Verify:** label distribution before and after (primary skill, difficulty, quality histograms), 10-article spot
-  check against Fable labels.
-- **Cost:** Haiku ~$0.5 for 488 articles; Jev cents.
-- **Commit (after approval):** `.env.example` comment with the chosen model and why, if it changes.
+- **Goal:** Local DB labeled by the chosen combo.
+- **Do:** owner sets `LABEL_MODEL` in `.env`; reset labels to `pending` in the `attn` DB; run the label loop.
+- **Verify:** counts by status, histograms of primary skill / difficulty / quality before and after, 10-article spot
+  check against Fable.
+- **Cost:** ~$0.5 (Haiku part) + cents (Jev).
 
 ## Open questions
 
-- **Billing vs tokens:** credits fell by $20.62 on 2026-10-21 while the per-call usage sums to ~$14.4 at list
-  prices; Console usage shows only Haiku 5.5 and Fable 5.1. Check Console → Cost by token type before the next paid
-  run larger than a few dollars.
-- **Cleanup:** the `attn_jev` database stays until stage 5 is done; drop it only on the owner's word.
+- **Billing vs tokens:** credits fell by $20.62 on 2026-10-21 while per-call usage sums to ~$14.4 at list prices;
+  Console shows only Haiku 5.5 and Fable 5.1. Check Console → Cost by token type before the next paid run larger
+  than a few dollars. Remaining credits: ~$84.
+- **Cleanup:** the `attn_jev` database stays until stage 5 is done; dropped only on the owner's word.
