@@ -50,7 +50,7 @@ worktrees and branches removed. No deploy work here.
 
 ## Stage 1: Label up to 100 articles per daily run
 
-- [ ] **Goal:** the daily job keeps up with spikes of new articles.
+- [x] **Goal:** the daily job keeps up with spikes of new articles.
 - **Files:** `data/config.yml` (`label_batch: 20` → `100`; keep the comment above it accurate). README only if it
   states the number 20 for `label_batch` (line ~220 says "at most `label_batch`", which stays).
 - **Verify:** the data tests above; `pnpm format:check`; `git diff` shows only the intended lines.

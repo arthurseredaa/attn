@@ -1,7 +1,7 @@
 # Collect: entries older than this many days are ignored (seeds the evergreen library on first run).
 backfill_days: 180
 # Label: maximum articles labeled per run (oldest pending first).
-label_batch: 20
+label_batch: 100
 # Label: delay between sequential labeler calls (between articles), in milliseconds.
 label_delay_ms: 4000
 # Label: extracted article text is truncated to this many characters before it is sent to the model.
