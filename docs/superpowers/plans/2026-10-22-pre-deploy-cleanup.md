@@ -91,7 +91,7 @@ worktrees and branches removed. No deploy work here.
 
 ## Stage 4: Remove leftover worktrees and branches
 
-- [ ] **Goal:** only `main` and this branch remain.
+- [x] **Goal:** only `main` and this branch remain.
 - **Where:** git commands against the main repo (`git -C /Users/arthursereda/Projects/attn …`); nothing in this PR.
 - **Do:**
   1. `git log main..worktree-deploy` and `git log main..test` must both be empty; if not, stop and report.
@@ -105,6 +105,6 @@ worktrees and branches removed. No deploy work here.
 
 ## Finish
 
-- [ ] Open a PR `chore/pre-deploy-cleanup` → `main` with `gh pr create`: title `chore: pre-deploy cleanup`, body listing
+- [x] Open a PR `chore/pre-deploy-cleanup` → `main` with `gh pr create`: title `chore: pre-deploy cleanup`, body listing
   the three commits and stage 4's result, no Claude attribution. Give the owner the link; the owner reviews and merges.
 - After the merge (owner's call): remove this worktree.
